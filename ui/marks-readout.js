@@ -10,14 +10,23 @@ const isFrame = (value) => typeof value === "number";
  * The three rows. Each is `{ set, text }`; `text` is null when the row is not set.
  * The length is set only when both marks are and the out mark is after the in mark.
  * `format(frame, rate)` is the app's own timecode writer.
+ *
+ * `liveEnd` (frames, optional) is the take's place while recording: with an in mark and
+ * no out mark the length row runs from the in mark to it, flagged `live: true` so the
+ * corner can say it keeps counting. A set out mark always wins over the live end.
  */
-export function readoutRows({ inPoint, outPoint }, rate, format) {
+export function readoutRows({ inPoint, outPoint }, rate, format, liveEnd = null) {
   const at = (frame) => (isFrame(frame) ? { set: true, text: format(frame, rate) } : null);
   const both = isFrame(inPoint) && isFrame(outPoint) && outPoint > inPoint;
+  const live = !both && isFrame(inPoint) && isFrame(liveEnd) && liveEnd > inPoint;
   return {
     in: at(inPoint) ?? { set: false, text: null },
     out: at(outPoint) ?? { set: false, text: null },
-    length: both ? at(outPoint - inPoint) : { set: false, text: null },
+    length: both
+      ? at(outPoint - inPoint)
+      : live
+        ? { ...at(liveEnd - inPoint), live: true }
+        : { set: false, text: null },
   };
 }
 

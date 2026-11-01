@@ -46,7 +46,7 @@ describe("play from a few seconds before the playhead", () => {
 });
 
 describe("the commands the app registers", () => {
-  function setup(state = {}) {
+  function setup(state = {}, recordingFrame = () => null) {
     const calls = [];
     const registry = createRegistry();
     const actions = new Proxy(
@@ -68,6 +68,7 @@ describe("the commands the app registers", () => {
       totalFrames: () => 480000,
       patch: (p) => calls.push(["patch", p]),
       getState: () => state,
+      recordingFrame,
       openPalette: () => calls.push(["palette"]),
       openKeys: () => calls.push(["keys"]),
       openHelp: () => calls.push(["help"]),
@@ -423,6 +424,39 @@ describe("the commands the app registers", () => {
         },
       ],
     ]);
+  });
+
+  test("during a take, mark.in and mark.out land at the take's place, not the parked playhead", () => {
+    // A take recording at 2 s on the timeline: the playhead stays where it was parked.
+    const { registry, calls } = setup({ project, playhead: 5 }, () => 96000);
+    registry.run("mark.in");
+    registry.run("mark.out");
+    assert.deepEqual(calls, [
+      [
+        "patch",
+        {
+          inPoint: 96000,
+          outPoint: null,
+          guessedMarks: { in: null, out: null },
+          rangeTracks: new Set(),
+        },
+      ],
+      [
+        "patch",
+        {
+          inPoint: null,
+          outPoint: 96000,
+          guessedMarks: { in: null, out: null },
+          rangeTracks: new Set(),
+        },
+      ],
+    ]);
+  });
+
+  test("mark.clear_in also clears during a take", () => {
+    const { registry, calls } = setup({ project, inPoint: 96000 }, () => 97000);
+    registry.run("mark.clear_in");
+    assert.deepEqual(calls, [["patch", { inPoint: null, rangeTracks: new Set() }]]);
   });
 
   test("1 and 2 jump to the in and out marks (Hindenburg's way), only when they are set", () => {

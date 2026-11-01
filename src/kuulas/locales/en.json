@@ -2117,6 +2117,7 @@
   "ui.range.tip_in": "{name} {time} · click: go to it (1) · double-click: type a time",
   "ui.range.tip_out": "{name} {time} · click: go to it (2) · double-click: type a time",
   "ui.range.tip_length": "{name} {time} · click: zoom to the range ({key:view.fit_selection}) · double-click: type a length",
+  "ui.range.tip_length_live": "{name} {time} from the in point, counting while recording \u00b7 double-click: type a length",
   "ui.range.tip_unset": "{name}: not set · Set in: {key:mark.in}; set out: {key:mark.out} · double-click: type a time",
   "ui.range.tip_length_unset": "{name}: set the in mark first · double-click: type a length",
   "ui.range.field": "{name}, type a time",

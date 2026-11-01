@@ -2959,6 +2959,8 @@ const recordView = createRecordView({
   chip: $("rec-chip"),
   addMarker: () => keyboard.registry.run("marker.add", null, getState()),
   onLive: () => {
+    // An in mark with no out mark counts up to the take's place in the corner (Pituus).
+    if (getState().inPoint !== null) marksCorner.render(getState());
     if (recordView.isVisible()) return;
     const project = getState().project;
     $("empty").hidden =
@@ -4413,6 +4415,7 @@ const marksCorner = createMarksCorner({
   run: (id) => keyboard.registry.run(id, null, getState()),
   patch: setState,
   copy: (text) => void clock.copy(text),
+  liveFrame: () => recordView.liveFrame(),
   t,
 });
 
