@@ -1202,6 +1202,7 @@ def test_live_transcript_words_arrive_while_the_take_runs(session, recorder):
         assert "kokouksesta" in [h["w"] for h in hits]
         assert ([w["w"] for w in rs.live_transcript_words()][:2]
                 == ["terveiset", "kokouksesta"])
+        live_before_stop = [w["w"] for w in rs.live_transcript_words()]
         rs.stop("two_step")
         wait_until(lambda: not rs.status()["recording"], timeout=20)
         # Owner, 2026-11-01: stop keeps the take's words searchable (the tail
@@ -1219,7 +1220,9 @@ def test_live_transcript_words_arrive_while_the_take_runs(session, recorder):
         assert rev is not None
         with session.lock:
             handed = [w["w"] for w in session.history.transcript(rev)]
-        assert handed[:2] == ["terveiset", "kokouksesta"]
+        # the handoff is a move, not a filter: every word the take had
+        # transcribed before stop is in the media's transcript, in order
+        assert handed[:len(live_before_stop)] == live_before_stop
         assert "kokouksesta" in handed
         assert rs.live_transcript_words() == []  # handed off, not kept twice
     finally:
@@ -1241,6 +1244,8 @@ def test_slow_engine_never_blocks_stop_and_the_words_land(session, recorder):
         rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
                  track_id=None, name="Olli", at=0)
         wait_until(lambda: published.kinds("live_transcript"), timeout=30)
+        live_before_stop = [w["w"] for w in rs.live_transcript_words()]
+        assert live_before_stop  # the first chunk landed before the stop
         started = time.monotonic()
         rs.stop("two_step")
         wait_until(lambda: not rs.status()["recording"], timeout=20)
@@ -1256,6 +1261,8 @@ def test_slow_engine_never_blocks_stop_and_the_words_land(session, recorder):
         rev = handed_rev()
         with session.lock:
             handed = [w["w"] for w in session.history.transcript(rev)]
+        # no word the take had before stop is lost in the handoff
+        assert handed[:len(live_before_stop)] == live_before_stop
         assert "hitaastikin" in handed
         assert not rs.live_transcript_flushing()
     finally:
