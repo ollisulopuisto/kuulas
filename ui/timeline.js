@@ -2230,7 +2230,9 @@ export function createTimeline({
     const adjusting = Boolean(
       zone || moving || (hit.clip && hit.edge && hit.row?.kind === "track"),
     );
-    actions.pointerDown(hit, event, { noSeek: adjusting });
+    // A marker flag is like a clip adjustment: the press selects (no seek); the cursor goes
+    // there on release only when the press turned out to be a click (owner, 2026-11-01).
+    actions.pointerDown(hit, event, { noSeek: adjusting || Boolean(hit.marker) });
     // A press on a marker flag arms a drag: a click stays a click (selection happened on the
     // press), past DRAG_PX the flag follows the pointer and release sends one move_marker.
     if (hit.area === "ruler" && hit.marker) startMarker(hit, event);
@@ -2392,6 +2394,7 @@ export function createTimeline({
       origin: locate(event),
       pointerId: event.pointerId,
       dragging: false,
+      seekFrame: hit.frame,
       frame: marker.start,
     };
     overlayCanvas.setPointerCapture?.(event.pointerId);
@@ -2424,6 +2427,7 @@ export function createTimeline({
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     if (!cancel && session.dragging && session.frame !== session.startFrame)
       actions.moveMarker?.({ markerId: session.id, frame: session.frame });
+    if (!cancel && !session.dragging) actions.seek?.(session.seekFrame);
     requestOverlay();
   }
 
