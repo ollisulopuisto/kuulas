@@ -643,6 +643,7 @@ export function createRecordView({
     rec.liveFlushing.hidden = true;
     liveHead.append(" ", rec.liveFlushing);
     rec.liveSearch = el("input", "record-transcript-search");
+    rec.liveSearch.dataset.dialogEnterLocal = ""; // Enter types here, never arms the stop
     rec.liveSearch.type = "search";
     rec.liveSearch.placeholder = t("ui.record.live_search");
     rec.liveSearch.setAttribute("aria-label", t("ui.record.live_search"));
