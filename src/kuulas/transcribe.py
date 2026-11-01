@@ -21,6 +21,13 @@ from .automix import run_process as _run_local_process
 from .clock import FLICKS
 from .messages import KuulasError
 
+ORUKEET_WHEEL = (
+    "https://github.com/Oruk-AI/orukeet/releases/download/v0.1.1/"
+    "orukeet-0.1.1-py3-none-any.whl"
+)
+ORUKEET_TORCH = "torch==2.8.0"
+ORUKEET_TORCHAUDIO = "torchaudio==2.8.0"
+
 
 def _word(text: str, start: float, end: float, spk: str = "") -> dict:
     s = round(float(start) * FLICKS)
@@ -88,11 +95,17 @@ def local(path: str | Path, model: str = "small",
     if not model_path.is_dir():
         raise TranscribeError("error.transcribe.orukeet_model", path=str(model_path))
     command = colab_transcribe.default_command()
-    # Resolve optional MLX dependencies outside the editor/bundle environment.
+    # Keep the SDK and its CTC dependencies in the same isolated tool environment.
+    # The shared CLI's Orukeet backend reads the SDK installation receipt from the
+    # user's cache; these packages provide the runtime and word alignment code.
     if command[0] == "uvx":
-        command[1:1] = ["--with", "parakeet-mlx>=0.3.0", "--with", "lxml"]
+        command[1:1] = ["--with", ORUKEET_WHEEL,
+                        "--with", ORUKEET_TORCH,
+                        "--with", ORUKEET_TORCHAUDIO]
     elif command[:2] == ["uv", "run"]:
-        command[2:2] = ["--frozen", "--extra", "parakeet"]
+        command[2:2] = ["--frozen", "--extra", "orukeet",
+                        "--with", ORUKEET_TORCH,
+                        "--with", ORUKEET_TORCHAUDIO]
 
     def report(fraction, *_args, **_kwargs):
         if callable(progress):

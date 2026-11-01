@@ -43,8 +43,10 @@ def test_local_uses_shared_orukeet_and_preserves_words(model, monkeypatch, tmp_p
     assert cmd[cmd.index("--backend") + 1] == "orukeet"
     assert "--model" not in cmd
     assert cmd[cmd.index("--orukeet-model") + 1] == str(model)
-    assert "--extra" in cmd
-    assert cmd[cmd.index("--extra") + 1] == "parakeet"
+    assert cmd[cmd.index("--extra") + 1] == "orukeet"
+    with_args = [cmd[i + 1] for i, word in enumerate(cmd[:-1]) if word == "--with"]
+    assert "torch==2.8.0" in with_args
+    assert "torchaudio==2.8.0" in with_args
     assert "--align" not in cmd
     assert reports[-1] == 1.0
 
@@ -76,13 +78,17 @@ def test_local_tool_failure_is_reported_as_local_orukeet_error(model, monkeypatc
     assert "Orukeet failed" in error.value.params["error"]
 
 
-def test_packaged_command_installs_mlx_in_isolated_environment(model, monkeypatch):
+def test_packaged_command_installs_orukeet_runtime_in_isolated_environment(
+    model, monkeypatch
+):
     monkeypatch.setattr(colab_transcribe, "default_command", lambda: [
         "uvx", "--from", "git+https://example.invalid/tool", "colab-transcribe"])
     def process(cmd, _cwd, _line, _cancel):
-        assert cmd[:3] == ["uvx", "--with", "parakeet-mlx>=0.3.0"]
-        assert "lxml" in [cmd[i + 1] for i, word in enumerate(cmd[:-1])
-                          if word == "--with"]
+        with_args = [cmd[i + 1] for i, word in enumerate(cmd[:-1]) if word == "--with"]
+        assert any(value.startswith("https://github.com/Oruk-AI/orukeet/")
+                   for value in with_args)
+        assert "torch==2.8.0" in with_args
+        assert "torchaudio==2.8.0" in with_args
         raise FileNotFoundError("uvx")
     monkeypatch.setattr(transcribe, "_run_local_process", process, raising=False)
     with pytest.raises(transcribe.TranscribeError) as error:
