@@ -6078,6 +6078,7 @@ legend.form-heading {
   padding: 0;
   max-height: 8em;
   overflow-y: auto;
+}
 /* A live length counts from the in point to the take's place while recording. */
 .mrow.live .v {
   color: var(--accent-text);

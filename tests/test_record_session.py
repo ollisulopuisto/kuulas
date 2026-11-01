@@ -1198,7 +1198,8 @@ def test_live_transcript_words_arrive_while_the_take_runs(session, recorder):
         assert view["recording"] or rs.status()["recording"]
         hits = rs.live_transcript_search("kokouksesta")
         assert [h["w"] for h in hits] == ["kokouksesta"]
-        assert [w["w"] for w in rs.live_transcript_words()] == ["terveiset", "kokouksesta"]
+        assert ([w["w"] for w in rs.live_transcript_words()]
+                == ["terveiset", "kokouksesta"])
         rs.stop("two_step")
         wait_until(lambda: not rs.status()["recording"], timeout=20)
         # Owner, 2026-11-01: stop keeps the take's words searchable (the tail

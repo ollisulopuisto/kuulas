@@ -16,11 +16,17 @@ in-memory store (``LiveTranscript``). The sidecar that drives them lives in
 
 from __future__ import annotations
 
+import contextlib
+import struct
 import threading
 import time
+from pathlib import Path
+
+from .clock import FLICKS
 
 
-def chunk_window(flushed: int, done: int, rate: int, chunk_s: float = 5.0) -> tuple[int, int] | None:
+def chunk_window(flushed: int, done: int, rate: int,
+                 chunk_s: float = 5.0) -> tuple[int, int] | None:
     """The next [start, end) frames to transcribe, or None when nothing full is ready.
 
     Sequential per lane: chunk after chunk as the take's flushed length allows
@@ -99,12 +105,10 @@ class LiveTranscript:
             for i in range(len(words)):
                 if all(i + j < len(words) and terms[j] in texts[i + j]
                        for j in range(len(terms))):
-                    hits.extend(dict(words[i + j], track=track_id) for j in range(len(terms)))
+                    hits.extend(dict(words[i + j], track=track_id)
+                                for j in range(len(terms)))
         hits.sort(key=lambda w: w["s"])
         return hits
-
-
-from .clock import FLICKS
 
 
 class LiveTranscriber:
@@ -200,7 +204,6 @@ def flushed_frames(path) -> int:
     covers (kuulas_recorder.wavfile), so the header is the take's safe length.
     A missing or half-written file reads as 0: nothing to transcribe yet.
     """
-    import struct
     try:
         with open(path, "rb") as f:
             head = f.read(44)
@@ -213,7 +216,7 @@ def flushed_frames(path) -> int:
 
 def _read_frames_soundfile(path, start, end):
     """Samples [start, end) of a take WAV as floats (the sidecar's default reader)."""
-    import soundfile as sf
+    import soundfile as sf  # noqa: PLC0415 - deferred: numpy/soundfile only when a lane reads
     data, _ = sf.read(str(path), start=start, stop=end, dtype="float32",
                       always_2d=False)
     return data
@@ -234,7 +237,6 @@ class LiveTranscribeSidecar:
                  engine_factory, store: LiveTranscript | None = None,
                  chunk_s: float = 5.0, ctx_s: float = 0.5,
                  read_frames=None, flushed=flushed_frames):
-        from pathlib import Path
         self.rate = rate
         self.folder = Path(folder)
         self.store = store or LiveTranscript()
@@ -258,7 +260,8 @@ class LiveTranscribeSidecar:
         path = self.folder / lane["file"]
         read = self._read
         if read is None:
-            read = lambda start, end, p=path: _read_frames_soundfile(p, start, end)
+            def read(start, end, p=path):
+                return _read_frames_soundfile(p, start, end)
         lane["live"] = LiveTranscriber(
             rate=self.rate, track_id=track_id, store=self.store,
             engine=self._engine, read_frames=read,
@@ -273,7 +276,7 @@ class LiveTranscribeSidecar:
         try:
             self._ensure_lane(track_id, lane)  # a failing engine factory too
             status = lane["live"].step(flushed)
-        except Exception as error:  # the take never stops for transcription
+        except Exception as error:  # noqa: BLE001 - the take never stops for transcription
             lane["failures"] += 1
             lane["error"] = str(error)
             return {"track": track_id, "error": str(error),
@@ -290,12 +293,11 @@ class LiveTranscribeSidecar:
         engine, self._engine = self._engine, None
         close = getattr(engine, "close", None)
         if callable(close):
-            try:
+            # closing a broken worker must never raise
+            with contextlib.suppress(Exception):
                 close()
-            except Exception:  # closing a broken worker must never raise
-                pass
 
-    def finish(self, cancel: "threading.Event | None" = None) -> list[dict]:
+    def finish(self, cancel: threading.Event | None = None) -> list[dict]:
         """The take is over: drain each lane's backlog, then its trailing chunk.
 
         A slow engine can fall behind during the take; the backlog is on disk,
@@ -324,7 +326,7 @@ class LiveTranscribeSidecar:
                     status = live.finish(self._flushed(path))
                     if status is not None:
                         out.append({"track": track_id, **status})
-            except Exception as error:
+            except Exception as error:  # noqa: BLE001 - the take never waits on ASR
                 lane["error"] = str(error)
                 out.append({"track": track_id, "error": str(error)})
         return out
@@ -353,7 +355,7 @@ class LiveTranscribeRunner:
     def __init__(self, sidecar: LiveTranscribeSidecar, publish=None,
                  min_interval_s: float = 1.0, log=None):
         self.sidecar = sidecar
-        self.publish = publish or (lambda statuses: None)
+        self.publish = publish or (lambda _statuses: None)
         self.min_interval_s = min_interval_s
         self._log = log
         self._wake = threading.Event()
@@ -428,7 +430,7 @@ class LiveTranscribeRunner:
             try:
                 statuses = self.sidecar.tick()
                 self.ticks += 1
-            except Exception as error:  # transcription never stops the take
+            except Exception as error:  # noqa: BLE001 - transcription never stops the take
                 self.errors += 1
                 if self._log:
                     self._log.warning("live transcription tick failed: %s", error)
@@ -448,7 +450,7 @@ class LiveTranscribeRunner:
     def _run_finish(self) -> None:
         try:
             statuses = self.sidecar.finish(cancel=self._cancel)
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - a lost flush is counted, not raised
             self.errors += 1
             if self._log:
                 self._log.warning("live transcription finish failed: %s", error)

@@ -11,12 +11,12 @@ take records exactly as before.
 from __future__ import annotations
 
 import array
+import contextlib
 import json
 import logging
 import os
 import queue
 import subprocess
-import sys
 import tempfile
 import threading
 import time
@@ -76,7 +76,7 @@ class LiveEngineProcess:
         environment = os.environ.copy()
         environment.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1",
                            PYTHONUTF8="1")
-        self.process = subprocess.Popen(
+        self.process = subprocess.Popen(  # noqa: S603 - our own pinned worker
             command or worker_command(),
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, text=True, encoding="utf-8",
@@ -128,7 +128,7 @@ class LiveEngineProcess:
                     response = self._replies.get(timeout=min(.2, remaining))
                 except queue.Empty:
                     if self._closed:
-                        raise RuntimeError("error.live_engine.closed")
+                        raise RuntimeError("error.live_engine.closed") from None
                     continue
                 if self._closed:
                     raise RuntimeError("error.live_engine.closed")
@@ -183,10 +183,8 @@ def warm_engine_factory(receipt: dict | None = None, *,
             result = process.request("transcribe", audio_path=path,
                                      rate=int(rate), timeout=timeout)
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(path)
-            except OSError:
-                pass
         return result["words"]
 
     engine.close = process.close  # the sidecar closes the worker with the take

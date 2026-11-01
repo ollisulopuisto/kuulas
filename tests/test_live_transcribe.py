@@ -10,11 +10,24 @@ from __future__ import annotations
 import threading
 import time
 
-import pytest
+import numpy as np
 
-from kuulas.live_transcribe import LiveTranscript, chunk_window, merge_words
+from kuulas.clock import FLICKS
+from kuulas.live_transcribe import (
+    MAX_LANE_FAILURES,
+    LiveTranscriber,
+    LiveTranscribeRunner,
+    LiveTranscribeSidecar,
+    LiveTranscript,
+    chunk_window,
+    flushed_frames,
+    merge_words,
+)
+from kuulas_recorder.wavfile import ProgressiveWav, float_to_pcm24
 
 RATE = 48000
+
+flushed_levels = [0]  # the fake WAV length the scripted sidecar tests mutate
 
 
 class TestChunkWindow:
@@ -22,10 +35,12 @@ class TestChunkWindow:
         assert chunk_window(flushed=0, done=0, rate=RATE) is None
 
     def test_waits_for_a_full_chunk(self):
-        assert chunk_window(flushed=3 * RATE, done=0, rate=RATE, chunk_s=5) is None
+        assert chunk_window(flushed=3 * RATE, done=0, rate=RATE,
+                            chunk_s=5) is None
 
     def test_first_chunk_once_five_seconds_flushed(self):
-        assert chunk_window(flushed=5 * RATE, done=0, rate=RATE, chunk_s=5) == (0, 5 * RATE)
+        assert chunk_window(flushed=5 * RATE, done=0, rate=RATE,
+                            chunk_s=5) == (0, 5 * RATE)
 
     def test_advances_by_chunks(self):
         assert chunk_window(flushed=12 * RATE, done=5 * RATE, rate=RATE, chunk_s=5) == (
@@ -33,7 +48,8 @@ class TestChunkWindow:
 
     def test_last_bit_waits_for_the_take_to_grow(self):
         # 10.4 s flushed: the second chunk has not filled yet.
-        assert chunk_window(flushed=int(10.4 * RATE), done=10 * RATE, rate=RATE, chunk_s=5) is None
+        assert chunk_window(flushed=int(10.4 * RATE), done=10 * RATE,
+                            rate=RATE, chunk_s=5) is None
 
     def test_catching_up_after_a_pause_stays_sequential(self):
         # The engine paused and 40 s flushed meanwhile: still the next chunk, in order.
@@ -70,7 +86,8 @@ class TestLiveTranscript:
                              {"w": "tallentaa", "s": 30, "e": 40, "spk": ""}], since=0)
         hits = live.search("kuulas")
         assert len(hits) == 1
-        assert hits[0]["w"] == "Kuulas" and hits[0]["track"] == "track-1"
+        assert hits[0]["w"] == "Kuulas"
+        assert hits[0]["track"] == "track-1"
 
     def test_search_matches_a_phrase_across_word_boundaries(self):
         live = LiveTranscript()
@@ -109,13 +126,13 @@ class TestLiveTranscriber:
     """The per-lane chunk loop with a fake engine and fake audio reads."""
 
     def make(self, words_by_call, **kw):
-        from kuulas.live_transcribe import LiveTranscriber
         store = LiveTranscript()
         calls = []
         def engine(audio, rate):
             calls.append(len(audio))
             return words_by_call[len(calls) - 1]
-        read = lambda start, end: [0.0] * (end - start)
+        def read(start, end):
+            return [0.0] * (end - start)
         live = LiveTranscriber(rate=RATE, track_id="t1", store=store,
                                engine=engine, read_frames=read, **kw)
         return live, store, calls
@@ -123,7 +140,8 @@ class TestLiveTranscriber:
     def test_no_step_until_a_full_chunk(self):
         live, store, calls = self.make([])
         assert live.step(3 * RATE) is None
-        assert calls == [] and store.words() == []
+        assert calls == []
+        assert store.words() == []
 
     def test_first_chunk_covers_the_first_five_seconds(self):
         live, store, calls = self.make([
@@ -133,7 +151,6 @@ class TestLiveTranscriber:
         assert calls == [5 * RATE]  # no context before frame 0
         [w] = store.words()
         assert w["w"] == "hei"
-        from kuulas.clock import FLICKS
         assert w["s"] == round(1.0 * FLICKS)
 
     def test_second_chunk_offsets_words_and_reads_with_context(self):
@@ -145,10 +162,10 @@ class TestLiveTranscriber:
         assert status == {"start": 5 * RATE, "end": 10 * RATE, "words": 1}
         # read from 4.5 s (0.5 s context) to 10 s
         assert calls[1] == int(5.5 * RATE)
-        from kuulas.clock import FLICKS
         [_, w] = store.words()
         # word at 1.0-1.4 s inside a window that began at 4.5 s -> media time 5.5-5.9 s
-        assert w["s"] == round(5.5 * FLICKS) and w["e"] == round(5.9 * FLICKS)
+        assert w["s"] == round(5.5 * FLICKS)
+        assert w["e"] == round(5.9 * FLICKS)
 
     def test_words_ending_in_the_context_are_dropped(self):
         live, store, _ = self.make(
@@ -168,9 +185,7 @@ class TestLiveTranscriber:
 
 class TestFlushedFrames:
     def test_reads_the_progressive_header(self, tmp_path):
-        from kuulas_recorder.wavfile import ProgressiveWav, float_to_pcm24
-        import numpy as np
-        from kuulas.live_transcribe import flushed_frames
+
         wav = ProgressiveWav(tmp_path / "take-1.wav", RATE)
         wav.write(float_to_pcm24(np.zeros(RATE, dtype=np.float32)))
         wav.flush()
@@ -178,22 +193,21 @@ class TestFlushedFrames:
         assert flushed_frames(tmp_path / "take-1.wav") == RATE
 
     def test_missing_file_is_zero(self, tmp_path):
-        from kuulas.live_transcribe import flushed_frames
         assert flushed_frames(tmp_path / "nope.wav") == 0
 
 
 class TestLiveTranscribeSidecar:
     def make(self, words_by_call=None, lane_files=None):
-        from kuulas.live_transcribe import LiveTranscribeSidecar
         store = LiveTranscript()
         calls = []
         scripted = words_by_call or []
         def engine(audio, rate):
             calls.append(len(audio))
-            return scripted[len(calls) - 1] if len(calls) <= len(scripted) else []
+            return (scripted[len(calls) - 1]
+                    if len(calls) <= len(scripted) else [])
         built = []
         sidecar = LiveTranscribeSidecar(
-            rate=RATE, folder="/tmp/fake",
+            rate=RATE, folder="fake-take",
             lane_files=lane_files or {"t1": "take-1.wav"},
             engine_factory=lambda: built.append(1) or engine,
             store=store,
@@ -202,17 +216,16 @@ class TestLiveTranscribeSidecar:
         return sidecar, store, calls, built
 
     def test_waits_for_a_full_chunk_and_reports_waiting(self):
-        global flushed_levels
-        flushed_levels = [3 * RATE]
-        sidecar, store, calls, built = self.make()
+        flushed_levels[0] = 3 * RATE
+        sidecar, _store, calls, _built = self.make()
         [status] = sidecar.tick()
-        assert status["waiting"] is True and status["done_frames"] == 0
+        assert status["waiting"] is True
+        assert status["done_frames"] == 0
         assert calls == []
 
     def test_engine_built_lazily_on_first_chunk_only(self):
-        global flushed_levels
-        flushed_levels = [3 * RATE]
-        sidecar, store, calls, built = self.make()
+        flushed_levels[0] = 3 * RATE
+        sidecar, _store, _calls, built = self.make()
         sidecar.tick()
         assert built == []  # no model load while nothing is ready
         flushed_levels[0] = 6 * RATE
@@ -222,24 +235,22 @@ class TestLiveTranscribeSidecar:
                           "words": 0, "done_frames": 5 * RATE}
 
     def test_engine_error_disables_the_lane_after_three_failures(self):
-        global flushed_levels
-        flushed_levels = [12 * RATE]
-        from kuulas.live_transcribe import LiveTranscribeSidecar, MAX_LANE_FAILURES
+        flushed_levels[0] = 12 * RATE
         def bad_engine(audio, rate):
             raise RuntimeError("malli kaatui")
         sidecar = LiveTranscribeSidecar(
-            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            rate=RATE, folder="fake-take", lane_files={"t1": "x.wav"},
             engine_factory=lambda: bad_engine, store=LiveTranscript(),
             read_frames=lambda s, e: [0.0] * (e - s), flushed=lambda p: 12 * RATE)
-        for n in range(MAX_LANE_FAILURES):
+        for _ in range(MAX_LANE_FAILURES):
             [status] = sidecar.tick()
-        assert status["disabled"] is True and "malli kaatui" in status["error"]
+        assert status["disabled"] is True
+        assert "malli kaatui" in status["error"]
         assert sidecar.tick() == []  # lane skipped from then on
 
     def test_two_lanes_progress_independently(self):
-        global flushed_levels
-        flushed_levels = [6 * RATE]
-        sidecar, store, calls, _ = self.make(
+        flushed_levels[0] = 6 * RATE
+        sidecar, _store, _calls, _built = self.make(
             lane_files={"t1": "a.wav", "t2": "b.wav"})
         statuses = sidecar.tick()
         assert {s["track"] for s in statuses} == {"t1", "t2"}
@@ -248,10 +259,9 @@ class TestLiveTranscribeSidecar:
 
 class TestLiveTranscribeRunner:
     def make(self, **sidecar_kw):
-        from kuulas.live_transcribe import LiveTranscribeRunner, LiveTranscribeSidecar
         store = LiveTranscript()
         sidecar = LiveTranscribeSidecar(
-            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            rate=RATE, folder="fake-take", lane_files={"t1": "x.wav"},
             engine_factory=lambda: (lambda audio, rate: []),
             store=store, read_frames=lambda s, e: [0.0] * (e - s),
             **sidecar_kw)
@@ -262,7 +272,7 @@ class TestLiveTranscribeRunner:
 
     def test_poke_ticks_and_publishes(self):
         flushed = [6 * RATE]
-        runner, sidecar, published = self.make(flushed=lambda p: flushed[0])
+        runner, _sidecar, published = self.make(flushed=lambda p: flushed[0])
         runner.start()
         try:
             runner.poke()
@@ -271,13 +281,14 @@ class TestLiveTranscribeRunner:
                     break
                 time.sleep(0.01)
             assert runner.ticks >= 1
-            assert published and published[0][0]["end"] == 5 * RATE
+            assert published
+            assert published[0][0]["end"] == 5 * RATE
         finally:
             runner.stop()
         assert runner._thread is None
 
     def test_waiting_ticks_are_not_published(self):
-        runner, sidecar, published = self.make(flushed=lambda p: 3 * RATE)
+        runner, _sidecar, published = self.make(flushed=lambda p: 3 * RATE)
         runner.start()
         try:
             runner.poke()
@@ -288,10 +299,9 @@ class TestLiveTranscribeRunner:
             runner.stop()
 
     def test_engine_errors_are_survived_and_counted(self):
-        import logging
         def boom(p):
             raise RuntimeError("levyvika")
-        runner, sidecar, published = self.make()
+        runner, sidecar, _published = self.make()
         sidecar._flushed = boom
         runner.start()
         try:
@@ -310,12 +320,12 @@ class TestFinish:
     """The take is over: the trailing partial chunk is transcribed, not lost."""
 
     def make(self, words_by_call):
-        from kuulas.live_transcribe import LiveTranscriber
         store = LiveTranscript()
         calls = []
         def engine(audio, rate):
             calls.append(len(audio))
-            return words_by_call[len(calls) - 1] if len(calls) <= len(words_by_call) else []
+            return (words_by_call[len(calls) - 1]
+                    if len(calls) <= len(words_by_call) else [])
         live = LiveTranscriber(rate=RATE, track_id="t1", store=store,
                                engine=engine,
                                read_frames=lambda s, e: [0.0] * (e - s))
@@ -327,8 +337,8 @@ class TestFinish:
              [{"word": "loppu", "start": 1.0, "end": 1.5}]])
         live.step(6 * RATE)          # [0, 5 s)
         status = live.finish(int(6.5 * RATE))  # tail [5 s, 6.5 s)
-        assert status["tail"] is True and status["end"] == int(6.5 * RATE)
-        from kuulas.clock import FLICKS
+        assert status["tail"] is True
+        assert status["end"] == int(6.5 * RATE)
         assert [w["w"] for w in store.words()] == ["eka", "loppu"]
         # the tail word: 1.0 s into a window that began at 4.5 s -> 5.5 s on the clock
         assert store.words()[1]["s"] == round(5.5 * FLICKS)
@@ -341,10 +351,9 @@ class TestFinish:
         assert [w["w"] for w in store.words()] == ["eka"]
 
     def test_sidecar_finish_transcribes_the_tail(self):
-        from kuulas.live_transcribe import LiveTranscribeSidecar
         store = LiveTranscript()
         sidecar = LiveTranscribeSidecar(
-            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            rate=RATE, folder="fake-take", lane_files={"t1": "x.wav"},
             engine_factory=lambda: (lambda audio, rate: [
                 {"word": "sana", "start": 1.0, "end": 1.5}]),
             store=store, read_frames=lambda s, e: [0.0] * (e - s),
@@ -352,15 +361,13 @@ class TestFinish:
         sidecar.tick()            # consumes the full [0, 5 s) chunk
         statuses = sidecar.finish()  # flushes the trailing [5 s, 6 s)
         assert any(s.get("tail") for s in statuses)
-        from kuulas.clock import FLICKS
         assert [w["w"] for w in store.words()] == ["sana", "sana"]
         assert store.words()[1]["s"] == round(5.5 * FLICKS)
 
     def test_runner_stop_flushes_everything_and_publishes(self):
-        from kuulas.live_transcribe import LiveTranscribeRunner, LiveTranscribeSidecar
         store = LiveTranscript()
         sidecar = LiveTranscribeSidecar(
-            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            rate=RATE, folder="fake-take", lane_files={"t1": "x.wav"},
             engine_factory=lambda: (lambda audio, rate: [
                 {"word": "loppu", "start": 0.5, "end": 1.0}]),
             store=store, read_frames=lambda s, e: [0.0] * (e - s),
@@ -382,9 +389,8 @@ class TestFlushBounds:
     """Owner, 2026-11-01: the flush after stop is bounded and never blocks the take."""
 
     def sidecar(self, engine, flushed, store=None):
-        from kuulas.live_transcribe import LiveTranscribeSidecar, LiveTranscript
         return LiveTranscribeSidecar(
-            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            rate=RATE, folder="fake-take", lane_files={"t1": "x.wav"},
             engine_factory=lambda: engine,
             store=store or LiveTranscript(),
             read_frames=lambda s, e: [0.0] * (e - s), flushed=flushed)
@@ -405,7 +411,6 @@ class TestFlushBounds:
         assert words == ["sana1", "sana2", "sana3"]
 
     def test_cancel_stops_the_drain_between_chunks_with_honest_coverage(self):
-        from kuulas.live_transcribe import LiveTranscribeSidecar, LiveTranscript
         cancel = threading.Event()
         calls = []
         def engine(audio, rate):
@@ -421,7 +426,6 @@ class TestFlushBounds:
         assert sidecar._lanes["t1"]["live"].done_frames == 5 * RATE
 
     def test_stop_without_block_returns_while_the_engine_still_works(self):
-        from kuulas.live_transcribe import LiveTranscribeRunner
         def slow(audio, rate):
             time.sleep(0.5)
             return [{"word": "myohaainen", "start": 1.0, "end": 1.5}]
@@ -439,10 +443,12 @@ class TestFlushBounds:
         assert [w["w"] for w in sidecar.store.words()] == ["myohaainen", "myohaainen"]
 
     def test_wait_times_out_on_a_hung_engine_and_cancel_is_safe(self):
-        from kuulas.live_transcribe import LiveTranscribeRunner
         gate = threading.Event()  # never set
-        sidecar = self.sidecar(lambda audio, rate: gate.wait() or [],
-                               lambda p: 6 * RATE)
+
+        def hung(audio, rate):
+            return gate.wait() or []
+
+        sidecar = self.sidecar(hung, lambda p: 6 * RATE)
         runner = LiveTranscribeRunner(sidecar, min_interval_s=0.02)
         runner.start()
         runner.stop(flush=True, block=False)
@@ -455,7 +461,6 @@ class TestEngineLifecycle:
     """Owner, 2026-11-01: workers never accumulate across takes."""
 
     def test_runner_exit_closes_the_engine(self):
-        from kuulas.live_transcribe import LiveTranscribeRunner, LiveTranscribeSidecar
         closed = []
         class Engine:
             def __call__(self, audio, rate):
@@ -463,8 +468,8 @@ class TestEngineLifecycle:
             def close(self):
                 closed.append(True)
         sidecar = LiveTranscribeSidecar(
-            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
-            engine_factory=lambda: Engine(),
+            rate=RATE, folder="fake-take", lane_files={"t1": "x.wav"},
+            engine_factory=Engine,
             read_frames=lambda s, e: [0.0] * (e - s), flushed=lambda p: 6 * RATE)
         runner = LiveTranscribeRunner(sidecar, min_interval_s=0.02)
         runner.start()
@@ -474,17 +479,17 @@ class TestEngineLifecycle:
         assert sidecar._engine is None
 
     def test_failing_factory_counts_toward_the_lane_budget(self):
-        from kuulas.live_transcribe import LiveTranscribeSidecar
         calls = []
         def factory():
             calls.append(1)
             raise RuntimeError("model missing")
         sidecar = LiveTranscribeSidecar(
-            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            rate=RATE, folder="fake-take", lane_files={"t1": "x.wav"},
             engine_factory=factory,
             read_frames=lambda s, e: [0.0] * (e - s), flushed=lambda p: 6 * RATE)
         for _ in range(3):
-            statuses = sidecar.tick()
+            sidecar.tick()
         lane = sidecar._lanes["t1"]
-        assert lane["failures"] == 3 and len(calls) == 3
+        assert lane["failures"] == 3
+        assert len(calls) == 3
         assert sidecar.tick() == []  # disabled lane: no more factory attempts

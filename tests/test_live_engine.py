@@ -77,14 +77,15 @@ def fake_command(tmp_path):
 
 
 class TestLiveEngineProcess:
-    def test_load_then_many_transcriptions_one_process(self, fake_command):
+    def test_load_then_many_transcriptions_one_process(self, fake_command,
+                                                       tmp_path):
         process = LiveEngineProcess(fake_command)
         try:
             assert process.request("load", model_path="m", runtime="r",
                                    device="cpu") == {"device": "cpu"}
-            with open("/tmp/kuulas-test.f32", "wb") as fh:
-                fh.write(b"\x00" * 400)
-            out = process.request("transcribe", audio_path="/tmp/kuulas-test.f32",
+            audio_path = tmp_path / "chunk.f32"
+            audio_path.write_bytes(b"\x00" * 400)
+            out = process.request("transcribe", audio_path=str(audio_path),
                                   rate=16000)
             assert out["words"][0]["word"] == "chunk"
         finally:
@@ -100,7 +101,7 @@ class TestLiveEngineProcess:
     def test_timeout_closes_the_worker(self, fake_command):
         process = LiveEngineProcess(fake_command)
         process.request("load", model_path="m", runtime="r", device="cpu")
-        with pytest.raises(RuntimeError, match="error.live_engine.timeout"):
+        with pytest.raises(RuntimeError, match=r"error\.live_engine\.timeout"):
             process.request("sleep", timeout=0.3)
         assert process.process.poll() is not None
         with pytest.raises(RuntimeError, match="closed"):
@@ -134,7 +135,8 @@ class TestWarmEngineFactory:
         words = engine([0.0] * 24000, 48000)
         assert words == [{"word": "sana", "start": 0.0, "end": 0.5}]
         op, payload = spawn.requests[1]
-        assert op == "transcribe" and payload["rate"] == 48000
+        assert op == "transcribe"
+        assert payload["rate"] == 48000
         engine.close()
         assert spawn.closed
 
@@ -145,8 +147,7 @@ class TestWarmEngineFactory:
         assert live_engine.factory_or_none(receipt=None) is None
 
     def test_factory_or_none_wraps_a_valid_receipt(self, receipt):
-        factory = live_engine.factory_or_none(receipt=receipt,
-                                              spawn=lambda: FakeSpawn())
+        factory = live_engine.factory_or_none(receipt=receipt, spawn=FakeSpawn)
         assert factory is not None
         engine = factory()
         assert engine([0.0], 16000)[0]["word"] == "sana"
