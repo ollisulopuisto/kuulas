@@ -107,7 +107,7 @@ def local(path: str | Path, model: str = "small",
     try:
         result = colab_transcribe.run(
             [{"id": "local", "name": source.name, "path": str(source)}],
-            {"model": "orukeet", "language": language}, settings, report,
+            {"backend": "orukeet", "language": language}, settings, report,
             _LocalCancel(progress), run_process=_run_local_process)
     except colab_transcribe.ColabError as error:
         raise TranscribeError("error.transcribe.orukeet_failed",

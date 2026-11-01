@@ -41,6 +41,7 @@ def test_local_uses_shared_orukeet_and_preserves_words(model, monkeypatch, tmp_p
     assert words[0]["s"] == FLICKS // 2
     cmd = calls[0]
     assert cmd[cmd.index("--backend") + 1] == "orukeet"
+    assert "--model" not in cmd
     assert cmd[cmd.index("--orukeet-model") + 1] == str(model)
     assert "--extra" in cmd
     assert cmd[cmd.index("--extra") + 1] == "parakeet"
