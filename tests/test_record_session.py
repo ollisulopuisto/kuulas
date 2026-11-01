@@ -1274,6 +1274,23 @@ def test_hung_engine_times_out_and_hands_off_what_exists(session, recorder,
         rs.close()
 
 
+def test_status_reports_live_transcript_availability(session, recorder):
+    rs = live(session, recorder)
+    try:
+        assert rs.status()["live_transcript"] is False
+    finally:
+        rs.close()
+    rs = RecordSession(
+        session, Published(),
+        connect=lambda: RecorderClient.connect(recorder.socket_path, timeout=20),
+        spawn=no_spawn, retry_s=0.1,
+        live_engine_factory=lambda: (lambda audio, rate: []))
+    try:
+        assert rs.status()["live_transcript"] is True
+    finally:
+        rs.close()
+
+
 def test_no_engine_factory_no_live_transcript(session, recorder):
     published = Published()
     rs = live(session, recorder, published)

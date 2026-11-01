@@ -347,6 +347,9 @@ class RecordSession:
             "notices": list(self._notices) if (recording and ours) else [],
             "pending": self.pending(running_take=take if ours else None),
             "hold_ms": self.hold_ms,
+            # The take-so-far's words exist only when an engine is wired (owner,
+            # 2026-11-01): the view keeps itself open for them after a start.
+            "live_transcript": self._live_engine_factory is not None,
         }
 
     def arm(self, *, device: dict | None, preroll_s: float, channel: int | None = None,

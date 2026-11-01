@@ -586,7 +586,10 @@ export function createRecordView({
       } catch (error) {
         notify(error.message);
       }
-      hide();
+      // With a live transcript the view stays open: its words and search are the
+      // point (Esc hides, Space brings it back); without one, the take goes on
+      // behind the editor as before.
+      if (!status?.live_transcript) hide();
     } catch (error) {
       setup.message.textContent = error.message;
       setup.record.disabled = false;
@@ -670,9 +673,13 @@ export function createRecordView({
 
   /** The lane key (track id, or ch<N> before the track exists) -> the track's name. */
   function liveTrackNames() {
+    // The store keys a lane by its track id, or by ch<N> when the take started
+    // before the track existed: name BOTH keys (the take's status refreshes).
     const names = {};
-    for (const lane of status?.plan?.lanes ?? [])
-      names[lane.track_id ?? `ch${lane.channel}`] = lane.track_name;
+    for (const lane of status?.plan?.lanes ?? []) {
+      names[`ch${lane.channel}`] = lane.track_name;
+      if (lane.track_id) names[lane.track_id] = lane.track_name;
+    }
     return names;
   }
 
