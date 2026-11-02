@@ -1,8 +1,9 @@
 // Dragging a clip's gain line and fade handles (WP6). Pure: what the pointer hits, the value
 // it gives and the edit to send. Both edits are `set_clip` with a coalesce key, so a whole
 // drag is one undo step; the keyboard (+/-, Mod+F) and the inspector set the same fields.
-import { lineValueAt, movePoint, togglePoint } from "./envelope-edit.js";
+
 import { clipGainOverlayAllowed } from "./clip-silence.js";
+import { lineValueAt, movePoint, togglePoint } from "./envelope-edit.js";
 import { dbToY, yToDb } from "./lanes.js";
 
 /** How close (px) the pointer must be to the gain line. */

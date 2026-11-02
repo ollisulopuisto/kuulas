@@ -335,10 +335,7 @@ describe("hit testing", () => {
     for (const flags of [{ muted: true }, { auto_silence: [[900, 1100]] }]) {
       const silentProject = {
         ...project,
-        tracks: [
-          { ...project.tracks[0], clips: [{ ...original, ...flags }] },
-          project.tracks[1],
-        ],
+        tracks: [{ ...project.tracks[0], clips: [{ ...original, ...flags }] }, project.tracks[1]],
       };
       const hit = hitTest({ layout, project: silentProject, view, x: 152, y });
       assert.equal(hit.clip.id, original.id);
