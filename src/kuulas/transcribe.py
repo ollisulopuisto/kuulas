@@ -4,8 +4,8 @@ Backends produce ``[{"w", "s", "e", "spk"}]`` with times in flicks from the
 media's start: the recording clock (``clock``), so the words never change
 when the project rate does (see ``transcript``):
 
-* ``local``: Orukeet on this Apple-silicon Mac, through the podcast repo's
-  shared CLI. MLX dependencies run in the tool's isolated environment.
+* ``local``: Orukeet on this Apple-silicon Mac, through Kuulas's native SDK
+  worker and its word timings.
 * ``parse``: any word-timed JSON, e.g. from colab-transcribe, Whisper,
   WhisperX or an export from another editor.
 
@@ -16,17 +16,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import colab_transcribe, local_memory, local_models
-from .automix import run_process as _run_local_process
+import soundfile as sf
+
+from . import live_engine, local_memory, local_models
 from .clock import FLICKS
+from .jobs import JobCancelledError
 from .messages import KuulasError
 
-ORUKEET_WHEEL = (
-    "https://github.com/Oruk-AI/orukeet/releases/download/v0.1.1/"
-    "orukeet-0.1.1-py3-none-any.whl"
-)
-ORUKEET_TORCH = "torch==2.8.0"
-ORUKEET_TORCHAUDIO = "torchaudio==2.8.0"
+_LOCAL_CHUNK_S = 30
+_LOCAL_CONTEXT_S = 1
 
 
 def _word(text: str, start: float, end: float, spk: str = "") -> dict:
@@ -34,6 +32,11 @@ def _word(text: str, start: float, end: float, spk: str = "") -> dict:
     # A word always has some length; the timeline makes that at least a frame.
     e = max(s + 1, round(float(end) * FLICKS))
     return {"w": text.strip(), "s": s, "e": e, "spk": spk or ""}
+
+
+def _check_local_cancelled(progress) -> None:
+    if progress is not None and getattr(progress, "cancelled", False):
+        raise JobCancelledError
 
 
 def parse(data) -> list[dict]:
@@ -67,62 +70,79 @@ class TranscribeError(KuulasError, RuntimeError):
     """Transcription cannot run here: a required extra is not installed."""
 
 
-class _LocalCancel:
-    """Adapt the worker's progress cancellation without a second watcher thread."""
-
-    def __init__(self, progress):
-        self.progress = progress
-
-    def is_set(self) -> bool:
-        return bool(getattr(self.progress, "cancelled", False))
-
-
 def local(path: str | Path, model: str = "small",
           language: str | None = None, progress=None,
-          cpu_threads: int | None = None, allow_low_memory: bool = False) -> list[dict]:
-    """Run shared local Orukeet; legacy Whisper model sizes select the Orukeet default.
+          cpu_threads: int | None = None, *,
+          allow_low_memory: bool = False) -> list[dict]:
+    """Transcribe locally with Orukeet's native word timings, without CTC alignment.
 
-    Never accept the shared CLI's generic Parakeet fallback when the SDK receipt
-    or one of the files it names has gone missing.
+    The old shared CLI route ran a second CTC alignment pass after Orukeet and
+    failed whole takes when that pass rejected every word. Reuse the same native
+    worker as live transcription and process bounded windows from the stored
+    lossless media.
     """
     if not allow_low_memory and not local_memory.eligible():
         raise TranscribeError("error.orukeet.memory")
-    # Retain legacy arguments for persisted jobs and callers; the SDK chooses both.
-    _ = model, cpu_threads
+    # Retain persisted job arguments; Orukeet's installed SDK chooses its model
+    # and owns CPU scheduling.
+    _ = model, language, cpu_threads
     installation = local_models.status()
     if not installation["supported"]:
         raise TranscribeError("error.orukeet.platform")
     if not installation["ready"]:
         raise TranscribeError("error.transcribe.orukeet_model",
                               path=str(local_models.installation_file()))
-    command = colab_transcribe.default_command()
-    # Keep the SDK and its CTC dependencies in the same isolated tool environment.
-    # The shared CLI's Orukeet backend reads the SDK installation receipt from the
-    # user's cache; these packages provide the runtime and word alignment code.
-    if command[0] == "uvx":
-        command[1:1] = ["--with", ORUKEET_WHEEL,
-                        "--with", ORUKEET_TORCH,
-                        "--with", ORUKEET_TORCHAUDIO]
-    elif command[:2] == ["uv", "run"]:
-        command[2:2] = ["--frozen", "--extra", "orukeet",
-                        "--with", ORUKEET_TORCH,
-                        "--with", ORUKEET_TORCHAUDIO]
-
-    def report(fraction, *_args, **_kwargs):
-        if callable(progress):
-            progress(fraction)
-
     source = Path(path).resolve()
-    settings = {"command": command, "align": False,
-                "extra_args": ["--backend", "orukeet"]}
-    if allow_low_memory:
-        settings["extra_args"].append("--allow-low-memory")
+    receipt = live_engine.read_receipt()
+    if receipt is None:
+        raise TranscribeError("error.transcribe.orukeet_model",
+                              path=str(local_models.installation_file()))
+    engine = None
     try:
-        result = colab_transcribe.run(
-            [{"id": "local", "name": source.name, "path": str(source)}],
-            {"backend": "orukeet", "language": language}, settings, report,
-            _LocalCancel(progress), run_process=_run_local_process)
-    except colab_transcribe.ColabError as error:
+        engine = live_engine.warm_engine_factory(receipt)
+        words = []
+        with sf.SoundFile(source) as audio:
+            rate = int(audio.samplerate)
+            total_frames = len(audio)
+            core_frames = max(1, rate * _LOCAL_CHUNK_S)
+            context_frames = rate * _LOCAL_CONTEXT_S
+            core_start = 0
+            while core_start < total_frames:
+                _check_local_cancelled(progress)
+                core_end = min(total_frames, core_start + core_frames)
+                read_start = max(0, core_start - context_frames)
+                read_end = min(total_frames, core_end + context_frames)
+                audio.seek(read_start)
+                samples = audio.read(read_end - read_start, dtype="float32",
+                                     always_2d=True)
+                mono = samples.mean(axis=1)
+                chunk_words = engine(mono, rate)
+                core_from_s = (core_start - read_start) / rate
+                core_to_s = (core_end - read_start) / rate
+                offset_s = read_start / rate
+                for item in chunk_words:
+                    try:
+                        start = float(item["start"])
+                        end = float(item["end"])
+                        text = str(item.get("word", item.get("text", ""))).strip()
+                    except (KeyError, TypeError, ValueError):
+                        continue
+                    midpoint = (start + end) / 2
+                    if not text or not (core_from_s <= midpoint < core_to_s):
+                        continue
+                    words.append(_word(text, offset_s + start, offset_s + end,
+                                       str(item.get("speaker", ""))))
+                core_start = core_end
+                if callable(progress):
+                    progress(core_end / max(1, total_frames))
+    except (TranscribeError, JobCancelledError):
+        raise
+    except Exception as error:
         raise TranscribeError("error.transcribe.orukeet_failed",
-                              error=str(error)) from error
-    return result["results"]["local"]["words"]
+                              error=f"{type(error).__name__}: {error}") from error
+    finally:
+        close = getattr(engine, "close", None)
+        if callable(close):
+            close()
+    words.sort(key=lambda word: (word["s"], word["e"]))
+    return words
