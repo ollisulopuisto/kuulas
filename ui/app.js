@@ -25,6 +25,7 @@ import { createClipboardDrag } from "./clipboard-drag.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { previewFraction, previewPlaying, previewStop } from "./clipboard-preview.js";
 import { createClock } from "./clock.js";
+import { spotPlan } from "./spot.js";
 import { createColabDialogs } from "./colab-dialog.js";
 import {
   colabNotice,
@@ -4446,6 +4447,14 @@ const clock = createClock({
   limit: totalFrames,
   format: frameToTime,
   jump: jumpTo,
+  spot(frame) {
+    const plan = spotPlan(getState(), frame);
+    if (plan.kind === "playhead") {
+      jumpTo(plan.frame);
+      return;
+    }
+    editor.change({ op: plan.op, args: plan.args });
+  },
   notify: showNotice,
   t,
 });
