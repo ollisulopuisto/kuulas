@@ -1924,6 +1924,8 @@
   "ui.placeholders.history.delete": "Poista juontopaikka",
   "ui.placeholders.take_done": "Äänitetty paikalleen",
   "ui.placeholders.about": "noin {seconds} s",
+  "ui.placeholders.transcript.badge": "Äänitettäväksi",
+  "ui.placeholders.transcript.title": "Juontopaikka. Valitse ja siirry sen aikajanan kohtaan napsauttamalla.",
   "ui.placeholders.hover": "Äänitettävä juonto. Enter tai kaksoisnapsautus muokkaa.",
   "ui.placeholders.editor.title": "Juontoteksti",
   "ui.placeholders.editor.label": "Käsikirjoitus",
