@@ -8,7 +8,7 @@ import platform
 import threading
 from pathlib import Path
 
-from . import colab_transcribe, local_memory
+from . import local_memory
 from .automix import run_process
 from .jobs import JobCancelledError
 from .messages import KuulasError
@@ -70,20 +70,13 @@ def status() -> dict:
 
 
 def install_command() -> list[str]:
-    """Build the SDK installer command in the same isolated environment as the CLI."""
-    command = colab_transcribe.default_command()
+    """Install the native SDK directly, independent of colab-transcribe."""
     receipt = installation_file()
     args = ["install", "--device", "auto", "--cache", str(receipt.parent),
             "--output", str(receipt)]
-    if command[0] == "uvx":
-        return [command[0], "--with", ORUKEET_WHEEL,
-                "--with", ORUKEET_TORCH, "--with", ORUKEET_TORCHAUDIO,
-                *command[1:-1], "orukeet", *args]
-    if command[:2] == ["uv", "run"]:
-        return ["uv", "run", "--frozen", "--extra", "orukeet",
-                "--with", ORUKEET_TORCH, "--with", ORUKEET_TORCHAUDIO,
-                *command[2:-1], "orukeet", *args]
-    raise ModelError("error.orukeet.install", error="Unsupported uv command")
+    return ["uv", "run", "--no-project", "--with", ORUKEET_WHEEL,
+            "--with", ORUKEET_TORCH, "--with", ORUKEET_TORCHAUDIO,
+            "orukeet", *args]
 
 
 class _Cancel:

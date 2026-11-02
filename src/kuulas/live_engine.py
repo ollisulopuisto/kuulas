@@ -1,11 +1,10 @@
 """The warm Orukeet engine for live takes: one model load per take, many chunks.
 
-Reuses the Orukeet installation the user's cold transcription path already has
-(the receipt colab-transcribe's orukeet backend writes: ``ORUKEET_INSTALLATION``
-or ``~/.cache/orukeet/installation.json``, naming the GGUF model, the native
-runtime and the device). Nothing is downloaded and no second model is
-installed: without a valid receipt there is no live transcription, and the
-take records exactly as before.
+Reuses the Orukeet installation written by Kuulas's installer
+(``ORUKEET_INSTALLATION`` or ``~/.cache/orukeet/installation.json``, naming the
+GGUF model, native runtime and device). Nothing is downloaded and no second
+model is installed: without a valid receipt there is no live transcription,
+and the take records exactly as before.
 """
 
 from __future__ import annotations
@@ -169,9 +168,13 @@ def warm_engine_factory(receipt: dict | None = None, *,
         raise RuntimeError("error.orukeet.no_installation")
     make = spawn or (lambda: LiveEngineProcess(command))
     process = make()
-    process.request("load", model_path=receipt["model"],
-                    runtime=receipt["runtime"], device=receipt["device"],
-                    timeout=timeout)
+    try:
+        process.request("load", model_path=receipt["model"],
+                        runtime=receipt["runtime"], device=receipt["device"],
+                        timeout=timeout)
+    except BaseException:
+        process.close()
+        raise
 
     def engine(audio, rate):
         samples = array.array("f", (float(x) for x in audio))
