@@ -2140,6 +2140,16 @@ input[type="text"] {
   border-color: var(--accent);
   background: var(--accent-subtle);
 }
+.drag-handle {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-4);
+  color: var(--text-muted);
+  cursor: grab;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
 .clip-main {
   display: flex;
   flex-direction: column;
