@@ -2892,9 +2892,6 @@ function orukeetDialogFor() {
   orukeetDialog ??= createOrukeetDialog({
     api,
     t,
-    pickFolder: window.pywebview?.api?.pick_orukeet_model
-      ? () => window.pywebview.api.pick_orukeet_model()
-      : null,
   });
   return orukeetDialog;
 }

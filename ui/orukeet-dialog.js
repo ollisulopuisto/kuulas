@@ -1,5 +1,4 @@
 import { enhanceDialog } from "./dialog-keys.js";
-import { formatNumber } from "./i18n.js";
 import { setupView } from "./orukeet-setup.js";
 
 const make = (tag, className, text) => {
@@ -9,8 +8,8 @@ const make = (tag, className, text) => {
   return node;
 };
 
-/** Install/select before the requested transcription; downloads remain regular cancellable jobs. */
-export function createOrukeetDialog({ api, t, pickFolder = null }) {
+/** Install or repair the runtime before local transcription; work remains cancellable. */
+export function createOrukeetDialog({ api, t }) {
   const dialog = make("dialog", "cheatsheet automix-dialog orukeet-dialog");
   dialog.setAttribute("aria-labelledby", "orukeet-title");
   const heading = make("h2", "", t("ui.orukeet.title"));
@@ -20,44 +19,31 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
   source.target = "_blank";
   source.rel = "noreferrer";
   const message = make("p", "form-msg");
+  const location = make("p", "form-note orukeet-path");
   message.setAttribute("role", "status");
   const progress = make("progress");
   progress.max = 1;
   progress.setAttribute("aria-label", t("ui.orukeet.install"));
-  const selected = make("p", "form-note orukeet-path");
-  const pathLabel = make("label", "form-row");
-  const pathInput = make("input");
-  pathInput.type = "text";
-  pathInput.autocomplete = "off";
-  pathInput.spellcheck = false;
-  pathLabel.append(make("span", "form-label", t("ui.orukeet.path")), pathInput);
   const footer = make("div", "cheatsheet-footer");
   const button = (key, kind = "button block") => {
     const node = make("button", kind, t(key));
     node.type = "button";
     return node;
   };
-  const choose = button("ui.orukeet.choose");
-  choose.hidden = !pickFolder;
-  const use = button("ui.orukeet.use");
   const install = button("ui.orukeet.install", "button block primary");
   install.dataset.dialogPrimary = "";
   const cancel = button("ui.orukeet.cancel");
   const close = button("ui.orukeet.close");
   const runAnyway = button("ui.orukeet.run_anyway");
   close.dataset.dialogCancel = "";
-  const existingActions = make("div", "orukeet-existing-actions");
-  existingActions.append(choose, use);
   footer.append(cancel, close, runAnyway, install);
   dialog.append(
     heading,
     note,
     source,
-    selected,
+    location,
     message,
     progress,
-    pathLabel,
-    existingActions,
     footer,
   );
   document.body.append(dialog);
@@ -74,20 +60,15 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
   function draw() {
     const view = setupView(memoryOverride ? { ...info, eligible: true } : info, job);
     runAnyway.hidden = info.eligible !== false || memoryOverride || !continueWhenReady;
-    note.textContent = t("ui.orukeet.note", {
-      size: formatNumber((info.bytes || 0) / 1e9, { digits: 2 }),
-    });
+    note.textContent = t("ui.orukeet.note");
     source.href = info.source;
-    selected.textContent = info.ready ? info.path : "";
-    selected.hidden = !info.ready;
+    location.textContent = info.ready ? t("ui.orukeet.location", { path: info.path }) : "";
+    location.hidden = !info.ready;
     progress.hidden = !view.busy;
     progress.value = view.progress;
     install.disabled = !view.canInstall;
     install.textContent = t(info.ready ? "ui.orukeet.reinstall" : "ui.orukeet.install");
     close.textContent = t(view.busy ? "ui.orukeet.background" : "ui.orukeet.close");
-    choose.disabled = !view.canSelect;
-    use.disabled = !view.canSelect;
-    pathInput.disabled = !view.canSelect;
     cancel.hidden = !view.busy;
     message.classList.toggle("tx-error", Boolean(view.error));
     message.textContent =
@@ -126,35 +107,6 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
     }
   }
 
-  async function applyFolder(path) {
-    try {
-      info = await api.selectLocalModel(path);
-      job = null;
-      draw();
-      if (continueWhenReady) dialog.close();
-    } catch (error) {
-      showError(error);
-    }
-  }
-  use.addEventListener("click", () => void applyFolder(pathInput.value));
-  pathInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      event.stopPropagation();
-      void applyFolder(pathInput.value);
-    }
-  });
-  choose.addEventListener("click", async () => {
-    try {
-      const path = await pickFolder?.();
-      if (path) {
-        pathInput.value = path;
-        await applyFolder(path);
-      }
-    } catch (error) {
-      showError(error);
-    }
-  });
   install.addEventListener("click", async () => {
     install.disabled = true;
     try {
