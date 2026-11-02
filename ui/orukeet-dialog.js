@@ -37,15 +37,7 @@ export function createOrukeetDialog({ api, t }) {
   const runAnyway = button("ui.orukeet.run_anyway");
   close.dataset.dialogCancel = "";
   footer.append(cancel, close, runAnyway, install);
-  dialog.append(
-    heading,
-    note,
-    source,
-    location,
-    message,
-    progress,
-    footer,
-  );
+  dialog.append(heading, note, source, location, message, progress, footer);
   document.body.append(dialog);
   enhanceDialog(dialog, { t });
   let info = { ready: false, supported: false };
