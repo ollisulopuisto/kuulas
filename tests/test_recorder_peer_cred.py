@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
 from kuulas_recorder.transport import UnixTransport
 
 
-def test_listener_accepts_same_uid_connection(tmp_path: Path):
-    sock_path = tmp_path / "rec.sock"
+def test_listener_accepts_same_uid_connection():
+    with tempfile.TemporaryDirectory(prefix="k-", dir=".") as directory:
+        _assert_listener_accepts_same_uid_connection(Path(directory) / "rec.sock")
+
+
+def _assert_listener_accepts_same_uid_connection(sock_path: Path):
     transport = UnixTransport()
     listener = transport.listen(sock_path)
     try:
@@ -23,8 +28,12 @@ def test_listener_accepts_same_uid_connection(tmp_path: Path):
         listener.close()
 
 
-def test_listener_refuses_foreign_uid_connection(tmp_path: Path):
-    sock_path = tmp_path / "rec.sock"
+def test_listener_refuses_foreign_uid_connection():
+    with tempfile.TemporaryDirectory(prefix="k-", dir=".") as directory:
+        _assert_listener_refuses_foreign_uid_connection(Path(directory) / "rec.sock")
+
+
+def _assert_listener_refuses_foreign_uid_connection(sock_path: Path):
     transport = UnixTransport()
     listener = transport.listen(sock_path)
     try:
