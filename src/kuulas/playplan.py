@@ -299,11 +299,13 @@ class PlayPlan:
             plan.splice_half = plan.half_widths[len(prefix)]
         return plan
 
-    def read(self, project, store, v: int, n: int) -> np.ndarray:
-        """``(2, n)`` float32: played frames ``[v, v + n)``, crossfaded."""
+    def read(self, project, store, v: int, n: int, fx=None) -> np.ndarray:
+        """``(2, n)`` float32: played frames ``[v, v + n)``, crossfaded.
+        ``fx`` (an ``fx.FxState``) applies track effect layers, in plain playback
+        only (one piece, no loop); skips and loops play dry for now."""
         if self.cycle_at is None:
             return self._read_pieces(project, store, v, n,
-                                     self.length(project.length), False)
+                                     self.length(project.length), False, fx)
         out = np.zeros((2, n), dtype=np.float32)
         v0, period, total, h = self._v0, self._period, self._total, self.wrap_half
         pos, end = v, v + n
@@ -350,7 +352,7 @@ class PlayPlan:
         return out
 
     def _read_pieces(self, project, store, v: int, n: int, total: int,
-                     later: bool) -> np.ndarray:
+                     later: bool, fx=None) -> np.ndarray:
         """Played frames ``[v, v + n)`` of the pieces laid end to end, up to
         ``total``. ``later``: in a repeat of the cycle, whose first piece is
         entered from the wrap, not from the lead-in."""
@@ -358,7 +360,7 @@ class PlayPlan:
         last = len(self.pieces) - 1 if looping else self._last(project.length)
         if len(self.pieces) == 1 and last == 0 and not looping:  # plain playback
             a = self.pieces[0][0]
-            return mixer.mix(project, store, a + v, n)
+            return mixer.mix(project, store, a + v, n, fx)
         out = np.zeros((2, n), dtype=np.float32)
         end = min(v + n, total)
         first = max(0, bisect.bisect_right(self.vstarts, v) - 1)

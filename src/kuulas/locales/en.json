@@ -1,4 +1,14 @@
 {
+  "ui.loudness.pending": "Measuring loudness…",
+  "ui.loudness.unavailable": "Loudness not measured",
+  "ui.loudness.updating": "updating measurement",
+  "ui.loudness.label": "Track loudness",
+  "ui.loudness.integrated_hint": "Integrated track-stem loudness after track gain and ducking, before pan, buses and master; analysis target, not a live meter. A gain change triggers a new measurement.",
+  "ui.control.level": "Level",
+  "ui.control.pan": "Pan",
+  "ui.orukeet.run_anyway": "Run anyway (this run)",
+  "ui.orukeet.memory_warning": "Local transcription is blocked by the current 16 GiB memory policy, or RAM could not be detected. Running anyway may freeze or restart your Mac and lose unsaved work. Use Colab instead, or explicitly accept the risk for this run.",
+  "error.orukeet.memory": "Local Orukeet requires at least 16 GiB of physical memory under the current eligibility policy. Memory could be insufficient or could not be detected. Use Colab instead. Meeting this minimum does not guarantee enough free memory.",
   "ui.record.peak_value": "{value} dBFS",
   "ui.record.more_options": "More options",
   "ui.record.monitoring_short": "Monitor your microphone through the audio interface.",
@@ -40,6 +50,14 @@
   "error.orukeet.space": "There is not enough free space to install Orukeet. Free at least 1.4 GB and retry.",
   "error.orukeet.busy": "Orukeet is already being installed in another window.",
   "error.orukeet.platform": "Local Orukeet currently requires an Apple-silicon Mac.",
+  "error.orukeet.no_installation": "Orukeet is not installed on this machine. Install it from the transcription settings to hear words while recording.",
+  "error.live_engine.closed": "The live speech engine is closed.",
+  "error.live_engine.timeout": "The live speech engine did not answer in time and was stopped.",
+  "error.live_engine.worker_stopped": "The live speech worker stopped; the lane loads again on the next take.",
+  "error.live_engine.no_model": "No model is loaded in the live speech worker.",
+  "error.live_engine.unknown_operation": "The live speech worker got an operation it does not know.",
+  "error.live_transcribe.bad_offsets": "Internal error: bad chunk offsets while transcribing live.",
+  "error.live_transcribe.chunk_s_positive": "Internal error: the live chunk length must be positive.",
   "error.orukeet.invalid_model": "Choose a folder containing an Orukeet MLX config.json and model.safetensors.",
   "cmd.sync.accept_range": "Accept the offsets in the range",
   "cmd.sync.accept_range.hint": "Says the offsets of the drifting clips between the in and out marks (else from the play cursor to the end) are on purpose, such as the delay of a remote call you have corrected: they are freed from sync, stop counting as drifting and nothing moves. One undo step.",
@@ -103,6 +121,7 @@
   "error.jobs.closed": "The background job runner is closed.",
   "error.job.failed": "The background job failed: {error}",
   "error.media.offline": "The source file {name} is offline. Relink it before transcription.",
+  "job.transcribe.waiting_local": "Waiting for the current local transcription to finish",
   "job.transcribe": "Transcribing {name}",
   "error.import.nhsx_failed": "Could not import Hindenburg session {path}. Check that it is a valid .nhsx file.",
   "error.import.nhsx_missing_media": "The session refers to audio file {name}, which could not be found.",
@@ -455,6 +474,8 @@
   "ui.track.name": "Track name",
   "ui.track.mute": "Mute track",
   "ui.track.mute.short": "M",
+  "ui.inspector.state.on": "On",
+  "ui.inspector.state.off": "Off",
   "ui.track.solo": "Solo track",
   "ui.track.solo.short": "S",
   "ui.track.bus": "Track bus",
@@ -462,6 +483,14 @@
   "ui.track.gain": "Track gain",
   "ui.track.pan": "Track pan",
   "ui.bus.name": "Bus: {name}",
+  "ui.bus.rename": "Double-click to rename bus",
+  "ui.inspector.clips": "Files on this track",
+  "ui.inspector.clips.empty": "No files on this track.",
+  "ui.inspector.clips.count": {
+    "one": "{count} clip",
+    "other": "{count} clips"
+  },
+  "ui.inspector.clips.jump": "Select this clip and move the play cursor to it",
   "ui.inspector.title": "Inspector",
   "ui.inspector.empty": "Select one clip to inspect it.",
   "ui.clip.name": "Clip name",
@@ -496,6 +525,7 @@
   "ui.rail.short.edit.redo": "Redo",
   "ui.rail.short.app.import": "Import",
   "ui.rail.short.app.transcribe": "Transcribe",
+  "ui.rail.short.app.transcribe_all": "Transcribe all",
   "ui.rail.short.app.auto_silence": "Auto-Silence",
   "ui.rail.short.edit.split": "Split",
   "ui.rail.short.clip.mute": "Mute",
@@ -601,14 +631,20 @@
   "ui.inspector.fades": "Fades",
   "ui.inspector.sync": "Sync",
   "ui.inspector.source": "Source",
-  "ui.inspector.source.summary": {"one": "Used {percent}% · {count} part", "other": "Used {percent}% · {count} parts"},
+  "ui.inspector.source.summary": {
+    "one": "Used {percent}% · {count} part",
+    "other": "Used {percent}% · {count} parts"
+  },
   "ui.inspector.source.map": "Map of the whole recording: used, cut and unused stretches, and this clip",
   "ui.inspector.source.used": "Used",
   "ui.inspector.source.cut": "Cut",
   "ui.inspector.source.unused": "Unused",
   "ui.inspector.source.this": "This clip",
   "ui.inspector.source.loading": "Loading…",
-  "ui.inspector.source.others": {"one": "Other clips from this recording ({count})", "other": "Other clips from this recording ({count})"},
+  "ui.inspector.source.others": {
+    "one": "Other clips from this recording ({count})",
+    "other": "Other clips from this recording ({count})"
+  },
   "ui.inspector.source.none": "No other clips from this recording.",
   "ui.inspector.source.jump": "Select this clip and move the play cursor to {time}",
   "ui.inspector.details": "Details",
@@ -864,6 +900,7 @@
   "cmd.app.open_earlier_version": "Open earlier version…",
   "cmd.app.backup_now": "Back up now",
   "cmd.app.transcribe": "Transcribe the track on this computer",
+  "cmd.app.transcribe_all": "Transcribe every recording on this computer",
   "cmd.app.automix": "Duck the microphones (automation)",
   "cmd.app.auto_silence": "Auto-Silence",
   "cmd.palette.open": "Command palette",
@@ -903,6 +940,8 @@
   "ui.nhsx.partial": "Hindenburg session imported: {count} recordings, {missing} not found next to the session.",
   "ui.nhsx.nothing": "Nothing came in from the Hindenburg session ({missing} recordings not found).",
   "cmd.help.keys.hint": "Show every command with its keys",
+  "cmd.help.whats_new": "What's New",
+  "cmd.help.whats_new.hint": "See what changed in this version.",
   "cmd.palette.open.hint": "Search and run any command",
   "cmd.help.search": "Search commands and help…",
   "cmd.help.search.hint": "Type what you want to do: shows the command, where it is in the menus and its key",
@@ -1078,10 +1117,22 @@
   "ui.edit.label.group_clips": "Group clips",
   "ui.edit.label.ungroup_clips": "Ungroup clips",
   "ui.edit.label.merge_clips": "Merge clips",
-  "ui.edit.toast.group_clips": {"one": "Grouped {count} clip", "other": "Grouped {count} clips"},
-  "ui.edit.toast.ungroup_clips": {"one": "Dissolved {count} group", "other": "Dissolved {count} groups"},
-  "ui.edit.toast.merge": {"one": "Merged {count} clip into {into}", "other": "Merged {count} clips into {into}"},
-  "ui.edit.toast.merge_partial": {"one": "Merged {count} clip into {into}; {left} could not be merged (not touching, different source or different gain)", "other": "Merged {count} clips into {into}; {left} could not be merged (not touching, different source or different gain)"},
+  "ui.edit.toast.group_clips": {
+    "one": "Grouped {count} clip",
+    "other": "Grouped {count} clips"
+  },
+  "ui.edit.toast.ungroup_clips": {
+    "one": "Dissolved {count} group",
+    "other": "Dissolved {count} groups"
+  },
+  "ui.edit.toast.merge": {
+    "one": "Merged {count} clip into {into}",
+    "other": "Merged {count} clips into {into}"
+  },
+  "ui.edit.toast.merge_partial": {
+    "one": "Merged {count} clip into {into}; {left} could not be merged (not touching, different source or different gain)",
+    "other": "Merged {count} clips into {into}; {left} could not be merged (not touching, different source or different gain)"
+  },
   "cmd.edit.cut.hint": "Remove the selection or in-out range and close the gap",
   "cmd.edit.delete.hint": "Mute the selection or range in place; the gap stays and can be restored",
   "cmd.clip.mute.hint": "Mute the selected clips, or unmute them",
@@ -1099,25 +1150,55 @@
   "ui.edit.label.gain": "Clip gain",
   "ui.edit.label.track_mute": "Mute track",
   "ui.edit.label.solo": "Solo track",
-  "ui.edit.toast.split": {"one": "Split {count} clip", "other": "Split {count} clips"},
-  "ui.edit.toast.delete_clips": {"one": "Deleted {count} clip · gap kept", "other": "Deleted {count} clips · gap kept"},
-  "ui.edit.toast.delete_range": {"one": "Deleted {seconds} s on {count} track · gap kept", "other": "Deleted {seconds} s on {count} tracks · gap kept"},
-  "ui.edit.toast.cut": {"one": "Cut {seconds} s on {count} track · in the clipboard", "other": "Cut {seconds} s on {count} tracks · in the clipboard"},
-  "ui.edit.toast.mute": {"one": "Muted {count} clip", "other": "Muted {count} clips"},
-  "ui.edit.toast.unmute": {"one": "Unmuted {count} clip", "other": "Unmuted {count} clips"},
+  "ui.edit.toast.split": {
+    "one": "Split {count} clip",
+    "other": "Split {count} clips"
+  },
+  "ui.edit.toast.delete_clips": {
+    "one": "Deleted {count} clip · gap kept",
+    "other": "Deleted {count} clips · gap kept"
+  },
+  "ui.edit.toast.delete_range": {
+    "one": "Deleted {seconds} s on {count} track · gap kept",
+    "other": "Deleted {seconds} s on {count} tracks · gap kept"
+  },
+  "ui.edit.toast.cut": {
+    "one": "Cut {seconds} s on {count} track · in the clipboard",
+    "other": "Cut {seconds} s on {count} tracks · in the clipboard"
+  },
+  "ui.edit.toast.mute": {
+    "one": "Muted {count} clip",
+    "other": "Muted {count} clips"
+  },
+  "ui.edit.toast.unmute": {
+    "one": "Unmuted {count} clip",
+    "other": "Unmuted {count} clips"
+  },
   "ui.edit.toast.unmute_region": "Opened this closed stretch as a clip of its own. Mute just it again: {key:clip.mute}.",
-  "ui.edit.toast.trim_start": {"one": "Trimmed the start of {count} clip", "other": "Trimmed the start of {count} clips"},
-  "ui.edit.toast.trim_end": {"one": "Trimmed the end of {count} clip", "other": "Trimmed the end of {count} clips"},
+  "ui.edit.toast.trim_start": {
+    "one": "Trimmed the start of {count} clip",
+    "other": "Trimmed the start of {count} clips"
+  },
+  "ui.edit.toast.trim_end": {
+    "one": "Trimmed the end of {count} clip",
+    "other": "Trimmed the end of {count} clips"
+  },
   "ui.edit.toast.nothing": "Nothing changed there.",
   "cmd.range.scope_toggle": "Range operations: all tracks / selected tracks only",
   "cmd.range.scope_toggle.hint": "Switches whether cut, copy, delete and mute of a range act on all tracks or only on the selected tracks. Selecting a track header switches to selected tracks; {key:nav.home} switches back.",
   "ui.scope.none_selected": "No tracks selected, so nothing was touched. Select a track, or use {key:range.scope_toggle} to include all tracks.",
   "ui.scope.chip_range": "range {from}-{to} {where}",
   "ui.scope.chip_mode": "range operations {where}",
-  "ui.scope.where_all": {"one": "on the track", "other": "on all {count} tracks"},
+  "ui.scope.where_all": {
+    "one": "on the track",
+    "other": "on all {count} tracks"
+  },
   "ui.scope.where_some": "on {names}",
   "ui.scope.chip_none": "no tracks selected: nothing will be touched",
-  "ui.scope.chip_clips": {"one": "{key:edit.delete} / {key:edit.remove} touch the selected clip (the marks are dimmed)", "other": "{key:edit.delete} / {key:edit.remove} touch the {count} selected clips (the marks are dimmed)"},
+  "ui.scope.chip_clips": {
+    "one": "{key:edit.delete} / {key:edit.remove} touch the selected clip (the marks are dimmed)",
+    "other": "{key:edit.delete} / {key:edit.remove} touch the {count} selected clips (the marks are dimmed)"
+  },
   "ui.scope.chip_title": "Which tracks the next range operation (cut, copy, delete, mute) touches. Click to switch between all tracks and selected tracks only. Shortcut: {key:range.scope_toggle}.",
   "cmd.clip.match_loudness": "Match loudness",
   "cmd.clip.match_loudness.hint": "Sets the gain of the selected clips (or the current track's) so they are equally loud, at the track's target (speech -19, music -23 LUFS unless set).",
@@ -1133,8 +1214,14 @@
   "cmd.export.transcript_md.hint": "Saves the transcript as a Markdown file, one paragraph per speaker turn.",
   "ui.edit.label.fade": "Fade",
   "ui.edit.toast.fade": "Faded the clip at the play cursor",
-  "ui.loudness.measuring": {"one": "Measuring {count} clip…", "other": "Measuring {count} clips…"},
-  "ui.loudness.done": {"one": "Matched {count} clip · {skipped} skipped (silent)", "other": "Matched {count} clips · {skipped} skipped (silent)"},
+  "ui.loudness.measuring": {
+    "one": "Measuring {count} clip…",
+    "other": "Measuring {count} clips…"
+  },
+  "ui.loudness.done": {
+    "one": "Matched {count} clip · {skipped} skipped (silent)",
+    "other": "Matched {count} clips · {skipped} skipped (silent)"
+  },
   "ui.loudness.readout": "{value} / {target} LUFS",
   "ui.loudness.readout_no_target": "{value} LUFS",
   "ui.loudness.readout.tip": "Integrated loudness of this track against its target; set the target in the inspector",
@@ -1209,7 +1296,10 @@
   "cmd.clip.fade.hint": "Fades the clip in or out from the play cursor, at whichever end is nearer.",
   "cmd.clip.quick_mute.hint": "Mutes a short stretch centred on the play cursor (half before, half after; 0.5 s by default, set in Preferences), on all tracks or the selected ones, as one undo step. For lip smacks: press it while listening. Nothing is deleted; any piece can be unmuted.",
   "ui.edit.label.quick_mute": "Quick mute",
-  "ui.edit.toast.quick_mute": {"one": "Muted {seconds} s around the cursor on {count} track", "other": "Muted {seconds} s around the cursor on {count} tracks"},
+  "ui.edit.toast.quick_mute": {
+    "one": "Muted {seconds} s around the cursor on {count} track",
+    "other": "Muted {seconds} s around the cursor on {count} tracks"
+  },
   "ui.quick_mute.already": "That stretch is already muted.",
   "ui.prefs.quick_mute": "Quick mute length (s)",
   "cmd.bus.collapse.hint": "Shows the bus as one row.",
@@ -1378,7 +1468,10 @@
   "ui.readonly.banner_no_time": "Read-only: this project is open on {host}.",
   "ui.clipboard.keep_label": "Keep the newest",
   "ui.clipboard.clear_old": "Clear old entries",
-  "ui.clipboard.cleared": {"one": "Cleared {count} old clipboard entry", "other": "Cleared {count} old clipboard entries"},
+  "ui.clipboard.cleared": {
+    "one": "Cleared {count} old clipboard entry",
+    "other": "Cleared {count} old clipboard entries"
+  },
   "ui.clipboard.cleared_none": "Nothing to clear: there are no more entries than the ones kept",
   "ui.clipboard.view_label": "Clipboard view",
   "ui.clipboard.view.project": "This project",
@@ -1415,20 +1508,35 @@
   "ui.clipboard.project_path_label": "Path to a .kuulas project folder",
   "ui.clipboard.project_path_placeholder": "/path/to/Project.kuulas",
   "ui.clipboard.project_show": "Show",
-  "ui.clipboard.project_entries": {"one": "{count} entry", "other": "{count} entries"},
+  "ui.clipboard.project_entries": {
+    "one": "{count} entry",
+    "other": "{count} entries"
+  },
   "ui.clipboard.project_used": "last used {date}",
   "ui.clipboard.project_loading": "Reading…",
   "ui.clipboard.project_unreadable": "Could not read this project's clipboard.",
   "ui.clipboard.project_empty": "This project's clipboard is empty.",
-  "ui.clipboard.clip_count": {"one": "{count} clip", "other": "{count} clips"},
+  "ui.clipboard.clip_count": {
+    "one": "{count} clip",
+    "other": "{count} clips"
+  },
   "ui.clipboard.ago_now": "just now",
-  "ui.clipboard.ago_minutes": {"one": "{count} minute ago", "other": "{count} minutes ago"},
-  "ui.clipboard.ago_hours": {"one": "{count} hour ago", "other": "{count} hours ago"},
-  "ui.clipboard.ago_days": {"one": "{count} day ago", "other": "{count} days ago"},
+  "ui.clipboard.ago_minutes": {
+    "one": "{count} minute ago",
+    "other": "{count} minutes ago"
+  },
+  "ui.clipboard.ago_hours": {
+    "one": "{count} hour ago",
+    "other": "{count} hours ago"
+  },
+  "ui.clipboard.ago_days": {
+    "one": "{count} day ago",
+    "other": "{count} days ago"
+  },
   "ui.clipboard.preview": "Play",
   "ui.clipboard.preview_stop": "Stop",
   "ui.clipboard.preview_progress": "Clipboard preview progress",
-  "ui.clipboard.preview_nothing":"Nothing to play: the recordings of this entry are not in this project",
+  "ui.clipboard.preview_nothing": "Nothing to play: the recordings of this entry are not in this project",
   "ui.focus.clipboard": "Clipboard",
   "ui.tabs.label": "Side panels",
   "ui.tabs.inspector": "Inspector",
@@ -1436,16 +1544,28 @@
   "ui.clipboard.title": "Clipboard",
   "ui.clipboard.empty": "Nothing here yet. Copy or cut something and it waits here, ready to paste again. Mark an entry with the star to share it with your other projects.",
   "ui.clipboard.list_label": "Clipboard entries",
-  "ui.clipboard.untitled": {"one": "{count} clip · {duration}", "other": "{count} clips · {duration}"},
+  "ui.clipboard.untitled": {
+    "one": "{count} clip · {duration}",
+    "other": "{count} clips · {duration}"
+  },
   "ui.clipboard.untitled_track": "Clip",
-  "ui.clipboard.auto_name": {"one": "{count} clip from {name}, {at}", "other": "{count} clips from {name}, {at}"},
+  "ui.clipboard.auto_name": {
+    "one": "{count} clip from {name}, {at}",
+    "other": "{count} clips from {name}, {at}"
+  },
   "ui.clipboard.filter_label": "Filter",
   "ui.clipboard.filter_placeholder": "Filter entries: name, track, project or words said",
   "ui.clipboard.no_matches": "No entry matches the filter.",
   "ui.clipboard.details": "From {source}: {tracks} · {duration}",
   "ui.clipboard.details_short": "{duration}",
-  "ui.clipboard.meta": {"one": "{count} clip · {duration}", "other": "{count} clips · {duration}"},
-  "ui.clipboard.missing_here": {"one": "{count} recording is not in this project", "other": "{count} recordings are not in this project"},
+  "ui.clipboard.meta": {
+    "one": "{count} clip · {duration}",
+    "other": "{count} clips · {duration}"
+  },
+  "ui.clipboard.missing_here": {
+    "one": "{count} recording is not in this project",
+    "other": "{count} recordings are not in this project"
+  },
   "ui.clipboard.rename": "Rename",
   "ui.clipboard.rename_label": "Entry name",
   "ui.clipboard.delete": "Delete",
@@ -1459,15 +1579,35 @@
   "ui.clipboard.target.current": "Current track",
   "ui.edit.label.paste": "Paste",
   "ui.edit.label.paste_insert": "Paste and insert",
-  "ui.edit.toast.copy": {"one": "Copied {count} clip to the clipboard", "other": "Copied {count} clips to the clipboard"},
-  "ui.edit.toast.paste": {"one": "Pasted {count} clip over the old material", "other": "Pasted {count} clips over the old material"},
-  "ui.edit.toast.paste_insert": {"one": "Pasted {count} clip and moved later material", "other": "Pasted {count} clips and moved later material"},
-  "ui.edit.toast.paste_missing": {"one": "Pasted, but {count} recording is not in this project", "other": "Pasted, but {count} recordings are not in this project"},
+  "ui.edit.toast.copy": {
+    "one": "Copied {count} clip to the clipboard",
+    "other": "Copied {count} clips to the clipboard"
+  },
+  "ui.edit.toast.paste": {
+    "one": "Pasted {count} clip over the old material",
+    "other": "Pasted {count} clips over the old material"
+  },
+  "ui.edit.toast.paste_insert": {
+    "one": "Pasted {count} clip and moved later material",
+    "other": "Pasted {count} clips and moved later material"
+  },
+  "ui.edit.toast.paste_missing": {
+    "one": "Pasted, but {count} recording is not in this project",
+    "other": "Pasted, but {count} recordings are not in this project"
+  },
   "ui.edit.toast.paste_nothing": "Nothing pasted: this project lacks the recordings.",
-  "ui.edit.toast.cut_uncopied": {"one": "Cut {seconds} s on {count} track · NOT copied to the clipboard ({error})", "other": "Cut {seconds} s on {count} tracks · NOT copied to the clipboard ({error})"},
+  "ui.edit.toast.cut_uncopied": {
+    "one": "Cut {seconds} s on {count} track · NOT copied to the clipboard ({error})",
+    "other": "Cut {seconds} s on {count} tracks · NOT copied to the clipboard ({error})"
+  },
   "ui.transcript.empty": "No transcript yet.",
   "ui.transcript.missing": "Transcription missing",
-  "ui.transcript.all_files": {"one": "All {count} file", "other": "All {count} files"},
+  "ui.transcript.all_files": {
+    "one": "All {count} file",
+    "other": "All {count} files"
+  },
+  "ui.transcript.cancelled": "Transcription cancelled",
+  "ui.transcript.cancel": "Cancel transcription",
   "ui.transcript.status.none": "Not transcribed",
   "ui.transcript.status.queued": "Waiting to start",
   "ui.transcript.status.running": "Transcribing…",
@@ -1476,13 +1616,17 @@
   "ui.transcript.running": "Transcribing in the background; you can keep editing.",
   "ui.transcript.progress": "Transcription progress",
   "ui.transcript.music_skipped": "Music track: not transcribed",
+  "ui.transcript.nothing_to_transcribe": "Nothing to transcribe",
   "ui.transcript.transcribe_anyway": "Transcribe anyway",
   "ui.transcript.transcribe_anyway_title": "Transcribe {name} on this computer although it is music. Nothing is uploaded.",
   "ui.transcript.retry": "The transcription failed. Try again.",
   "ui.transcript.follow": "Follow playback",
   "ui.transcript.sum.none": "Nothing else is removed",
   "ui.transcript.sum.also": "Also removes {list}",
-  "ui.transcript.sum.words": {"one": "{count} word from {name}", "other": "{count} words from {name}"},
+  "ui.transcript.sum.words": {
+    "one": "{count} word from {name}",
+    "other": "{count} words from {name}"
+  },
   "ui.transcript.sum.audio": "{seconds} s of {name}",
   "ui.transcript.pop.label": "Selected words",
   "ui.transcript.pop.delete": "Delete these words on {name}",
@@ -1490,20 +1634,31 @@
   "ui.transcript.pop.cut": "Cut on all tracks",
   "ui.transcript.pop.cut_title": "Removes the stretch from every track and closes the gap. What else goes is marked.",
   "ui.transcript.pop.correct": "Correct",
-  "ui.transcript.pop.correct_title": "Edit the text of the selected word. Select a single word to use it.",
+  "ui.transcript.pop.correct_title": "Edit the selected word or contiguous phrase from one recording.",
   "ui.transcript.label.delete": "Delete words",
-  "ui.transcript.toast.delete": {"one": "Deleted {count} word on {name} · gap kept", "other": "Deleted {count} words on {name} · gap kept"},
-  "ui.transcript.toast.cut": {"one": "Cut {count} word on all tracks · in the clipboard", "other": "Cut {count} words on all tracks · in the clipboard"},
-  "ui.transcript.toast.cut_uncopied": {"one": "Cut {count} word on all tracks · NOT copied to the clipboard", "other": "Cut {count} words on all tracks · NOT copied to the clipboard"},
+  "ui.transcript.toast.delete": {
+    "one": "Deleted {count} word on {name} · gap kept",
+    "other": "Deleted {count} words on {name} · gap kept"
+  },
+  "ui.transcript.toast.cut": {
+    "one": "Cut {count} word on all tracks · in the clipboard",
+    "other": "Cut {count} words on all tracks · in the clipboard"
+  },
+  "ui.transcript.toast.cut_uncopied": {
+    "one": "Cut {count} word on all tracks · NOT copied to the clipboard",
+    "other": "Cut {count} words on all tracks · NOT copied to the clipboard"
+  },
   "ui.hint.delete_words": "delete words",
   "cmd.transcript.cut_words": "Cut the selected words to the clipboard, all tracks",
   "cmd.transcript.cut_words.hint": "Removes the stretch of the selected words from every track and closes the gap; the words other speakers say over it go too.",
   "cmd.transcript.delete_words.hint": "Silences the selected words on their own speaker's track only; the gap stays and nothing else moves.",
-  "cmd.transcript.correct.hint": "Edit the text of the word under the cursor or the single selected word.",
+  "cmd.transcript.correct.hint": "Edit the word under the cursor or replace a contiguous selection from one recording.",
   "ui.tabs.history": "History",
-  "ui.tabs.material": "Material",
-  "cmd.panel.show_material": "Show Material",
+  "ui.tabs.material": "Materials",
+  "cmd.panel.show_material": "Materials",
   "cmd.panel.show_material.hint": "Shows the Material tab in the side panel: every recording of the project and how much of it the edit plays.",
+  "ui.materials.scope.recordings": "Recordings",
+  "ui.materials.scope.clipboard": "Clipboard",
   "ui.material.filter.all": "All",
   "ui.material.filter.timeline": "On the timeline",
   "ui.material.filter.unused": "Not on the timeline",
@@ -1582,7 +1737,10 @@
   "ui.history.branch_title": "From a path you left; Restore brings it back as a new step",
   "ui.history.step_title": "{time} · {author}",
   "ui.history.just_now": "just now",
-  "ui.history.ago_minutes": {"one": "{count} min ago", "other": "{count} min ago"},
+  "ui.history.ago_minutes": {
+    "one": "{count} min ago",
+    "other": "{count} min ago"
+  },
   "ui.history.when.today": "today {time}",
   "ui.history.when.yesterday": "yesterday {time}",
   "ui.history.when.date": "{date} {time}",
@@ -1726,6 +1884,8 @@
   "ui.markers.history.add": "Add marker",
   "ui.markers.history.add_region": "Add region",
   "ui.markers.history.delete": "Delete marker",
+  "ui.markers.history.move": "Move marker",
+  "ui.markers.moved": "Moved {name}",
   "ui.markers.history.rename": "Rename marker",
   "ui.markers.history.kind": "Change marker kind",
   "ui.markers.kind.marker": "Marker",
@@ -1797,9 +1957,18 @@
   "history.clipboard_lift_cut": "Lift-cut to the clipboard (gap kept)",
   "ui.edit.label.lift_cut": "Lift-cut (gap kept)",
   "ui.edit.label.close_gap": "Close gap on all tracks",
-  "ui.edit.toast.lift_cut": {"one": "Lifted {seconds} s on {count} track · in the clipboard, gap kept", "other": "Lifted {seconds} s on {count} tracks · in the clipboard, gap kept"},
-  "ui.edit.toast.lift_cut_uncopied": {"one": "Lifted {seconds} s on {count} track · NOT copied to the clipboard ({error})", "other": "Lifted {seconds} s on {count} tracks · NOT copied to the clipboard ({error})"},
-  "ui.edit.toast.close_gap": {"one": "Closed the gap {seconds} s on every track", "other": "Closed the gap {seconds} s on every track"},
+  "ui.edit.toast.lift_cut": {
+    "one": "Lifted {seconds} s on {count} track · in the clipboard, gap kept",
+    "other": "Lifted {seconds} s on {count} tracks · in the clipboard, gap kept"
+  },
+  "ui.edit.toast.lift_cut_uncopied": {
+    "one": "Lifted {seconds} s on {count} track · NOT copied to the clipboard ({error})",
+    "other": "Lifted {seconds} s on {count} tracks · NOT copied to the clipboard ({error})"
+  },
+  "ui.edit.toast.close_gap": {
+    "one": "Closed the gap {seconds} s on every track",
+    "other": "Closed the gap {seconds} s on every track"
+  },
   "cmd.bus.mute": "Mute the bus",
   "cmd.bus.mute.hint": "Mutes or unmutes the bus of the current track (or the current bus).",
   "cmd.bus.ungroup": "Ungroup the bus",
@@ -1923,7 +2092,10 @@
   "cmd.edit.remove_track": "Delete and close the gap on this track only",
   "cmd.edit.remove_track.hint": "Removes the selection on the current track only and closes its gap. Nothing goes to the clipboard.",
   "ui.edit.label.remove": "Delete and close gap",
-  "ui.edit.toast.remove": {"one": "Deleted {seconds} s on {count} track", "other": "Deleted {seconds} s on {count} tracks"},
+  "ui.edit.toast.remove": {
+    "one": "Deleted {seconds} s on {count} track",
+    "other": "Deleted {seconds} s on {count} tracks"
+  },
   "cmd.nav.to_in": "Go to the in point",
   "cmd.nav.to_in.hint": "Moves the play cursor to the in mark (Hindenburg: 1).",
   "cmd.nav.to_out": "Go to the out point",
@@ -1931,6 +2103,10 @@
   "cmd.transport.rehearse": "Rehearse the edit",
   "cmd.transport.rehearse.hint": "Plays from 3 s before the in point up to it, jumps to the out point and plays on, as if the range were cut. Nothing is changed.",
   "cmd.transport.play_selection.hint": "Plays the in-out range once and stops.",
+  "ui.meter.rms": "Output RMS levels, left and right, −60 to 0 dBFS. Average level, not peak or LUFS.",
+  "ui.meter.rms_value": "Output RMS: left {left}, right {right} dBFS",
+  "ui.meter.left": "L",
+  "ui.meter.right": "R",
   "ui.meter.title": "Playing mix: short-term loudness (3-second K-weighted average), with -23 and -16 LUFS reference marks. Peak clipping is shown separately.",
   "ui.meter.value": "{value} LUFS",
   "ui.meter.pending": "LUFS · 3 s",
@@ -1940,7 +2116,10 @@
   "ui.build.title": "The build you are running: version and commit. Quote it in a bug report.",
   "cmd.transcript.remove_words": "Delete the selected words on all tracks and close the gap",
   "cmd.transcript.remove_words.hint": "Removes the stretch of the selected words from every track and closes the gap. Nothing goes to the clipboard.",
-  "ui.transcript.toast.remove": {"one": "Deleted {count} word on all tracks", "other": "Deleted {count} words on all tracks"},
+  "ui.transcript.toast.remove": {
+    "one": "Deleted {count} word on all tracks",
+    "other": "Deleted {count} words on all tracks"
+  },
   "ui.readout.type_hint": "Double-click to type an exact value",
   "ui.transport.label": "Playback",
   "ui.range.group": "In and out points",
@@ -1948,6 +2127,7 @@
   "ui.range.tip_in": "{name} {time} · click: go to it (1) · double-click: type a time",
   "ui.range.tip_out": "{name} {time} · click: go to it (2) · double-click: type a time",
   "ui.range.tip_length": "{name} {time} · click: zoom to the range ({key:view.fit_selection}) · double-click: type a length",
+  "ui.range.tip_length_live": "{name} {time} from the in point, counting while recording \u00b7 double-click: type a length",
   "ui.range.tip_unset": "{name}: not set · Set in: {key:mark.in}; set out: {key:mark.out} · double-click: type a time",
   "ui.range.tip_length_unset": "{name}: set the in mark first · double-click: type a length",
   "ui.range.field": "{name}, type a time",
@@ -1956,7 +2136,10 @@
   "cmd.edit.remove_clips": "Remove the selected clips (gap stays)",
   "cmd.edit.remove_clips.hint": "Deletes the selected clips for good and leaves every other clip where it is. Undo brings them back. (Mute: {key:edit.delete}.)",
   "ui.edit.label.remove_clips": "Remove clips",
-  "ui.edit.toast.remove_clips": {"one": "Removed {count} clip · gap kept", "other": "Removed {count} clips · gap kept"},
+  "ui.edit.toast.remove_clips": {
+    "one": "Removed {count} clip · gap kept",
+    "other": "Removed {count} clips · gap kept"
+  },
   "cmd.view.drag_mode": "Mouse: dragging paints a range / moves clips",
   "cmd.view.drag_mode.hint": "Switches what a drag on a clip does: paint a range (then delete or mute it; move a clip by its label strip or with Cmd held), or move the clip (Shift or Alt paint a range).",
   "ui.drag_mode.now_range": "Dragging now paints a range. Move a clip by its label strip, or hold Cmd.",
@@ -2017,17 +2200,26 @@
   "ui.track.new_speech": "Track {n}",
   "ui.track.new_music": "Music {n}",
   "ui.edit.label.add_track": "Add a track",
-  "ui.edit.toast.add_track": {"one": "Added {name}", "other": "Added {name}"},
+  "ui.edit.toast.add_track": {
+    "one": "Added {name}",
+    "other": "Added {name}"
+  },
   "error.edit.no_empty_tracks": "There are no empty tracks.",
   "cmd.track.delete_empty": "Delete the empty tracks",
   "cmd.track.delete_empty.hint": "Removes every track that has no clips. Tracks with clips stay. Undo brings them back.",
   "ui.edit.label.delete_empty_tracks": "Delete empty tracks",
-  "ui.edit.toast.delete_empty_tracks": {"one": "Deleted {count} empty track", "other": "Deleted {count} empty tracks"},
+  "ui.edit.toast.delete_empty_tracks": {
+    "one": "Deleted {count} empty track",
+    "other": "Deleted {count} empty tracks"
+  },
   "error.edit.no_gains_to_reset": "Every track and bus gain is already 0 dB.",
   "cmd.track.reset_gains": "Reset track and bus gains to 0 dB",
   "cmd.track.reset_gains.hint": "Sets the gain of every track and every bus to 0 dB, so you can judge the levels before export. The master, clip gains and pan stay. Undo brings them back.",
   "ui.edit.label.reset_gains": "Reset gains to 0 dB",
-  "ui.edit.toast.reset_gains": {"one": "Reset {count} gain", "other": "Reset {count} gains"},
+  "ui.edit.toast.reset_gains": {
+    "one": "Reset {count} gain",
+    "other": "Reset {count} gains"
+  },
   "error.automix.bad_target_lufs": "The target loudness {value} is not a number between -40 and 0 LUFS.",
   "error.automix.bad_ad_spot": "The ad spot {value} is not a time in seconds (0 or more).",
   "error.automix.bad_ad_duration": "The ad duration {value} is not a number of seconds above 0.",
@@ -2077,6 +2269,7 @@
   "ui.duck_music.failed": "Could not measure speech for music ducking.",
   "cmd.app.auto_silence.hint": "Closes each speech microphone where its owner is not talking (and where another microphone is louder), as one merged gate per track; the clips are not cut and the gate can be opened again with Open this stretch. One undo step.",
   "cmd.app.transcribe.hint": "Transcribes the focused track's recordings (every speech track when no track is focused) into words you can read, search and edit by text.",
+  "cmd.app.transcribe_all.hint": "Transcribes every recording used on any track (music-only recordings stay untouched) into words you can read, search and edit by text.",
   "cmd.edit.move_up.hint": "Moves the selected clips one track up, keeping their time. Anything they land on is replaced (no layers). One undo step.",
   "cmd.edit.move_down.hint": "Moves the selected clips one track down, keeping their time. Anything they land on is replaced (no layers). One undo step.",
   "ui.automix.cwd": "Working folder",
@@ -2248,7 +2441,7 @@
   "cli.stats.help": "Show the statistics of a session: runtime, counts, who talked, the work done and sizes.",
   "cli.stats.json": "Print the numbers as JSON instead of text.",
   "cli.restore_backup.help": "Make an automatic backup the project's history again (the project must be closed).",
-  "cli.restore_backup.backup": "The backup's file name in backups/ (auto-….sqlite or auto-….sqlite.xz).",
+  "cli.restore_backup.backup": "The backup's file name in backups/ (auto-….sqlite, auto-….sqlite.xz or auto-….kbackup).",
   "cli.restore_backup.done": "Restored {backup}. The history as it was is in backups/{safety}.",
   "stats.title": "Statistics of {name}",
   "stats.group.runtime": "Runtime",
@@ -2376,7 +2569,10 @@
   "ui.locate.partial_note": "This copy came without all of the audio. Find the whole file to get the rest.",
   "ui.locate.partial_stuck": "no whole file can be found for this one",
   "ui.locate.summary": "Found {found} of {total}; {left} still missing.",
-  "ui.locate.notice": {"one": "{count} audio file is missing.", "other": "{count} audio files are missing."},
+  "ui.locate.notice": {
+    "one": "{count} audio file is missing.",
+    "other": "{count} audio files are missing."
+  },
   "ui.locate.notice_action": "Locate…",
   "ui.send_copy.title": "Send a copy",
   "ui.send_copy.intro": "A copy of this project to send to someone. It has no locks, backups or caches, and your file paths stay with you.",
@@ -2395,7 +2591,10 @@
   "ui.send_copy.working": "Making the copy…",
   "ui.send_copy.pick_folder": "Choose the folder for the copy first.",
   "ui.send_copy.done": "The copy is ready: {path}",
-  "ui.send_copy.offline": {"one": "{count} audio file is offline and is not in the copy: {names}", "other": "{count} audio files are offline and are not in the copy: {names}"},
+  "ui.send_copy.offline": {
+    "one": "{count} audio file is offline and is not in the copy: {names}",
+    "other": "{count} audio files are offline and are not in the copy: {names}"
+  },
   "cmd.app.new": "New project…",
   "cmd.app.new.hint": "Makes a new empty project: you give it a name and a folder, and it opens in a window of its own.",
   "cmd.app.open": "Open project…",
@@ -2584,9 +2783,12 @@
   "ui.sync.badge.drift_title_anchor": "Out of sync by {offset} relative to {anchor}. {key:sync.resync} puts it back, {key:sync.free} says it is deliberate.",
   "ui.sync.badge.free_title_anchor": "Free from sync on purpose by {offset} (anchor: {anchor}). {key:sync.free} links it again.",
   "ui.sync.moved_from": "moved from {track}",
-  "menu.transcribe": "Transcribe",
+  "menu.transcribe.local": "On this computer",
+  "menu.transcribe.colab": "On Colab",
   "cmd.app.transcribe_colab": "Transcribe the track on Colab (audio is uploaded to Google)…",
   "cmd.app.transcribe_colab.hint": "Sends the focused track's recordings (every speech track when none is focused) to Google Colab and stores the words it sends back. The audio leaves this computer; the first time in a session you are asked first. Runs in the background; Cancel stops it.",
+  "cmd.app.transcribe_all_colab": "Transcribe every recording on Colab (audio is uploaded to Google)…",
+  "cmd.app.transcribe_all_colab.hint": "Sends every recording used on any track (music-only recordings stay untouched) to Google Colab. The audio leaves this computer; the first time in a session you are asked first. Runs in the background; Cancel stops it.",
   "cmd.app.colab_settings": "Colab transcription settings…",
   "cmd.app.colab_settings.hint": "The program kuulas runs for Colab transcription, the folder it runs in, extra arguments, the model and language, and the extra flag older versions of the tool need to skip Google Drive.",
   "job.transcribe_colab": "Transcribing {names} on Colab",
@@ -2634,7 +2836,13 @@
   "ui.colab.cwd": "Run in folder",
   "ui.colab.cwd_hint": "Empty: where kuulas was started.",
   "ui.colab.extra_args": "Extra arguments",
-  "ui.colab.model": "Model",
+  "ui.colab.model": "Model for Colab",
+  "ui.colab.model_hint": "Choose a built-in model or enter an ID supported by this colab-transcribe command.",
+  "ui.colab.model.whisper": "Whisper large-v3-turbo",
+  "ui.colab.model.parakeet_ultra": "Parakeet Ultra",
+  "ui.colab.model.custom": "Custom model ID",
+  "ui.colab.model_custom_label": "Custom Colab model ID",
+  "ui.colab.model_custom_placeholder": "Enter a model ID",
   "ui.colab.language": "Language (empty: the tool decides)",
   "ui.colab.align": "Correct the word starts after transcribing (--align; the result says whether it ran)",
   "ui.colab.no_drive": "Also pass --no-drive (only older versions of the tool need it)",
@@ -2720,11 +2928,18 @@
   "ui.record.stop": "Stop",
   "ui.record.add_marker": "Add marker",
   "ui.record.add_marker_title": "Add a marker at the current recording position.",
+  "ui.record.live_transcript": "Transcript",
+  "ui.record.live_flushing": "Finishing the last words…",
+  "ui.record.live_search": "Search the take so far…",
+  "ui.record.live_none": "No words yet.",
+  "ui.record.live_hit": "{at} {track} {word}",
   "ui.record.cart_track": "Clips you play go on",
   "ui.record.cart_none": "No track (not logged)",
   "ui.record.cart_new": "A new track, Questions",
   "ui.record.cart_warning": "There is already audio on this track from the play cursor on. The clips you play during the take will overwrite it.",
   "ui.record.stop_confirm": "Stop recording? Press again to stop ({seconds} s)",
+  "ui.record.stop_confirm_short": "Again ({seconds} s)",
+  "ui.record.stop_hold_short": "Hold 2 s",
   "ui.record.stop_hold": "Hold 2 s to stop",
   "ui.record.stop_keys": "Space or the button. Esc only hides this view; the take goes on.",
   "ui.record.stopping": "Stopping and putting the take on the timeline…",
@@ -2738,11 +2953,29 @@
   "ui.record.elsewhere": "Another project is recording ({take}). Stop it there first.",
   "ui.record.no_devices": "No input found. Connect an interface or a microphone.",
   "ui.record.loading": "Asking the recorder for the inputs…",
-  "ui.record.imported": {"one": "{take} is on the timeline ({count} clip).", "other": "{take} is on the timeline ({count} clips)."},
+  "ui.record.imported": {
+    "one": "{take} is on the timeline ({count} clip).",
+    "other": "{take} is on the timeline ({count} clips)."
+  },
   "ui.record.replaced": "It replaced {what}. The earlier audio is kept in the project's files; Undo brings it back but removes this take too.",
   "ui.record.imported_interrupted": "{take} was interrupted; everything recorded is on the timeline.",
-  "ui.record.imported_gaps": {"one": "{take} is on the timeline with {count} gap where nothing could be recorded.", "other": "{take} is on the timeline with {count} gaps where nothing could be recorded."},
-  "ui.record.pending": {"one": "{count} recorded take was never put on the timeline (the editor or the recorder stopped mid-take).", "other": "{count} recorded takes were never put on the timeline (the editor or the recorder stopped mid-take)."},
+  "ui.record.imported_gaps": {
+    "one": "{take} is on the timeline with {count} gap where nothing could be recorded.",
+    "other": "{take} is on the timeline with {count} gaps where nothing could be recorded."
+  },
+  "ui.record.imported_health": "{message} Recording health: {details}",
+  "ui.record.health_overflows": {
+    "one": "The input overflowed once.",
+    "other": "The input overflowed {count} times."
+  },
+  "ui.record.health_dropouts": {
+    "one": "The recorder inserted silence once ({seconds} s total).",
+    "other": "The recorder inserted silence {count} times ({seconds} s total)."
+  },
+  "ui.record.pending": {
+    "one": "{count} recorded take was never put on the timeline (the editor or the recorder stopped mid-take).",
+    "other": "{count} recorded takes were never put on the timeline (the editor or the recorder stopped mid-take)."
+  },
   "ui.record.import_pending": "Import",
   "ui.record.stop_mode": "Stopping a recording",
   "ui.record.stop_mode.two_step": "Two steps (press twice)",
@@ -2931,13 +3164,13 @@
   "error.offload.crashed": "The analysis process stopped without an answer ({exit}). If the computer was short of memory, close other programs. It is not retried at once.",
   "error.offload.failed": "The analysis failed: {error}",
   "error.offload.backoff": "The analysis failed a moment ago; it is tried again in {seconds} s.",
-  "error.offload.busy":"Too much analysis is waiting; try again in a moment.",
+  "error.offload.busy": "Too much analysis is waiting; try again in a moment.",
   "error.offload.timeout": "The analysis took longer than {seconds} s and was stopped.",
   "log.offload.watchdog": "Analysis worker {pid}: {why}; stopping it.",
   "log.offload.swept": "Stopped {count} analysis workers left behind by an earlier run.",
   "error.offload.memory": "The analysis needed {mb} MB of memory, more than its limit of {limit_mb} MB, and was stopped so the computer does not slow down. Please report this with the log.",
   "log.memory.high": "The editor holds {mb} MB of memory (warning above {limit_mb} MB); cache budget {cache_mb} MB, largest analysis worker {worker_mb} MB.",
-  "error.music_level.bad_offset": "Music under speech must be a number of dB between {low} and {high}.",
+  "error.music_level.bad_offset": "Music level relative to speech must be between {low} and {high} dB.",
   "error.music_level.no_music": "There is no music to level: no unmuted music track has clips. Make a track a music track first (Track > Cycle track kind).",
   "error.music_level.no_speech": "There is no speech to level the music against: no unmuted speech track has talk in it.",
   "error.music_level.stale": "The edit changed after the measurement. Measure again, then apply.",
@@ -2946,14 +3179,15 @@
   "job.music_level": "Measuring the music level",
   "music_level.under": "{db} dB under the speech",
   "music_level.above": "{db} dB above the speech",
+  "music_level.equal": "at the same level as the speech",
   "music_level.unknown": "not measured",
   "cmd.app.music_level": "Set music level…",
-  "cmd.app.music_level.hint": "Measures the speech while someone is speaking and the loudest 3 seconds of the music, then sets the music tracks' gain so the music sits the chosen distance under the speech (default 10 dB). The music tracks keep their balance. One undo step; running it again gives the same gain.",
+  "cmd.app.music_level.hint": "Measures the speech while someone is speaking and the loudest 3 seconds of the music, then sets the music tracks' gain so the music sits at the chosen level relative to speech (default 10 dB under). Negative values put music under speech, zero matches it, and positive values put it above. The music tracks keep their balance. One undo step; running it again gives the same gain.",
   "ui.music_level.title": "Set music level",
-  "ui.music_level.offset": "Music under speech (dB)",
-  "ui.music_level.offset_hint": "Where the loudest 3 seconds of the music sit against the speech. -10 keeps the music clearly under the voice; the automixer's own rule is +1.",
+  "ui.music_level.offset": "Music relative to speech (dB)",
+  "ui.music_level.offset_hint": "Set the loudest 3 seconds of music relative to the speech. Negative values put music under speech, 0 dB matches it, and positive values put it above. The automixer's own rule is +1 dB.",
   "ui.music_level.error_number": "Type a number.",
-  "ui.music_level.error_range": "Between {low} and {high}.",
+  "ui.music_level.error_range": "Between {low} and {high} dB relative to speech.",
   "ui.music_level.measuring": "Measuring the speech and the music…",
   "ui.music_level.speech": "Speech while someone speaks: {lufs} LUFS",
   "ui.music_level.bed": "Loudest 3 s of the music: {lufs} LUFS (without the track gain)",
@@ -2965,7 +3199,7 @@
   "ui.music_level.apply": "Apply",
   "ui.music_level.done": "Music set to {now} (was {was}).",
   "ui.music_level.clamped": "Some music tracks reached the gain limit, so the music is not quite where asked.",
-  "ui.prefs.music_under_speech": "Music under speech (dB)",
+  "ui.prefs.music_under_speech": "Music relative to speech (dB)",
   "ui.role.speech": "Speech",
   "ui.role.music": "Music",
   "cmd.bus.role_speech": "Role: Speech (bus)",
@@ -3010,7 +3244,8 @@
   "ui.block_level.measuring": "Measuring the speech blocks…",
   "ui.block_level.rule": "Blocks more than {threshold} dB off the speaker's own level are levelled: cuts up to {cut} dB, boosts up to {boost} dB.",
   "ui.block_level.blocks": "Blocks to level",
-  "ui.block_level.row": "{start}–{end}: {deviation} dB off its level, gain {gain} dB",
+  "ui.block_level.row": "{start}–{end} · measured {level} dB · {deviation} dB from the speaker's level · apply {gain} dB",
+  "ui.block_level.summary": "Selected to level — {blocks} blocks · {tracks} tracks · {speakers} speakers.",
   "ui.block_level.speaker": "{name}",
   "ui.block_level.none": "No block needs levelling.",
   "ui.block_level.left": "{count} other blocks are within {threshold} dB and are left alone.",
@@ -3260,5 +3495,38 @@
   "cmd.sync.show_drift": "Show sync drift",
   "cmd.sync.show_drift.hint": "Show a small mark on clips that are free from sync or have drifted. Hover for the exact offset.",
   "ui.sync.show_drift.on": "Sync drift marks are on.",
-  "ui.sync.show_drift.off": "Sync drift marks are off."
+  "ui.sync.show_drift.off": "Sync drift marks are off.",
+  "error.part_versions.stale": "The edit changed. Open Versions of this part again.",
+  "history.restore_part": "Put an earlier version here",
+  "cmd.history.part_versions": "Versions of this part…",
+  "ui.part_versions.more": "More…",
+  "ui.part_versions.close": "Close",
+  "ui.part_versions.stop": "Stop preview",
+  "ui.part_versions.play": "Play",
+  "ui.part_versions.restore": "Put this version here",
+  "ui.part_versions.silence": "Silence",
+  "ui.part_versions.current": "Current",
+  "ui.part_versions.waveform": "Audio waveform",
+  "ui.part_versions.no_waveform": "Waveform unavailable",
+  "ui.part_versions.loading": "Looking through this edit’s history…",
+  "ui.part_versions.note": "Preview a version, then put it here. Other edits stay as they are.",
+  "ui.part_versions.empty": "No versions found for this part.",
+  "cmd.history.part_versions.hint": "Find and restore earlier audio in this range without undoing other edits.",
+  "ui.part_versions.row": "{names} · {first_created}–{created} · {seconds} s · {current}",
+  "error.backup.repository_symlink": "The incremental backup repository must not be a symbolic link.",
+  "error.backup.reference_symlink": "The incremental backup reference must not be a symbolic link.",
+  "error.backup.manifest_large": "The incremental backup manifest is too large.",
+  "error.backup.unknown_format": "This incremental backup format is not supported.",
+  "error.backup.invalid_manifest": "The incremental backup manifest is invalid.",
+  "error.backup.chunk_invalid": "The incremental backup contains an invalid chunk.",
+  "error.backup.chunk_damaged": "The incremental backup contains a damaged chunk.",
+  "error.backup.chunk_missing": "The incremental backup is missing a required chunk.",
+  "error.backup.identity_mismatch": "The reconstructed incremental backup does not match its recorded identity.",
+  "log.package.backup_gc_skipped": "Shared backup data was kept because an incremental backup reference could not be read.",
+  "cmd.help.whats_new": "What's new",
+  "cmd.help.whats_new.hint": "Show changes since you last opened Kuulas",
+  "ui.whatsnew.title": "Kuulas: What's new?",
+  "ui.whatsnew.title_in": "Kuulas: What's new? — {version}",
+  "ui.whatsnew.version_date": "v{version} — {date}",
+  "ui.whatsnew.close": "Close"
 }

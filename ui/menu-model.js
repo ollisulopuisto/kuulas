@@ -134,14 +134,19 @@ const MARKERS = submenu("menu.markers", [
   item("marker.prev"),
   item("marker.delete"),
 ]);
-const TRANSCRIBE = submenu("menu.transcribe", [
+const TRANSCRIBE_LOCAL = submenu("menu.transcribe.local", [
   item("app.transcribe"),
-  item("app.transcribe_colab"),
+  item("app.transcribe_all"),
+  SEP,
+  item("app.orukeet_setup"),
   item("app.transcribe_restart"),
+]);
+const TRANSCRIBE_COLAB = submenu("menu.transcribe.colab", [
+  item("app.transcribe_colab"),
+  item("app.transcribe_all_colab"),
   SEP,
   item("app.colab_signin"),
   item("app.colab_settings"),
-  item("app.orukeet_setup"),
 ]);
 const CANDIDATES = submenu("menu.candidates", [
   item("candidate.find"),
@@ -273,6 +278,7 @@ export const MENU = [
     items: [
       item("edit.undo"),
       item("edit.redo"),
+      item("history.part_versions"),
       SYNC_BACK,
       SEP,
       item("edit.cut"),
@@ -297,6 +303,7 @@ export const MENU = [
       ]),
       item("range.scope_toggle"),
       submenu("menu.clipboard", [
+        item("panel.show_clipboard"),
         item("edit.preview_clipboard"),
         item("edit.clear_old_clipboard"),
         SEP,
@@ -423,7 +430,8 @@ export const MENU = [
     id: "text",
     labelKey: "menu.text",
     items: [
-      TRANSCRIBE,
+      TRANSCRIBE_LOCAL,
+      TRANSCRIBE_COLAB,
       item("transcript.delete_words"),
       item("transcript.remove_words"),
       item("transcript.cut_words"),
@@ -506,11 +514,10 @@ export const MENU = [
       ]),
       submenu("menu.side_panels", [
         item("panel.show_inspector"),
-        item("panel.show_candidates"),
-        item("panel.show_clipboard"),
-        item("panel.show_markers"),
         item("panel.show_history"),
+        item("panel.show_markers"),
         item("panel.show_material"),
+        item("panel.show_candidates"),
       ]),
       item("view.toggle_sidebar"),
       // The toolbar rail (WP86, docs/design/TOOLBAR.md).
@@ -583,6 +590,7 @@ export const MENU = [
       ]),
       item("help.open"),
       item("help.keys"),
+      item("help.whats_new"),
       {
         kind: "submenu",
         labelKey: "menu.keymap",

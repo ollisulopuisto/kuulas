@@ -14,7 +14,7 @@ import pytest
 import soundfile as sf
 
 from kuulas_recorder import wavfile
-from kuulas_recorder.wavfile import ProgressiveWav, WavRepairError, repair_wav
+from kuulas_recorder.wavfile import ProgressiveWav, WavRepairError, repair_wav, wav_frames
 
 RATE = 48000
 
@@ -30,40 +30,48 @@ def as_ints(path) -> np.ndarray:
     return data >> 8  # soundfile scales 24-bit up to 32-bit
 
 
-def test_header_generation():
-    """The wav header function should return exactly 44 bytes and have
-    correct RIFF chunk values."""
-    rate = 48000
-    data_bytes = 0
+@pytest.mark.parametrize(
+    ("rate", "data_bytes"),
+    [
+        (48000, 0),
+        (44100, 12000),
+        (96000, 300000),
+        (48000, wavfile.MAX_DATA_BYTES),
+    ],
+)
+def test_header_generation(rate: int, data_bytes: int):
+    """The WAV header function returns exactly 44 bytes and correctly formats
+    all 24-bit mono PCM RIFF fields."""
     head = wavfile.header(rate, data_bytes)
     assert len(head) == 44
 
-    unpacked = struct.unpack("<4sI4s4sIHHIIHH4sI", head)
-    # Fields: RIFF, 36+data_bytes, WAVE, fmt , 16, 1, 1, rate, rate * 3,
-    # 3, 24, data, data_bytes
-    assert unpacked[0] == b"RIFF"
-    assert unpacked[1] == 36 + data_bytes
-    assert unpacked[2] == b"WAVE"
-    assert unpacked[3] == b"fmt "
-    assert unpacked[4] == 16
-    assert unpacked[5] == 1  # format PCM
-    assert unpacked[6] == 1  # channels (mono)
-    assert unpacked[7] == rate
-    assert unpacked[8] == rate * 3  # byte rate
-    assert unpacked[9] == 3  # block align
-    assert unpacked[10] == 24  # bits per sample
-    assert unpacked[11] == b"data"
-    assert unpacked[12] == data_bytes
+    riff_id, riff_size, wave_id, fmt_id, fmt_size, audio_fmt, channels, \
+        sample_rate, byte_rate, block_align, bits_per_sample, data_id, data_size = \
+        struct.unpack("<4sI4s4sIHHIIHH4sI", head)
 
-    rate2 = 44100
-    data_bytes2 = 12000
-    head2 = wavfile.header(rate2, data_bytes2)
-    assert len(head2) == 44
-    unpacked2 = struct.unpack("<4sI4s4sIHHIIHH4sI", head2)
-    assert unpacked2[1] == 36 + data_bytes2
-    assert unpacked2[7] == rate2
-    assert unpacked2[8] == rate2 * 3
-    assert unpacked2[12] == data_bytes2
+    assert riff_id == b"RIFF"
+    assert riff_size == 36 + data_bytes
+    assert wave_id == b"WAVE"
+    assert fmt_id == b"fmt "
+    assert fmt_size == 16
+    assert audio_fmt == 1  # PCM
+    assert channels == 1  # Mono
+    assert sample_rate == rate
+    assert byte_rate == rate * wavfile.BYTES_PER_FRAME
+    assert block_align == wavfile.BYTES_PER_FRAME
+    assert bits_per_sample == wavfile.BITS
+    assert data_id == b"data"
+    assert data_size == data_bytes
+
+
+def test_header_exact_bytes():
+    """Verify exact binary layout of header for a known sample rate and size."""
+    head = wavfile.header(48000, 0)
+    expected = (
+        b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00"
+        b"\x80\xbb\x00\x00\x80\x32\x02\x00\x03\x00\x18\x00data\x00\x00\x00\x00"
+    )
+    assert head == expected
 
 
 def test_pcm24_round_trips_and_clips():
@@ -88,6 +96,49 @@ def test_float_to_pcm24_nan_inf():
     with pytest.warns(RuntimeWarning, match="invalid value encountered in cast"):
         raw = wavfile.float_to_pcm24(np.array([np.nan, np.inf, -np.inf]))
     assert raw == b'\x00\x00\x00\xff\xff\x7f\x00\x00\x80'
+
+
+def test_float_to_pcm24_exact_bytes():
+    samples = np.array([0.0, 1.0, -1.0, 0.5, -0.5], dtype=np.float64)
+    raw = wavfile.float_to_pcm24(samples)
+    expected = (
+        b"\x00\x00\x00"  # 0
+        b"\xff\xff\x7f"  #  8388607 (0x7FFFFF)
+        b"\x00\x00\x80"  # -8388608 (0x800000)
+        b"\x00\x00\x40"  #  4194304 (0x400000)
+        b"\x00\x00\xc0"  # -4194304 (0xC00000)
+    )
+    assert raw == expected
+
+
+def test_float_to_pcm24_clipping_bounds():
+    samples = np.array([1.5, 100.0, -1.5, -100.0], dtype=np.float64)
+    raw = wavfile.float_to_pcm24(samples)
+    expected = (
+        b"\xff\xff\x7f"  # clipped to  8388607
+        b"\xff\xff\x7f"  # clipped to  8388607
+        b"\x00\x00\x80"  # clipped to -8388608
+        b"\x00\x00\x80"  # clipped to -8388608
+    )
+    assert raw == expected
+
+
+def test_float_to_pcm24_2d_array():
+    samples = np.array([[0.0, 0.5], [-0.5, 1.0]], dtype=np.float32)
+    raw = wavfile.float_to_pcm24(samples)
+    expected = (
+        b"\x00\x00\x00"
+        b"\x00\x00\x40"
+        b"\x00\x00\xc0"
+        b"\xff\xff\x7f"
+    )
+    assert raw == expected
+
+
+def test_float_to_pcm24_dtypes():
+    f32_raw = wavfile.float_to_pcm24(np.array([0.0, 0.5], dtype=np.float32))
+    f64_raw = wavfile.float_to_pcm24(np.array([0.0, 0.5], dtype=np.float64))
+    assert f32_raw == f64_raw == b"\x00\x00\x00\x00\x00\x40"
 
 
 def test_new_file_is_a_valid_empty_wav(tmp_path):
@@ -263,3 +314,37 @@ def test_repair_refuses_a_file_that_is_not_a_wav(tmp_path):
         repair_wav(path)
     assert e.value.key == "not_a_wav"
     assert path.read_bytes() == b"ID3" + b"\0" * 100
+
+
+# --- wav_frames -------------------------------------------------------------
+
+
+def test_wav_frames_valid_and_empty(tmp_path):
+    path = tmp_path / "test.wav"
+    w = ProgressiveWav(path, RATE)
+    assert wav_frames(path) == 0
+
+    n_frames = 1200
+    w.write(wavfile.float_to_pcm24(counter(0, n_frames)))
+    w.flush()
+    assert wav_frames(path) == n_frames
+
+    # Unflushed audio is not reflected in the header, so wav_frames returns flushed count.
+    w.write(wavfile.float_to_pcm24(counter(n_frames, 500)))
+    assert wav_frames(path) == n_frames
+    w.close()
+
+
+def test_wav_frames_non_wav_and_missing_data(tmp_path):
+    not_wav = tmp_path / "invalid.wav"
+    not_wav.write_bytes(b"not a wav file header content")
+    assert wav_frames(not_wav) == 0
+
+    no_data_chunk = tmp_path / "no_data.wav"
+    # Header with fmt chunk but no data chunk
+    head = struct.pack(
+        "<4sI4s4sIHHIIHH",
+        b"RIFF", 28, b"WAVE", b"fmt ", 16, 1, 1, RATE, RATE * 3, 3, 24,
+    )
+    no_data_chunk.write_bytes(head)
+    assert wav_frames(no_data_chunk) == 0

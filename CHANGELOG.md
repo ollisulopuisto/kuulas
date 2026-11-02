@@ -1,4 +1,103 @@
+## [v26.11.1.6] - 2026-11-01
+
+- **Recording controls stay available during a take.** Record becomes Stop, marker flags drag along the ruler, and the Markers tab can set the in point while recording.
+- **Grouped clips move together from their labels.** Dragging a grouped clip at its leading edge moves the whole group; the current track header is easier to identify.
+- **A stale Colab session retries cleanly.** If Colab says a saved session is not found, Kuulas asks for a fresh session and retries once.
+- **Fit a live recording with 0.** The timeline zooms to the recording's growing length.
+
+## [v26.11.1.5] - 2026-11-01
+
+- **A stale Colab session retries cleanly.** When Colab says a saved session is not found, Kuulas asks for a fresh session and retries once.
+- **Grouped clips move together from their labels.** Dragging a grouped clip at its leading edge moves the whole group; the current track header is also easier to identify.
+- **Fit a live recording with 0.** The timeline zooms to the recording's growing length.
+
+## [v26.11.1.4] - 2026-11-01
+
+- **Colab Whisper uses faster-whisper.** The packaged tool pin installs faster-whisper 1.2.1 with CUDA float16 instead of the optimized Photon/Kestrel runtime that rejected T4 hardware. The T4 path has unit coverage; a real-device run remains unverified.
+- **The Inspector groups clips by source file.** File groups are labeled clearly, and bus names can be edited by double-clicking them.
+
+## [v26.11.1.3] - 2026-11-01
+
+- **Colab Whisper uses faster-whisper.** The packaged tool pin now uses the shared podcast revision that installs faster-whisper 1.2.1 with CUDA float16 for Whisper, avoiding the optimized Photon/Kestrel runtime that rejected Colab T4 hardware. The T4 path has unit coverage; a real-device run remains unverified.
+
+## [v26.11.1.2] - 2026-11-01
+
+- **Shuttle playback stops at the programme end.** The final grain is shortened so fast playback does not run beyond the last frame.
+- **Live WebSocket requests validate their origin.** Host and Origin checks protect the editor's live API endpoint.
+- **Large waveforms render with less overhead.** Tile lookup and column allocation are more efficient.
+- **What's New opens at the latest notes.** The dialog starts at the top and keeps its close button visible.
+
+## [v26.11.1.1] - 2026-11-01
+
+- **Move volume-envelope points by dragging.** The grabbed point follows the pointer in time and level, and a whole drag is one undo step. Double-click still adds or removes a point.
+- **What's New headings identify Kuulas.** English and Finnish use the same concise, localized title and show the version separately.
+
+## [v26.10.31.3] - 2026-10-31
+
+- **Long-running editor jobs avoid App Nap.** In-process jobs now use the user-initiated activity that allows normal system and display sleep.
+- **Help > What's new is wired consistently.** Its command is in the keymap data, and version/date headings use English and Finnish strings.
+- Includes the latest editor follow-through: reviewable block levelling, overview cut candidates, transcript history, and recording feedback improvements.
+
+## [v26.10.31.2] - 2026-10-31
+
+- **Review block levelling before applying it.** The result shows its measured level, deviation and proposed gain, plus how many blocks, tracks and speakers the checked rows will affect. Unchecking rows updates the impact summary.
+- **CI uses Node 24.** Update the changed-path filter action and test runtime to versions compatible with GitHub's removal of the Node 20 runner.
+- **Short-project shuttle tests account for the final partial grain.** A pitch-preserving shuttle may output one minimum-length grain before stopping at the exact project end.
+
 ## [Unreleased]
+
+## [v26.10.30.6] - 2026-10-30
+
+- **Recording health stays visible after a take.** Import notices report input overflows and recorder-inserted silence, and remain until dismissed.
+- **Long recordings stay easier to follow.** The overview grows with the live take, and the dimmed timeline is not repainted behind the recording dialog.
+- **Live waveform drawing scales with the visible window.** A long take no longer requires rescanning all recorded meter samples for every redraw.
+
+## [v26.10.30.5] - 2026-10-30
+
+- **Transcription choices are grouped by provider.** Text > Transcribe offers track/all-recording actions on this computer or in Colab. Colab all-recordings uses the existing upload consent.
+- **Set music level supports +1 dB above speech.** The dialog has a linked slider and numeric field, with clearer descriptions of negative, equal and positive offsets.
+- **Correct adjacent transcript words together.** A correction can cover a contiguous run of words.
+- **Recording loudness failures are diagnosable.** The editor log records one traceback per failing input until the meter recovers; recording continues.
+
+## [v26.10.30.4] - 2026-10-30
+
+- **Toolbar: "Transcribe all" instead of "Transcribe this track".** The default toolbar button now transcribes every recording used on any track (music-only recordings stay untouched) on this computer. The per-track command stays in Text > Transcribe; Colab remains a separate noticed choice.
+
+## [v26.10.30.2] - 2026-10-30
+
+- **Choose the Colab transcription model in Kuulas.** Settings offer Whisper large-v3-turbo and Parakeet Ultra, plus a custom backend model ID. Existing `turbo` settings migrate to `whisper`; local Orukeet is unchanged. The packaged Colab command is pinned to the shared podcast revision that supports both models. A live Colab transcription was not available during implementation.
+- **Fast shuttle and ruler scrubbing may sound smoother.** Forward playback above 2x uses short crossfaded audio grains instead of resampling, and dragging on the timeline ruler sets the scrub speed from drag velocity. Source and tests only: not heard on a Mac, and drags slower than 0.25x still play the old burst.
+- **Track high-pass layer (plumbing only).** A track can hold one high-pass layer with bypass, saved with the project and applied in plain 1x playback. There is no UI to add or edit it (only `ops.set_track(fx=...)`), and its callback timing is unprofiled, so it is not user-ready.
+- Streaming mastering stays off by default. Unsigned Apple Silicon test build; native playback and timing are unverified.
+
+## [v26.10.30.1] - 2026-10-30
+
+- This tag predates the Colab model selector. Use v26.10.30.2 for the model selection UI and current release build.
+
+## [v26.10.29.2] - 2026-10-29
+
+- **Copied clips are ready to reuse.** Copying a muted clip now creates an audible clipboard entry, while Cut preserves the mute state when the clip is moved.
+- Add whole-session mastering export acceptance coverage and constrain the separate native Viewer preview to playback states covered by conformance cases. The Viewer is not included in the Kuulas editor DMG.
+
+## [v26.10.29.1] - 2026-10-29
+
+- **Inspector shows current track values without becoming a second edit surface.** Gain, pan, mute and solo are read-only there; the track controls remain the place to change them.
+- **Local Orukeet jobs queue instead of colliding.** Concurrent requests wait for the current model run, remain cancellable, and proceed one at a time across projects.
+- **Playback level is wired to the LUFS meter.** Live output RMS is shown independently, and active transcription status remains visible beside the meter and menu controls in narrow windows.
+
+## [v26.10.28.3] - 2026-10-28
+
+- Combine recordings and clipboard in the Materials tab; show selected-track clips in Inspector.
+- Add adaptive compact track controls and a pan arc shape cue.
+- Refresh keyboard shortcut references after sidebar changes.
+- Fix the recorder memory test observation race.
+- Prepare a fresh unsigned Apple Silicon DMG containing these merged changes. Native build and download verification remain release steps; this entry is not packaging acceptance.
+
+## [v26.10.28.1] - 2026-10-28
+
+- **Transcription follows moved projects.** The transcription worker receives the verified current path of linked audio, including recordings in a renamed project.
+- **Recording controls sit beside Play and Record.** The recording indicator, Stop and Add marker are together in the transport corner, with a compact narrow layout.
+- Includes merged recorder and source test coverage, security fixes and editing improvements from main.
 
 ## [v26.10.27.4] - 2026-10-28
 

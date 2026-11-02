@@ -11,10 +11,10 @@ The contract kuulas asks of the tool::
     colab-transcribe --audio F [--audio F ...] --json FOLDER --progress
                      [--model M] [--language L] [--no-drive]
 
-* one ``FOLDER/<audio stem>.words.json`` per audio file:
-  ``{"version": 1, "timing": "whisper" | "orukeet" | "ctc-v1", "language": "fi",
-  "words": [{"w": text, "s": seconds, "e": seconds}]}``, seconds from the audio
-  file's start, words in start order;
+* one ``FOLDER/<audio stem>.words.json`` per audio file. Its timing is
+  ``whisper``, ``parakeet-ultra``, ``orukeet`` or ``ctc-v<N>``:
+  ``{"version": 1, "language": "fi", "words": [{"w": text, "s": seconds,
+  "e": seconds}]}``, seconds from the audio file's start, words in start order;
 * ``--progress`` prints ``PROGRESS <0-100> <message>`` lines; exit 0 on success,
   non-zero with the reason in the last lines of output;
 * SIGTERM cancels (the process group gets it, then SIGKILL after a grace time).
@@ -55,24 +55,25 @@ from .processes import kill_process_group
 log = logging.getLogger("kuulas.colab_transcribe")
 
 _REMOTE_COMMAND = [
-    "uvx", "--from",
-    "git+https://github.com/ollisulopuisto/podcast@7793c0c1b276e90e466cea6d0b09e20fca08c968#subdirectory=colab-transcribe",
+    "uvx", "--python", "3.13",
+    "--overrides", str(Path(__file__).with_name("transcription-overrides.txt")),
+    "--from",
+    "git+https://github.com/ollisulopuisto/podcast@d3a0ea6341b96caece5e68d8a4ac746d9f9d61bb#subdirectory=colab-transcribe",
     "colab-transcribe"]
-DEFAULT_MODEL = "turbo"
+DEFAULT_MODEL = "whisper"
 #: The log kept for the UI, and the part of it an error carries.
 LOG_LINES = 200
 TAIL_LINES = 15
 #: Results files the tool writes, by audio stem.
 RESULT_SUFFIX = ".words.json"
-#: How the word times were made: ``whisper`` (as Whisper gave them) or ``ctc-v<N>`` (the
-#: starts corrected by the forced aligner, alignment version N; the number changes when
-#: its rule or model does, so a later version must not be refused).
-_TIMING = re.compile(r"whisper|orukeet|ctc-v[0-9]+")
+#: Backend-native word times, plus ``ctc-v<N>`` (forced alignment). The alignment number
+#: changes when its rule or model does, so a later version must not be refused.
+_TIMING = re.compile(r"whisper|parakeet-ultra|orukeet|ctc-v[0-9]+")
 #: The Colab CLI's own update notice: noise in a progress line or an error text.
 _NOISE = re.compile(
     r"^\[colab\] (A new version of Colab CLI|Run 'colab update'|To silence this check)")
 #: A Colab session the tool kept by name ('whisper') that has died on Google's side.
-_SESSION_LOST = re.compile(r"Session '[^']*' appears to be lost")
+_SESSION_LOST = re.compile(r"Session '[^']*' (?:appears to be lost|not found)")
 #: One structured event per line, after this prefix, as JSON (the tool's --events, the
 #: same protocol as the automixer's, docs/PODCAST-MAGIC.md "Live events").
 EVENT_PREFIX = "@@kuulas "
@@ -139,6 +140,9 @@ def resolve_settings(stored: dict | None) -> dict[str, Any]:
     language = stored.get("language")
     no_drive = stored.get("no_drive")
     align = stored.get("align")
+    model = model.strip() if isinstance(model, str) else None
+    if model == "turbo":
+        model = "whisper"
     return {
         "command": list(command) if _words(command) else default_command(),
         "cwd": cwd.strip() if isinstance(cwd, str) and cwd.strip() else None,
@@ -148,8 +152,9 @@ def resolve_settings(stored: dict | None) -> dict[str, Any]:
         # The podcast tool corrects the word starts after Whisper with --align: on by
         # default; the result says which it is (`timing`).
         "align": align if isinstance(align, bool) else True,
-        "model": model.strip() if isinstance(model, str) and model.strip()
-        else DEFAULT_MODEL,
+        # ``turbo`` was the old CLI compatibility ID; current colab-transcribe
+        # calls Whisper large-v3-turbo ``whisper``.
+        "model": model or DEFAULT_MODEL,
         "language": language.strip() if isinstance(language, str) and language.strip()
         else None,
     }
@@ -218,7 +223,8 @@ def _refused_events(tail: str) -> bool:
 
 
 def build_command(settings: dict, audio: list[Path], folder: Path, *,
-                  model: str, language: str | None, events: bool = False) -> list[str]:
+                  model: str | None, language: str | None,
+                  events: bool = False) -> list[str]:
     """The argument list (never a shell string): the command, ``--audio`` per file,
     ``--json`` folder, ``--progress``, the model and language, ``--align`` (the word-start
     correction, on by default), ``--no-drive`` when set,
@@ -226,7 +232,9 @@ def build_command(settings: dict, audio: list[Path], folder: Path, *,
     cmd = [*settings["command"]]
     for path in audio:
         cmd += ["--audio", str(path)]
-    cmd += ["--json", str(folder), "--progress", "--model", model]
+    cmd += ["--json", str(folder), "--progress"]
+    if model:
+        cmd += ["--model", model]
     if events:
         cmd.append("--events")
     if language:
@@ -319,15 +327,19 @@ def _stage_text(event: dict) -> str:
 def run(items: list[dict], params: dict, settings: dict, report: Report,
         cancel: threading.Event, run_process: RunProcess = run_process) -> dict:
     """Run the tool on ``items`` (``{"id", "name", "path"}``: the audio file as it is)
-    in ONE call and read every result. ``params``: ``model`` and ``language``
-    (replace the settings for this run), ``extra_args``. Returns ``{"results":
+    in ONE call and read every result. ``params``: ``backend``, ``model`` and
+    ``language`` (replace the settings for this run), ``extra_args``. Local
+    backends do not receive the cloud-only ``--model`` option. Returns ``{"results":
     {id: {"words", "timing", "language"}}, "log", "command"}``. Raises ``ColabError``
     or ``JobCancelledError`` after cancel; the temporary folder is removed in every
     case. ``report(fraction, message="", indeterminate=False)``."""
     settings = resolve_settings(settings)
     if isinstance(params.get("extra_args"), list):
         settings["extra_args"] = [str(x) for x in params["extra_args"]]
+    backend = params.get("backend", "colab")
     model = params.get("model") or settings["model"]
+    if backend != "colab":
+        model = None
     language = params.get("language") or settings["language"]
     if settings["cwd"] and not Path(settings["cwd"]).is_dir():
         raise ColabError("error.colab.bad_cwd", cwd=settings["cwd"])

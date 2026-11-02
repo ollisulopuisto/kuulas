@@ -20,6 +20,17 @@ EXEMPT_FILES = {"engine.py", "priority.py"}
 #: (file, enclosing function as ``Class.method`` or ``function``) -> why this
 #: thread may run while audio plays.
 ALLOWED = {
+    ("live_engine.py", "LiveEngineProcess.__init__"):
+        "the speech worker's stdout/stderr drains: pipe IO waits, no compute; "
+        "the ASR itself runs in the worker process",
+    ("live_transcribe.py", "LiveTranscribeRunner.start"):
+        "the take's transcription pump: one chunk at a time, and recording never "
+        "overlaps playback (no listening while recording), so it never competes "
+        "with playback priority; the ASR compute is in the worker process",
+    ("record_session.py", "RecordSession._live_stop"):
+        "the bounded tail-flush waiter after a take: waits on the sidecar (IO), "
+        "bounded by LIVE_FLUSH_TIMEOUT_S, no local compute",
+
     ("meter.py", "LiveShortTerm.read"):
         "the live audio-meter path: bounded device-output blocks measured at low QoS; "
         "it must run during playback to display current loudness, never project analysis",
@@ -31,8 +42,6 @@ ALLOWED = {
         "never waits for playback priority",
     ("cli.py", "open_project"):
         "waits for the server to accept connections, then opens the browser; no work",
-    ("package.py", "Package.start"):
-        "heartbeat: a WAL checkpoint and a backup every few minutes; IO only",
     ("media.py", "_ffmpeg_pcm.__init__"):
         "decoder subprocess stderr drain and watchdog: IO waits, no compute",
     ("offload.py", "_watch_progress"):

@@ -1,9 +1,16 @@
 name: ci
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
 
 # kuulas imports speechmix and nhsx from the podcast repo as path dependencies
 # (../podcast/packages/...), so both repos are checked out side by side:
@@ -11,8 +18,56 @@ on:
 # The podcast repo is public, so no token is needed to read it.
 
 jobs:
-  test:
-    name: test (${{ matrix.os }})
+  changes:
+    name: Check changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python || steps.manual.outputs.python }}
+      ui: ${{ steps.filter.outputs.ui || steps.manual.outputs.ui }}
+      lint: ${{ steps.filter.outputs.lint || steps.manual.outputs.lint }}
+    steps:
+      - name: Filter documentation-only pull requests
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            python:
+              - '**/*.py'
+              - 'src/**'
+              - 'tests/**'
+              - 'src/kuulas/locales/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'scripts/**'
+              - 'docs/KEYS.md'
+              - 'docs/design/**'
+              - '.github/workflows/**'
+            lint:
+              - '**/*.py'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'scripts/**/*.py'
+              - '.github/workflows/**'
+            ui:
+              - 'ui/**'
+              - 'src/kuulas/locales/**'
+              - 'docs/KEYS.md'
+              - 'docs/design/**'
+              - 'scripts/**/*.mjs'
+              - '.github/workflows/**'
+      - name: Always run for a manual full-suite request
+        id: manual
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo 'python=true' >> "$GITHUB_OUTPUT"
+          echo 'ui=true' >> "$GITHUB_OUTPUT"
+          echo 'lint=true' >> "$GITHUB_OUTPUT"
+
+  python-tests:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    name: Python tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -35,7 +90,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
       # Audio decoding and the export tests need ffmpeg and libsndfile/PortAudio.
       - name: ffmpeg and audio libraries (macOS)
         if: runner.os == 'macOS'
@@ -47,11 +102,12 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
       - run: uv sync
-      - run: uv run ruff check .
+      - name: Prepare pytest report directory
+        run: uv run python -c "from pathlib import Path; Path('test-results').mkdir(exist_ok=True)"
       - name: Python tests (Windows editor coverage; omit platform-only integration)
         if: runner.os == 'Windows'
         run: >
-          uv run pytest -q -vv --full-trace -o faulthandler_timeout=10
+          uv run pytest -q -vv --full-trace -o faulthandler_timeout=10 --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml
           --ignore-glob=tests/test_recorder_*.py
           --ignore-glob=tests/test_record_*.py
           --ignore=tests/test_analysis_worker.py
@@ -80,20 +136,19 @@ jobs:
           --deselect=tests/test_worker_launch.py::test_the_worker_runs_when_the_executable_is_the_bundles_launcher
       - name: Python tests
         if: runner.os != 'Windows'
-        run: uv run pytest -q
-      - run: node --test ui/tests/*.test.js
-      - run: npx --yes @biomejs/biome@2.2.4 check ui/
+        run: uv run pytest -q --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: pytest-report-${{ matrix.os }}
+          path: kuulas/test-results/pytest.xml
+          if-no-files-found: warn
 
-  desktop-smoke:
-    name: desktop-smoke (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # Windows is off for now (owner, 2026-10-26): its Biome check fails on every file
-        # (CRLF checkout) and it is red on main too. Add windows-latest back to turn it on;
-        # the Windows-only steps below are kept and skip themselves.
-        os: [macos-latest, ubuntu-latest]
+  python-lint:
+    needs: changes
+    if: needs.changes.outputs.lint == 'true'
+    name: Python lint
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: kuulas
@@ -106,26 +161,23 @@ jobs:
           repository: ollisulopuisto/podcast
           path: podcast
       - uses: astral-sh/setup-uv@v7
-      # Linux: pywebview's GTK backend. Chosen over Qt because it is a few small
-      # distro packages (python3-gi, WebKit2GTK 4.1), where Qt is ~200 MB of
-      # PyQt wheels; WebKit2GTK is also the engine most Linux desktops ship.
-      # 4.1 is the libsoup3 build that Ubuntu 22.04+ carries. The window is
-      # never opened in CI, so no display server is needed.
-      - name: System web view packages (Linux)
-        if: runner.os == 'Linux'
-        run: >
-          sudo apt-get update && sudo apt-get install -y
-          python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1
-          libcairo2-dev libgirepository1.0-dev pkg-config
-          ffmpeg libportaudio2 libsndfile1
-      - name: ffmpeg (macOS)
-        if: runner.os == 'macOS'
-        run: brew install ffmpeg
-      - name: ffmpeg (Windows)
-        if: runner.os == 'Windows'
-        run: choco install ffmpeg -y --no-progress
-      - run: uv sync --extra desktop
-      - name: pywebview imports
-        run: uv run python -c "import webview; print(webview.__file__)"
-      - name: pure desktop tests (no window)
-        run: uv run pytest -q tests/test_desktop.py tests/test_messages.py
+      - run: uv sync
+      - run: uv run ruff check .
+
+  ui-tests:
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
+    name: UI tests and lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kuulas
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: kuulas
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: node --test ui/tests/*.test.js
+      - run: npx --yes @biomejs/biome@2.2.4 check ui/

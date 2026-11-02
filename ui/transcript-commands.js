@@ -4,6 +4,7 @@
 // in keymap-default.js, under the "transcript" context.
 import { autoName, clipsInRange, describeClips } from "./clipboard.js";
 import {
+  correctableWordRange,
   cutRange,
   cutWordsPlan,
   deleteWordsPlan,
@@ -113,7 +114,8 @@ export function registerTranscriptCommands(registry, { app, t }) {
       if (!state?.words || state.wordsHead !== state.head) return false;
       const sel = state.transcriptSelection ?? noSelection();
       const picked = chosenWords(state);
-      return picked.length === 1 || (picked.length === 0 && sel.cursor >= 0);
+      const correcting = picked.length ? picked : sel.cursor >= 0 ? [sel.cursor] : [];
+      return correctableWordRange(state.words, correcting) !== null;
     },
   );
 

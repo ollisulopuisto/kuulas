@@ -14,6 +14,7 @@ import {
   canStartClipDrag,
   clipDragIds,
   groupBounds,
+  inMoveZone,
   moveBoxes,
   moveGhosts,
   portionDragEdit,
@@ -30,6 +31,9 @@ import { clampImplicitEdge, edgeGhost, ghostGeometry, resolveEdge } from "./edge
 import { inactiveTracks } from "./focus-layout.js";
 import { frameToTime, frameToX, xToFrame } from "./format.js";
 import {
+  envelopeDragChange,
+  envelopeMove,
+  envelopePointZone,
   envelopeToggle,
   fadeFromX,
   fadeHandleAt,
@@ -70,7 +74,7 @@ import {
 import { leftOffFlag } from "./left-off.js";
 import { liveWaveformColumns } from "./live-take.js";
 import { activeLoop } from "./loop-range.js";
-import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
+import { draggedMarkerStart, flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { lengthPill, markDrawing } from "./marks.js";
 import { heldFromEvent, modClick } from "./modifiers.js";
 import { advanceDelta, movedSpans, moveTargets, snapMove } from "./move-snap.js";
@@ -86,6 +90,7 @@ import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
 import { scopeSpans } from "./range-scope.js";
 import { rulerTicks } from "./ruler.js";
+import { createRulerScrub } from "./scrub-velocity.js";
 import {
   inactiveLook,
   lockSpots,
@@ -182,6 +187,7 @@ export function createTimeline({
   let pointerFrame = null;
   let edgeSession = null; // an edge being dragged: see the pointer section
   let tweakSession = null; // a gain line or fade handle being dragged
+  let markerSession = null; // a marker flag being dragged along the ruler (owner, 2026-11-01)
   let hoverClipId = null; // the clip under the pointer: its fade handles show
   let altTargetClip = null; // clip targeted for direct mute with Alt held
   let lastPointerHit = null;
@@ -1738,8 +1744,22 @@ export function createTimeline({
   // posts at its ends. The name goes beside a flag only when it fits before the next one
   // (markers-model.js), on a panel-coloured backing so it hides the time labels under it.
   function drawMarkerFlags(state) {
-    const markers = state.project?.markers;
+    let markers = state.project?.markers;
     if (!markers?.length) return;
+    // While a flag drags it is drawn where the pointer is; the edit lands on release.
+    if (markerSession?.dragging) {
+      const session = markerSession;
+      const length = session.endFrame === null ? null : session.endFrame - session.startFrame;
+      markers = markers.map((marker) =>
+        marker.id === session.id
+          ? {
+              ...marker,
+              start: session.frame,
+              end: length === null ? null : session.frame + length,
+            }
+          : marker,
+      );
+    }
     overlay.font = `600 ${MARK_FONT_PX}px ${theme.font}`;
     overlay.textBaseline = "middle";
     const { flags, bars } = flagLayout(markers, {
@@ -1857,9 +1877,26 @@ export function createTimeline({
     if (text) overlayCanvas.dataset.tip = text;
     else delete overlayCanvas.dataset.tip;
   }
+  // The ruler scrub (WP26): a drag on the ruler plays the audio under the pointer at the
+  // pointer's speed, tape-style (up to 2x) and as grains above. Release plays on as before.
+  let rulerScrub = null;
+  let rulerScrubPointer = null;
+  function endRulerScrub() {
+    rulerScrub?.up();
+    rulerScrub = null;
+    if (rulerScrubPointer !== null) overlayCanvas.releasePointerCapture?.(rulerScrubPointer);
+    rulerScrubPointer = null;
+  }
+  window.addEventListener("pointerup", (event) => {
+    if (rulerScrub && event.pointerId === rulerScrubPointer) endRulerScrub();
+  });
   overlayCanvas.addEventListener("pointermove", (event) => {
     const state = getState();
     pointerFrame = Math.max(0, xToFrame(locate(event).x, state.scroll, state.zoom));
+    if (rulerScrub && event.pointerId === rulerScrubPointer) {
+      rulerScrub.move(Math.max(0, pointerFrame), event.timeStamp);
+      return;
+    }
     if (edgeSession) {
       if (event.pointerId === edgeSession.pointerId) updateEdge(event);
       return;
@@ -1868,6 +1905,7 @@ export function createTimeline({
       if (event.pointerId === clipSession.pointerId) updateClip(event);
       return;
     }
+    if (markerSession && event.pointerId === markerSession.pointerId) updateMarker(event);
     if (tweakSession) {
       if (event.pointerId === tweakSession.pointerId) updateTweak(event);
       return;
@@ -1883,8 +1921,12 @@ export function createTimeline({
     let cursor = hit.clip && hit.edge && hit.row?.kind === "track" ? "ew-resize" : "";
     // Cmd/Ctrl over an edge: it trims only this clip, shown by a different cursor.
     if (cursor && edgeMod(event) && !event.altKey) cursor = "col-resize";
-    const zone = tweakZone(hit, event, state.selection);
-    if (!cursor && zone) cursor = zone.kind === "gain" ? "ns-resize" : "ew-resize";
+    const zone = groupedLabelHit(hit, event) ? null : tweakZone(hit, event, state.selection);
+    if (!cursor && zone) {
+      if (zone.kind === "gain") cursor = "ns-resize";
+      else if (zone.kind === "envelope") cursor = "move";
+      else cursor = "ew-resize";
+    }
     if (!cursor && canStartClipDrag(hit)) {
       // The hand shows where a plain drag moves the clip: everywhere in move mode, only on the
       // label strip in range mode (where the rest of the clip paints a range).
@@ -2141,6 +2183,10 @@ export function createTimeline({
   }
 
   overlayCanvas.addEventListener("pointerup", (event) => {
+    if (markerSession && event.pointerId === markerSession.pointerId) {
+      endMarker(false);
+      return;
+    }
     if (tweakSession && event.pointerId === tweakSession.pointerId) {
       if (tweakSession.dragging) updateTweak(event);
       endTweak(false);
@@ -2156,6 +2202,8 @@ export function createTimeline({
     endEdge(true);
   });
   overlayCanvas.addEventListener("pointercancel", () => {
+    if (markerSession) endMarker(true);
+    if (rulerScrub) endRulerScrub();
     if (clipSession) endClip(false);
     if (tweakSession) endTweak(true);
     if (edgeSession) endEdge(false);
@@ -2165,7 +2213,8 @@ export function createTimeline({
     overlayCanvas.focus();
     const hit = hitAt(event);
     const before = getState().selection; // the press may replace it; a move takes the old one
-    const zone = event.shiftKey ? null : tweakZone(hit, event, before);
+    const groupLabel = groupedLabelHit(hit, event);
+    const zone = event.shiftKey || groupLabel ? null : tweakZone(hit, event, before);
     // What a drag does is a preference (drag-mode.js): paint a range, or move the clip.
     const intent = dragIntent({
       mode: getState().dragMode ?? DEFAULT_DRAG_MODE,
@@ -2183,7 +2232,22 @@ export function createTimeline({
     const adjusting = Boolean(
       zone || moving || (hit.clip && hit.edge && hit.row?.kind === "track"),
     );
-    actions.pointerDown(hit, event, { noSeek: adjusting });
+    // A marker flag is like a clip adjustment: the press selects (no seek); the cursor goes
+    // there on release only when the press turned out to be a click (owner, 2026-11-01).
+    actions.pointerDown(hit, event, { noSeek: adjusting || Boolean(hit.marker) });
+    // A press on a marker flag arms a drag: a click stays a click (selection happened on the
+    // press), past DRAG_PX the flag follows the pointer and release sends one move_marker.
+    if (hit.area === "ruler" && hit.marker) startMarker(hit, event);
+    // A press on the ruler (not on a marker flag) goes on as a scrub while the button is down.
+    if (hit.area === "ruler" && !hit.marker && actions.scrub) {
+      rulerScrub = createRulerScrub({
+        send: (frame, velocity) => actions.scrub(frame, velocity),
+        rate: getState().project.rate,
+      });
+      rulerScrubPointer = event.pointerId;
+      rulerScrub.down(hit.frame, event.timeStamp);
+      overlayCanvas.setPointerCapture?.(event.pointerId);
+    }
     if (!zone && !moving && intent === "range") beginRangeDrag(event, hit);
     if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
     else if (zone) startTweak(hit, event, zone);
@@ -2191,10 +2255,12 @@ export function createTimeline({
       startClip(hit, event, before, portionDragEdit(getState().project, hit, before));
   });
 
-  // Dragging a clip's gain line or a fade handle (WP6): live edits (coalesced by the app, so
-  // one undo step); Esc puts the value back. A press that does not travel DRAG_PX is a click.
+  // Dragging a clip's gain line, envelope point or fade handle (WP6): live edits (coalesced by
+  // the app, so one undo step); Esc puts the value back. A short press is a click.
   function tweakZone(hit, event, selection) {
     if (!hit.clip || hit.row?.kind !== "track" || hit.edge) return null;
+    const pointZone = envelopePointZone(hit);
+    if (pointZone) return pointZone;
     const state = getState();
     const x = locate(event).x;
     const rowY = rowYOf(event, hit);
@@ -2213,18 +2279,40 @@ export function createTimeline({
 
   function startTweak(hit, event, zone) {
     const clip = hit.clip;
+    const origin = locate(event);
+    const rowY = rowYOf(event, hit);
+    const envelopePoint = zone.kind === "envelope" ? clip.envelope[zone.point] : null;
+    const pointY = envelopePoint
+      ? dbToY((clip.gain_db ?? 0) + envelopePoint[1], hit.row.height)
+      : null;
+    let start;
+    let grab;
+    if (zone.kind === "gain") {
+      start = clip.gain_db ?? 0;
+      grab = gainGrab(clip, hit.row.height, rowY);
+    } else if (zone.kind === "envelope") {
+      start = clip.envelope.map(([frame, db]) => [frame, db]);
+      grab = {
+        frames: hit.frame - envelopeFrame(clip, envelopePoint[0]),
+        y: rowY - pointY,
+      };
+    } else {
+      start = clip[`fade_${zone.side}`];
+      grab = 0;
+    }
     tweakSession = {
       kind: zone.kind,
       side: zone.side ?? null,
+      point: zone.point ?? null,
       clipId: clip.id,
       trackId: hit.row.id,
       rowHeight: hit.row.height,
-      origin: locate(event),
+      origin,
       pointerId: event.pointerId,
       dragging: false,
       seekFrame: hit.frame,
-      start: zone.kind === "gain" ? (clip.gain_db ?? 0) : clip[`fade_${zone.side}`],
-      grab: zone.kind === "gain" ? gainGrab(clip, hit.row.height, rowYOf(event, hit)) : 0,
+      start,
+      grab,
       value: null,
     };
     overlayCanvas.setPointerCapture?.(event.pointerId);
@@ -2233,7 +2321,10 @@ export function createTimeline({
 
   function sendTweak(session, value) {
     if (session.kind === "gain") actions.clipGain({ clipId: session.clipId, gain: value });
-    else actions.clipFade({ clipId: session.clipId, side: session.side, frames: value });
+    else if (session.kind === "envelope") {
+      const { coalesce } = envelopeDragChange(session.clipId, value);
+      actions.clipEnvelope({ clipId: session.clipId, points: value, coalesce });
+    } else actions.clipFade({ clipId: session.clipId, side: session.side, frames: value });
   }
 
   function updateTweak(event) {
@@ -2253,12 +2344,20 @@ export function createTimeline({
     const value =
       session.kind === "gain"
         ? gainFromY(session.rowHeight, rowY, session.grab)
-        : fadeFromX(clip, session.side, {
-            startFade: session.start,
-            startX: session.origin.x,
-            x: point.x,
-            zoom: state.zoom,
-          });
+        : session.kind === "envelope"
+          ? envelopeMove(clip, session.point, {
+              timelineFrame: xToFrame(point.x, state.scroll, state.zoom),
+              rowHeight: session.rowHeight,
+              rowY,
+              grabFrames: session.grab.frames,
+              grabY: session.grab.y,
+            })
+          : fadeFromX(clip, session.side, {
+              startFade: session.start,
+              startX: session.origin.x,
+              x: point.x,
+              zoom: state.zoom,
+            });
     if (value === session.value) return;
     session.value = value;
     sendTweak(session, value);
@@ -2283,12 +2382,79 @@ export function createTimeline({
     endTweak(true);
   }
 
+  // Dragging a marker flag on the ruler (owner, 2026-11-01): a press selects (the plain
+  // pointerDown), DRAG_PX of travel moves the flag with the pointer, Esc cancels, release
+  // sends one undoable move_marker (a region keeps its length; the server shifts the end).
+  function startMarker(hit, event) {
+    const marker = getState().project?.markers.find((item) => item.id === hit.marker);
+    if (!marker || markerSession) return;
+    markerSession = {
+      id: marker.id,
+      startFrame: marker.start,
+      endFrame: marker.end ?? null,
+      grabFrames: hit.frame - marker.start,
+      origin: locate(event),
+      pointerId: event.pointerId,
+      dragging: false,
+      seekFrame: hit.frame,
+      frame: marker.start,
+    };
+    overlayCanvas.setPointerCapture?.(event.pointerId);
+    window.addEventListener("keydown", markerKey, true);
+  }
+
+  function updateMarker(event) {
+    const session = markerSession;
+    const point = locate(event);
+    if (!session.dragging) {
+      if (!isDrag(session.origin, point)) return;
+      session.dragging = true;
+      overlayCanvas.style.cursor = "ew-resize";
+    }
+    const state = getState();
+    const frame = draggedMarkerStart(
+      session.grabFrames,
+      xToFrame(point.x, state.scroll, state.zoom),
+    );
+    if (frame === session.frame) return;
+    session.frame = frame;
+    requestOverlay();
+  }
+
+  function endMarker(cancel) {
+    const session = markerSession;
+    markerSession = null;
+    overlayCanvas.style.cursor = "";
+    window.removeEventListener("keydown", markerKey, true);
+    overlayCanvas.releasePointerCapture?.(session.pointerId);
+    if (!cancel && session.dragging && session.frame !== session.startFrame)
+      actions.moveMarker?.({ markerId: session.id, frame: session.frame });
+    if (!cancel && !session.dragging) actions.seek?.(session.seekFrame);
+    requestOverlay();
+  }
+
+  function markerKey(event) {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    endMarker(true);
+  }
+
   // Dragging clips by the label strip (WP6): as the edge drag. A press is a click until
   // DRAG_PX of travel; then the ghosts follow the pointer in time and across tracks, Esc
   // cancels, release sends one move_clips_to_track.
   function rowYOf(event, hit) {
     if (!hit.row) return -1;
     return locate(event).y - RULER_HEIGHT + getState().scrollY - hit.row.top;
+  }
+
+  function groupedLabelHit(hit, event) {
+    return Boolean(
+      hit?.clip?.group &&
+        hit.row?.kind === "track" &&
+        hit.point == null &&
+        inMoveZone(rowYOf(event, hit)),
+    );
   }
 
   // `portion` (clip-drag.js portionDragEdit): the press was on an implicit portion. Past DRAG_PX

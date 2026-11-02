@@ -82,6 +82,21 @@ export function overviewRuns(segments, total, width) {
   return out;
 }
 
+/** One pixel x positions for each visible open candidate span in the whole-edit map. */
+export function overviewCandidateTicks(rows, total, width) {
+  if (!(total > 0 && width > 0) || !Number.isFinite(total) || !Number.isFinite(width)) return [];
+  const ticks = [];
+  for (const row of rows ?? []) {
+    if (row.state !== "open") continue;
+    for (const [start, end] of row.spans ?? []) {
+      if (!(end > start) || end <= 0 || start >= total) continue;
+      const x = Math.min(width - 1, Math.max(0, Math.floor((Math.max(0, start) / total) * width)));
+      ticks.push({ id: row.id, x });
+    }
+  }
+  return ticks;
+}
+
 // Round seconds for short edits, then the owner's minute scales: 1, 5, 10,
 // 15, 20, 30 and 60. Longer projects extend the scale by whole hours.
 const OVERVIEW_STEPS = [1, 5, 10, 15, 20, 30, 60, 300, 600, 900, 1200, 1800, 3600];

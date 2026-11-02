@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { createLoudnessLoader, readoutText, trackReadout } from "../loudness-readout.js";
+import {
+  contextualReadout,
+  createLoudnessLoader,
+  readoutText,
+  trackReadout,
+} from "../loudness-readout.js";
 
 const ready = (tracks, head = "h1") => ({ head, status: "ready", tracks });
 
@@ -263,4 +268,23 @@ describe("createLoudnessLoader", () => {
     assert.equal(patches.length, 0);
     assert.equal(c.pending(), 0);
   });
+});
+
+test("contextual loudness distinguishes missing and pending stale measurements", () => {
+  const t = (key, args) => (args ? `${args.value} / ${args.target} LUFS` : key);
+  const f = String;
+  assert.equal(contextualReadout(null, "t", f, t), "ui.loudness.unavailable");
+  assert.equal(
+    contextualReadout({ status: "pending", tracks: {} }, "t", f, t),
+    "ui.loudness.pending",
+  );
+  assert.match(
+    contextualReadout(
+      { status: "pending", tracks: { t: { integrated: -22, target: -19 } } },
+      "t",
+      f,
+      t,
+    ),
+    /-22 \/ -19 LUFS · ui.loudness.updating/,
+  );
 });

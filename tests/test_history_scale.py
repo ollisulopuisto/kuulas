@@ -3,10 +3,51 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+import pytest
+
 from kuulas import db as dbm
 from kuulas import ops
 from kuulas.history import History
 
+
+class TimedDatabase:
+    """Test-only SQL phase timings; preserves the real durable connection."""
+
+    def __init__(self, target):
+        self.target = target
+        self.timings: list[tuple[str, float]] = []
+
+    def execute(self, sql, *args, **kwargs):
+        start = time.perf_counter()
+        try:
+            return self.target.execute(sql, *args, **kwargs)
+        finally:
+            self.timings.append((sql, time.perf_counter() - start))
+
+    def __getattr__(self, name):
+        return getattr(self.target, name)
+
+
+def measured_operation(history, operation):
+    """Return result and diagnostics without changing a wall-clock budget."""
+    original = history.db
+    database = TimedDatabase(original)
+    history.db = database
+    wall_start = time.perf_counter()
+    cpu_start = time.process_time()
+    try:
+        result = operation()
+    finally:
+        wall = time.perf_counter() - wall_start
+        cpu = time.process_time() - cpu_start
+        history.db = original
+    sql_wall = sum(duration for _, duration in database.timings)
+    commit_wall = sum(duration for sql, duration in database.timings
+                      if sql.strip().lower() == "commit")
+    detail = (f"wall={wall * 1000:.3f}ms cpu={cpu * 1000:.3f}ms "
+              f"sql={sql_wall * 1000:.3f}ms commit={commit_wall * 1000:.3f}ms "
+              f"statements={len(database.timings)}")
+    return result, wall, database.timings, detail
 
 def make_5000_history(path: Path, steps: int = 5000) -> History:
     """Build a linear history of `steps` commits quickly inside one transaction."""
@@ -104,10 +145,10 @@ def test_performance_budgets_with_5000_steps(tmp_path):
     undo_duration = time.perf_counter() - t0
     assert undo_duration < 0.050, f"Undo took {undo_duration * 1000:.1f}ms"
 
-    t0 = time.perf_counter()
-    assert opened.redo() is not None
-    redo_duration = time.perf_counter() - t0
-    assert redo_duration < 0.050, f"Redo took {redo_duration * 1000:.1f}ms"
+    result, redo_duration, _timings, detail = measured_operation(opened, opened.redo)
+    assert result is not None
+    print(f"Redo phases: {detail}")
+    assert redo_duration < 0.050, f"Redo took {redo_duration * 1000:.1f}ms; {detail}"
 
     # 4. Budget: an edit's cost independent of history length (< 50 ms)
     p = ops.set_master(opened.state, -10.0)
@@ -117,3 +158,58 @@ def test_performance_budgets_with_5000_steps(tmp_path):
     )
     edit_duration = time.perf_counter() - t0
     assert edit_duration < 0.050, f"Edit took {edit_duration * 1000:.1f}ms"
+
+
+@pytest.mark.parametrize("steps", [50, 5000])
+def test_adjacent_redo_has_bounded_sql_work_and_is_durable(tmp_path, steps):
+    path = tmp_path / "redo.kuulas"
+    original = make_5000_history(path, steps=steps)
+    opened = History(path)
+    try:
+        assert opened.db.execute("pragma synchronous").fetchone()[0] == 2  # FULL
+        expected_head = opened.head
+        assert opened.undo() is not None
+        result, _wall, timings, detail = measured_operation(opened, opened.redo)
+        assert result is not None
+        # The adjacent-node path must not issue one statement per history step.
+        # Current path uses 13 at both lengths; leave headroom for fixed metadata.
+        assert len(timings) <= 20, detail
+        assert sum(sql.strip().lower() == "commit" for sql, _ in timings) == 1
+        reopened = History(path)
+        try:
+            assert reopened.head == expected_head
+            assert reopened.state == opened.state
+        finally:
+            reopened.db.close()
+    finally:
+        opened.db.close()
+        original.db.close()
+
+
+def test_phase_diagnostics_identify_slow_commit_without_hiding_wall_time(tmp_path):
+    history = make_5000_history(tmp_path / "slow.kuulas", steps=5)
+    assert history.undo() is not None
+    original = history.db
+
+    class DelayedCommit:
+        def execute(self, sql, *args, **kwargs):
+            if sql.strip().lower() == "commit":
+                time.sleep(0.06)
+            return original.execute(sql, *args, **kwargs)
+
+        def __getattr__(self, name):
+            return getattr(original, name)
+
+    history.db = DelayedCommit()
+    try:
+        result, wall, timings, detail = measured_operation(history, history.redo)
+        assert result is not None
+        assert wall >= 0.06, detail
+        assert sum(duration for sql, duration in timings
+                   if sql.strip().lower() == "commit") >= 0.06, detail
+        # Diagnostics preserve, rather than subtract, the latency the hard gate sees.
+        assert "commit=" in detail
+        assert history.head is not None
+    finally:
+        history.db = original
+        original.close()

@@ -34,6 +34,16 @@ def _version(root: Path) -> str | None:
         return None
 
 
+def version() -> str | None:
+    """The running build's bare version (``26.10.30.6``), or None if unknown."""
+    baked = baked_label()
+    if baked:
+        # "v26.10.30.6+ff96b16" -> "26.10.30.6"
+        return baked.lstrip("v").split("+")[0] or None
+    root = _repo_root()
+    return _version(root) if root.exists() else None
+
+
 def baked_label(package: Path | None = None) -> str | None:
     """The label written into an app bundle when it was built (``build_label.txt``
     beside the package): a bundle has no checkout to ask. None in a checkout."""

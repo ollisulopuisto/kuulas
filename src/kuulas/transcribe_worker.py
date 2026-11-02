@@ -31,7 +31,13 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from . import bgjobs, colab_signin, colab_transcribe, transcribe
+from . import (
+    bgjobs,
+    colab_signin,
+    colab_transcribe,
+    local_transcription_queue,
+    transcribe,
+)
 from .clock import FLICKS
 from .jobs import JobCancelledError
 from .messages import KuulasError, t
@@ -178,7 +184,11 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
                           message=message, indeterminate=bool(indeterminate))
 
         params = {"model": job.get("model"), "language": job.get("language")}
-        found = engine(items, params, job.get("settings") or {}, report, cancel)
+        settings = dict(job.get("settings") or {})
+        # A selected cloud job must not inherit a local backend from the environment
+        # or old settings. Append last so argparse selects this authoritative route.
+        settings["extra_args"] = [*settings.get("extra_args", []), "--backend", "colab"]
+        found = engine(items, params, settings, report, cancel)
         _stop_if_cancelled(cancel)
         for item in items:
             _write_result(folder, job_id, item["id"], found["results"][item["id"]],
@@ -191,9 +201,11 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
                 1.0, (index + min(1.0, max(0.0, fraction))) / len(items))),
                 indeterminate=False, message=f"[{index + 1}/{len(items)}] {name}")
 
+        memory_options = ({"allow_low_memory": True}
+                          if job.get("allow_low_memory") is True else {})
         words = engine(item["path"], model=job.get("model") or "small",
                        language=job.get("language"), progress=_Progress(cancel, share),
-                       cpu_threads=job.get("cpu_threads"))
+                       cpu_threads=job.get("cpu_threads"), **memory_options)
         _stop_if_cancelled(cancel)
         # The local engine is Orukeet; preserve its timing identity on import.
         _write_result(folder, job_id, item["id"], {"words": words, "timing": "orukeet"},
@@ -223,14 +235,20 @@ def run_job(job_path: Path | str, *, local: Callable | None = None,
     watcher = threading.Thread(target=watch, daemon=True, name="kuulas-cancel-watch")
     if keep_awake is not None:
         keep_awake.start()
-    status.update(force=True, state="running")
+    status.update(force=True, state="queued" if job["backend"] == "local" else "running")
     watcher.start()
     final, fields = "completed", {"progress": 1.0, "message": ""}
     try:
         if bgjobs.cancel_file(folder, job_id).exists():
             cancel.set()
         _stop_if_cancelled(cancel)
-        _run_engines(job, folder, status, cancel, local, colab)
+        if job["backend"] == "local":
+            status.update(force=True, message=str(t("job.transcribe.waiting_local")))
+            with local_transcription_queue.slot(cancel):
+                status.update(force=True, state="running", message="")
+                _run_engines(job, folder, status, cancel, local, colab)
+        else:
+            _run_engines(job, folder, status, cancel, local, colab)
     except JobCancelledError:
         final, fields = "cancelled", {}
     except Exception as exc:

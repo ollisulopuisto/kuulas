@@ -7,6 +7,7 @@ import { clearGhost } from "./ghost-marker.js";
 import { canGoToRestorePoint, canRestore } from "./history-model.js";
 import { rangeAvailable } from "./loop-range.js";
 import { placeMark } from "./marks.js";
+import { partRange } from "./part-versions-model.js";
 import { focusTrack } from "./range-scope.js";
 import { playSelectionRequest, rehearseRequest } from "./rehearse.js";
 import { opensSidebar } from "./sidebar-model.js";
@@ -248,6 +249,11 @@ export function registerAppCommands(registry, { actions, app }) {
     (state) => canGoToRestorePoint(state),
   );
   def("history.expand_all", () => app.expandHistoryGroups(), hasProject);
+  def(
+    "history.part_versions",
+    () => app.openPartVersions(),
+    (state) => Boolean(partRange(state)),
+  );
   def("history.open_saved", () => app.openHistorySaved(), hasProject);
   def("app.import", () => app.chooseMedia());
   def("app.import_nhsx", () => app.importNhsx(), hasProject);
@@ -329,8 +335,11 @@ export function registerAppCommands(registry, { actions, app }) {
   def("app.block_level", () => app.openBlockLevel(), hasProject);
   def("app.duck_music", () => app.duckMusic(), hasProject);
   def("app.transcribe", () => app.transcribeTrack("local"), hasProject);
+  // Transcribe every recording on any track (music-only ones stay untouched).
+  def("app.transcribe_all", () => app.transcribeAll(), hasProject);
   // Transcribe on Colab (WP78): after a notice that the audio is uploaded to Google.
   def("app.transcribe_colab", () => app.transcribeTrack("colab"), hasProject);
+  def("app.transcribe_all_colab", () => app.transcribeAll("colab"), hasProject);
   def("app.transcribe_restart", () => app.restartTranscriptions(), hasProject);
   def("app.orukeet_setup", () => app.openOrukeetSetup());
   def("app.colab_settings", () => app.openColabSettings());
@@ -390,11 +399,15 @@ export function registerAppCommands(registry, { actions, app }) {
     () => app.jump(app.getState().outPoint),
     (state) => hasProject(state) && (state.outPoint ?? null) !== null,
   );
+  // While a take records, "now" is where the take is on the timeline (app.recordingFrame,
+  // from the record view; null when nothing records), not the parked playhead. The same
+  // rule as marker.add (marker-commands.js), so I and O work during a take.
+  const nowFrame = (state) => app.recordingFrame?.() ?? state.playhead;
   def(
     "mark.in",
     () => {
       const state = app.getState();
-      app.patch({ ...placeMark(state, "in", state.playhead), rangeTracks: new Set() });
+      app.patch({ ...placeMark(state, "in", nowFrame(state)), rangeTracks: new Set() });
     },
     hasProject,
   );
@@ -402,7 +415,7 @@ export function registerAppCommands(registry, { actions, app }) {
     "mark.out",
     () => {
       const state = app.getState();
-      app.patch({ ...placeMark(state, "out", state.playhead), rangeTracks: new Set() });
+      app.patch({ ...placeMark(state, "out", nowFrame(state)), rangeTracks: new Set() });
     },
     hasProject,
   );
@@ -424,6 +437,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def("palette.open", () => app.openPalette());
   def("help.keys", () => app.openKeys());
   def("help.open", () => app.openHelp());
+  def("help.whats_new", () => app.openWhatsNew(null));
   def("help.search", () => app.openSearch());
   // Help > Record a performance report… and Help > Log level (no project needed: they are
   // about the app, and a slow app is exactly when someone needs them).

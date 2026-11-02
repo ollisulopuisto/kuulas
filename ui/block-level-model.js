@@ -32,6 +32,24 @@ export function leftAloneCount(result) {
   return count;
 }
 
+/** What the checked rows will touch: block, speaker and track counts for Apply. */
+export function impactSummary(result, ticked) {
+  if (measureError(result)) return { blocks: 0, speakers: 0, tracks: 0, unchanged: 0 };
+  let blocks = 0;
+  let speakers = 0;
+  const tracks = new Set();
+  for (const speaker of result.speakers) {
+    const selected = (speaker.blocks ?? []).filter(
+      (row) => row.gain_db !== 0 && ticked.has(row.id),
+    );
+    if (selected.length === 0) continue;
+    blocks += selected.length;
+    speakers += 1;
+    for (const id of speaker.track_ids ?? []) tracks.add(id);
+  }
+  return { blocks, speakers, tracks: tracks.size, unchanged: leftAloneCount(result) };
+}
+
 /** The loud spots (listened to, never changed), by speaker: [{ name, spots }]. */
 export function loudBySpeaker(result) {
   if (measureError(result)) return [];
@@ -60,13 +78,15 @@ export function allChangedIds(result) {
 const signed = (value, fmt) => (value > 0 ? `+${fmt(value)}` : fmt(value));
 
 /**
- * One row's text: "1:02–1:10: +12.0 dB off its level, gain -12.0 dB". `rate` turns the
- * block's frames into seconds; `clock(seconds)` formats them, `fmt(value)` one decimal.
+ * One row's text includes position, measured level, deviation and proposed gain. `rate`
+ * turns the block's frames into seconds; `clock(seconds)` formats them, `fmt(value)` one
+ * decimal.
  */
 export function blockText(block, rate, t, fmt, clock) {
   return t("ui.block_level.row", {
     start: clock(block.start / rate),
     end: clock(block.end / rate),
+    level: fmt(block.level_db),
     deviation: signed(block.deviation_db, fmt),
     gain: signed(block.gain_db, fmt),
   });

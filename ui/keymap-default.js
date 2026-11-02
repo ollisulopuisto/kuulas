@@ -50,6 +50,12 @@ export const CONTEXTS = [
 
 export const DEFAULT_KEYMAP = [
   {
+    id: "history.part_versions",
+    keys: { mac: "Alt+Mod+H", other: "Alt+Mod+H" },
+    context: "global",
+    labelKey: "cmd.history.part_versions",
+  },
+  {
     id: "transport.play",
     keys: { mac: "Space", other: "Space" },
     context: "global",
@@ -446,31 +452,31 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "panel.show_candidates",
-    keys: { mac: "Mod+2", other: "Mod+2" },
+    keys: { mac: "Mod+5", other: "Mod+5" },
     context: "global",
     labelKey: "cmd.panel.show_candidates",
   },
   {
     id: "panel.show_clipboard",
-    keys: { mac: "Mod+3", other: "Mod+3" },
+    keys: { mac: null, other: null },
     context: "global",
     labelKey: "cmd.panel.show_clipboard",
   },
   {
     id: "panel.show_markers",
-    keys: { mac: "Mod+4", other: "Mod+4" },
+    keys: { mac: "Mod+3", other: "Mod+3" },
     context: "global",
     labelKey: "cmd.panel.show_markers",
   },
   {
     id: "panel.show_history",
-    keys: { mac: "Mod+5", other: "Mod+5" },
+    keys: { mac: "Mod+2", other: "Mod+2" },
     context: "global",
     labelKey: "cmd.panel.show_history",
   },
   {
     id: "panel.show_material",
-    keys: { mac: "Mod+6", other: "Mod+6" },
+    keys: { mac: "Mod+4", other: "Mod+4" },
     context: "global",
     labelKey: "cmd.panel.show_material",
   },
@@ -1733,6 +1739,20 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.app.transcribe",
   },
+  // Transcribe every recording on this computer: no key, it is the toolbar button and a menu
+  // choice; Colab uploads the audio, so it stays separate and noticed.
+  {
+    id: "app.transcribe_all",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.transcribe_all",
+  },
+  {
+    id: "app.transcribe_all_colab",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.transcribe_all_colab",
+  },
   // Transcribe on Colab (WP78): the audio is uploaded to Google, so no key: a menu or palette
   // choice, after the upload notice.
   {
@@ -1852,6 +1872,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.help.search",
   },
   { id: "help.keys", keys: { mac: "?", other: "?" }, context: "global", labelKey: "cmd.help.keys" },
+  {
+    id: "help.whats_new",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.help.whats_new",
+  },
   {
     id: "keymap.import",
     keys: { mac: null, other: null },

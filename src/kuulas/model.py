@@ -172,6 +172,24 @@ class Clip:
 
 
 @dataclass(frozen=True)
+class FxLayer:
+    """One effect layer on a track (WP23a, tier 1): ``kind`` is a ``fx.KINDS`` name,
+    ``hz`` the cutoff, ``bypass`` leaves the signal dry."""
+
+    kind: str = "highpass"
+    hz: float = 80.0
+    bypass: bool = False
+
+    def to_dict(self) -> dict:
+        return {"kind": self.kind, "hz": self.hz, "bypass": self.bypass}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> FxLayer:
+        return cls(kind=str(d.get("kind", "highpass")), hz=float(d.get("hz", 80.0)),
+                   bypass=bool(d.get("bypass", False)))
+
+
+@dataclass(frozen=True)
 class Track:
     """``automation`` is in timeline frames: it is where the automixer writes
     its ducking, as editable points rather than baked-in samples."""
@@ -207,12 +225,18 @@ class Track:
     # Optional override for the role's ducking behavior: music ducks by default;
     # speech never participates. Older readers retain this unknown field in extra.
     duck: bool | None = None
+    # Effect layers, in order (WP23a). Absent from the file when empty, so a track
+    # without effects keeps its bytes; an older reader keeps the field in ``extra``.
+    fx: tuple[FxLayer, ...] = ()
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:
         d = _out(self, clips=[c.to_dict() for c in self.clips],
                  automation=[list(pt) for pt in self.automation],
-                 gate=[list(r) for r in self.gate])
+                 gate=[list(r) for r in self.gate],
+                 fx=[layer.to_dict() for layer in self.fx])
+        if not self.fx:
+            del d["fx"]
         if not self.gate:
             # Absent means empty: a track that never had a gate keeps its
             # bytes (and its state hash) from before the field existed.
@@ -233,6 +257,7 @@ class Track:
         known["clips"] = tuple(Clip.from_dict(c) for c in known.get("clips", ()))
         known["automation"] = _points(known.get("automation", ()))
         known["gate"] = tuple((int(a), int(b)) for a, b in known.get("gate", ()))
+        known["fx"] = tuple(FxLayer.from_dict(x) for x in known.get("fx", ()))
         if known.get("kind") == "speech-mix":
             # Removed 2026-10-19 (separating a downmixed file is out of scope): saved
             # projects and history snapshots that hold it load as plain speech.

@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { audibleSegments, overviewMarks, overviewRuns } from "../overview-segments.js";
+import {
+  audibleSegments,
+  overviewCandidateTicks,
+  overviewMarks,
+  overviewRuns,
+} from "../overview-segments.js";
 
 const clip = (start, length, extra = {}) => ({ id: `c${start}`, start, length, ...extra });
 
@@ -64,6 +69,49 @@ describe("overviewRuns", () => {
   });
   test("short speech still shows", () => {
     assert.deepEqual(overviewRuns([[500, 501]], 1000, 100), [50, 51]);
+  });
+});
+
+describe("overviewCandidateTicks", () => {
+  test("maps open candidate spans to ticks, clipping spans to the timeline", () => {
+    const ticks = overviewCandidateTicks(
+      [
+        { id: "before", state: "open", spans: [[-20, 20]] },
+        { id: "inside", state: "open", spans: [[250, 260]] },
+        { id: "after", state: "open", spans: [[990, 1020]] },
+        { id: "closed", state: "kept", spans: [[500, 600]] },
+      ],
+      1000,
+      100,
+    );
+    assert.deepEqual(ticks, [
+      { id: "before", x: 0 },
+      { id: "inside", x: 25 },
+      { id: "after", x: 99 },
+    ]);
+  });
+
+  test("tiny spans and multiple audio spans each get one stable tick", () => {
+    assert.deepEqual(
+      overviewCandidateTicks(
+        [
+          {
+            id: "split",
+            state: "open",
+            spans: [
+              [40, 41],
+              [600, 800],
+            ],
+          },
+        ],
+        1000,
+        100,
+      ),
+      [
+        { id: "split", x: 4 },
+        { id: "split", x: 60 },
+      ],
+    );
   });
 });
 

@@ -985,7 +985,7 @@ class MediaStore:
             return self.working_file(media_id)
         if not self._valid(media_id):
             raise MediaError("error.media.offline", name=meta["name"])
-        return Path(meta["linked_path"])
+        return self.linked_file(media_id)
 
     def linked_file(self, media_id: str) -> Path:
         """Where a linked media's file is on this machine now (after any relink)."""

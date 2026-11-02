@@ -185,7 +185,7 @@ def _balance(buf: np.ndarray, pan: float) -> None:
 
 
 def _track(track: Track, store: Store, first: int, count: int,
-           rate: int) -> np.ndarray | None:
+           rate: int, fx=None) -> np.ndarray | None:
     clips = [c for c in track.clips
              if not c.muted and c.start < first + count and c.end > first]
     # Counted for the performance report: this scan visits every clip of the track in
@@ -199,6 +199,8 @@ def _track(track: Track, store: Store, first: int, count: int,
     for clip in clips:
         _clip_into(buf, clip, store, first, count, rate,
                    ramps.get(clip.id, (0, 0)), track.mono)
+    if fx is not None and track.fx:  # live playback only: before gain, as an insert
+        buf = fx.process(track, buf, first)
     gate = _gate_gain(track.gate, first, count, rate)
     if gate is not None:
         buf *= gate
@@ -209,8 +211,11 @@ def _track(track: Track, store: Store, first: int, count: int,
     return buf
 
 
-def mix(project: Project, store: Store, first: int, count: int) -> np.ndarray:
-    """Stereo float32 ``(2, count)`` for timeline frames ``[first, first+count)``."""
+def mix(project: Project, store: Store, first: int, count: int,
+        fx=None) -> np.ndarray:
+    """Stereo float32 ``(2, count)`` for timeline frames ``[first, first+count)``.
+    ``fx``: a ``fx.FxState`` for live playback (blocks in order); without it the
+    track effect layers are not applied (exports and every other reader)."""
     master = np.zeros((2, count), dtype=np.float64)
     buses = {b.id: np.zeros((2, count), dtype=np.float64) for b in project.buses}
     # Solo overrides mute: while anything is soloed, only soloed tracks are
@@ -220,7 +225,7 @@ def mix(project: Project, store: Store, first: int, count: int) -> np.ndarray:
         audible = track.solo if soloing else not track.mute
         if not audible:
             continue
-        buf = _track(track, store, first, count, project.rate)
+        buf = _track(track, store, first, count, project.rate, fx)
         if buf is not None:
             target = buses.get(track.bus, master)
             target[:] += buf

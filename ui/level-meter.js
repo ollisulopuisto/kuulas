@@ -101,13 +101,36 @@ export const lufsToX = (value, width) =>
 export const shortTermLevel = (message) =>
   Number.isFinite(message.short_term) ? message.short_term : null;
 
+/** Latest output RMS in dBFS, not a peak fallback or a calibrated VU reading. */
+export function rmsFrame(message) {
+  const l = Number.isFinite(message.rms_l) ? message.rms_l : -90;
+  const r = Number.isFinite(message.rms_r) ? message.rms_r : -90;
+  return { l, r, hold_l: l, hold_r: r };
+}
+
 export function createLevelMeter({ root, bars, clipButton, onClipClear = () => {} }) {
   const fill = bars.querySelector(".lm-fill");
   const readout = root.querySelector(".lm-readout");
   let state = initialMeter();
   let loudness = null;
+  let rms = rmsFrame({});
+  const rmsFills = root.querySelectorAll(".lm-rms-fill");
 
   function paint() {
+    for (const node of rmsFills) {
+      const value = rms[node.dataset.channel];
+      node.style.width = `${dbToX(value, 100)}%`;
+      node.dataset.zone = zoneOf(value);
+    }
+    const rmsRoot = root.querySelector(".lm-rms");
+    if (rmsRoot)
+      rmsRoot.setAttribute(
+        "aria-label",
+        t("ui.meter.rms_value", {
+          left: rms.l <= -89 ? "−∞" : rms.l.toFixed(1),
+          right: rms.r <= -89 ? "−∞" : rms.r.toFixed(1),
+        }),
+      );
     bars.hidden = false;
     readout.hidden = false;
     clipButton.hidden = !state.clip;
@@ -134,6 +157,7 @@ export function createLevelMeter({ root, bars, clipButton, onClipClear = () => {
   return {
     frame(message) {
       state = advance(state, message, 0);
+      rms = rmsFrame(message);
       loudness = shortTermLevel(message);
       paint();
     },
@@ -141,6 +165,7 @@ export function createLevelMeter({ root, bars, clipButton, onClipClear = () => {
       if (!on) {
         state = advance(state, { l: -90, r: -90, hold_l: -90, hold_r: -90 }, 0);
         loudness = null;
+        rms = rmsFrame({});
       }
       paint();
     },

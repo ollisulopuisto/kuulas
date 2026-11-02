@@ -68,9 +68,10 @@ class FakeEngine:
     def meter(self):
         # dBFS, as Engine.meter(): the floor while stopped, else what the callback saw
         if not self.playing:
-            return dict.fromkeys(("l", "r", "rms_l", "rms_r", "hold_l", "hold_r"), -90.0)
+            return dict.fromkeys(
+                ("l", "r", "rms_l", "rms_r", "hold_l", "hold_r", "short_term"), -90.0)
         return {"l": -12.0, "r": -14.0, "hold_l": -6.0, "hold_r": -9.0,
-                "rms_l": -30.0, "rms_r": -30.0}
+                "rms_l": -30.0, "rms_r": -30.0, "short_term": -22.345}
 
     def set_rate(self, rate):
         self.calls.append(("set_rate", rate))
@@ -84,8 +85,9 @@ class FakeEngine:
         self.calls.append(("seek", frame))
         self.position = frame
 
-    def scrub(self, frame):
-        self.calls.append(("scrub", frame))
+    def scrub(self, frame, velocity=None):
+        self.calls.append(("scrub", frame) if velocity is None
+                          else ("scrub", frame, velocity))
         self.position = frame
 
     def close(self):
@@ -626,6 +628,11 @@ def test_transport_get_is_the_engine_status(client, engine):
     assert client.get("/api/transport").json()["position"] == 1234
 
 
+def test_transport_scrub_carries_the_drag_velocity(client, engine):
+    client.post("/api/transport", json={"action": "scrub", "at": 700, "velocity": -2.5})
+    assert engine.calls == [("scrub", 700, -2.5)]
+
+
 def test_transport_post_drives_the_engine(client, engine):
     r = client.post("/api/transport", json={"action": "play", "at": 100, "until": 900})
     assert r.status_code == 200
@@ -760,7 +767,8 @@ def test_live_pushes_the_heard_position_while_playing(session, engine, tmp_path)
         assert msg["position"] == 5000
 
 
-METER_FLOOR = {"l": -90.0, "r": -90.0, "hold_l": -90.0, "hold_r": -90.0}
+METER_FLOOR = {"l": -90.0, "r": -90.0, "hold_l": -90.0, "hold_r": -90.0,
+               "rms_l": -90.0, "rms_r": -90.0, "short_term": -90.0}
 
 
 def test_live_pushes_the_level_meter_while_playing(session, engine, tmp_path):
@@ -773,9 +781,11 @@ def test_live_pushes_the_level_meter_while_playing(session, engine, tmp_path):
         msg = ws.receive_json()
         while msg["type"] != "meter":
             msg = ws.receive_json()
-        # four numbers, dBFS: the rms is the engine's, not sent
+        # Peak dBFS and shared output LUFS both reach the display; RMS stays internal.
         assert msg == {"type": "meter", "meter": {"l": -12.0, "r": -14.0,
-                                                  "hold_l": -6.0, "hold_r": -9.0}}
+                                                  "hold_l": -6.0, "hold_r": -9.0,
+                                                  "rms_l": -30.0, "rms_r": -30.0,
+                                                  "short_term": -22.3}}
 
 
 def test_live_sends_one_zero_meter_frame_when_playback_stops_then_none(
@@ -1350,3 +1360,42 @@ def test_cut_list_lists_a_ripple_cut_of_the_edit(client, loaded):
     [cut] = body["tracks"][0]["cuts"]
     assert (cut["at"], cut["removed"]) == (12_000, 12_000)
     assert [(s["at"], s["removed"]) for s in body["seams"]] == [(12_000, 12_000)]
+
+
+def test_meter_message_preserves_lufs_warmup_and_silence():
+    from kuulas.server import meter_message  # noqa: PLC0415
+
+    peaks = dict.fromkeys(("l", "r", "hold_l", "hold_r", "rms_l", "rms_r"), -90.0)
+    assert meter_message({**peaks, "short_term": None})["meter"]["short_term"] is None
+    assert meter_message({**peaks, "short_term": -90})["meter"]["short_term"] == -90
+
+
+class TestLiveTranscriptEndpoint:
+    """The take-so-far's words over HTTP: search works DURING the take."""
+
+    def test_no_recorder_reports_not_live(self, client):
+        r = client.get("/api/record/live-transcript")
+        assert r.status_code == 200
+        assert r.json() == {"live": False, "flushing": False, "words": []}
+
+    def test_words_and_search_come_from_the_recorder(self, session, engine, tmp_path):
+        class FakeRecorder:
+            def set_publish(self, publish):
+                pass
+            def live_transcript_flushing(self):
+                return False
+            def live_transcript_words(self, track):
+                assert track == "t1"
+                return [{"track": "t1", "w": "hei", "s": 0, "e": 10}]
+            def live_transcript_search(self, q):
+                assert q == "hei"
+                return [{"track": "t1", "w": "hei", "s": 0, "e": 10}]
+        ui = tmp_path / "ui"
+        ui.mkdir()
+        app = create_app(session, engine, language="en", ui_dir=ui,
+                         recorder=FakeRecorder())
+        with TestClient(app) as c:
+            r = c.get("/api/record/live-transcript", params={"track": "t1"})
+            assert r.json()["words"] == [{"track": "t1", "w": "hei", "s": 0, "e": 10}]
+            r = c.get("/api/record/live-transcript", params={"q": "hei"})
+            assert r.json()["words"] == [{"track": "t1", "w": "hei", "s": 0, "e": 10}]

@@ -6,6 +6,7 @@
 
 import { bindToggle } from "./ab-value.js";
 import { busRoleStatus, roleDiffers } from "./bus-role.js";
+import { bindDialRange, controlLines } from "./dial-range.js";
 import { inactiveTracks } from "./focus-layout.js";
 import { busHues, busLetter } from "./grammar.js";
 import { detectPlatform, formatDb, formatNumber, t } from "./i18n.js";
@@ -13,7 +14,7 @@ import { addBusForTrack, NEW_BUS } from "./inspector-track.js";
 import { truncateMiddle } from "./labels.js";
 import { dragLaneHeight, dragStarted } from "./lane-sizing.js";
 import { layoutFor } from "./lanes.js";
-import { readoutText, trackReadout } from "./loudness-readout.js";
+import { contextualReadout, readoutText, trackReadout } from "./loudness-readout.js";
 import { modClick } from "./modifiers.js";
 import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
@@ -23,12 +24,21 @@ import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
 const PAN = { min: -100, max: 100, step: 1 };
+// Below this height show the name + loudness dot; exact controls stay in Inspector.
+// Never expose half-clipped level rows when users shrink lanes.
 const COMPACT_BELOW_PX = 40;
 /** Below the smallest lane a user can size (lanes.js MIN_LANE) a header is a focus-mode strip
  *  (WP28): the name only, small. */
 const STRIP_BELOW_PX = 24;
 
 /** "L 30", "R 30" or "C" for a pan in -1..1. */
+// A committed rename needs a non-empty, actually-changed name; a blanked or
+// untouched field just closes (shared by track and bus header rename).
+export function renamedName(value, current) {
+  const name = value.trim();
+  return name && name !== current ? name : null;
+}
+
 export function panText(pan) {
   const percent = Math.round(pan * 100);
   if (percent === 0) return t("ui.pan.center");
@@ -69,7 +79,7 @@ function toggle(label, shortLabel, kind) {
 }
 
 function slider(label, range) {
-  const wrap = el("label", "slider-control");
+  const wrap = el("label", `slider-control ${range === PAN ? "control-pan" : "control-gain"}`);
   const input = el("input", "", {
     type: "range",
     min: range.min,
@@ -77,9 +87,12 @@ function slider(label, range) {
     step: range.step,
     "aria-label": label,
   });
-  const output = el("output");
-  wrap.append(input, output);
-  return { wrap, input, output };
+  const output = el("output", "", { "aria-label": label });
+  const caption = el("span", "slider-caption", { "aria-hidden": "true" });
+  caption.textContent = t(range === PAN ? "ui.control.pan" : "ui.control.level");
+  wrap.append(caption, input, output);
+  const paintDial = bindDialRange(input, () => wrap.classList.contains("dial"));
+  return { wrap, input, output, paintDial };
 }
 
 /**
@@ -93,6 +106,12 @@ function slider(label, range) {
 function editableReadout(control, { parse, current, text, format, write, scale = 1 }) {
   const { input, output } = control;
   output.title = t("ui.readout.type_hint");
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.altKey) {
+      event.preventDefault();
+      output.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    }
+  });
   output.addEventListener("dblclick", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -247,6 +266,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         provisional: (p) => patchBus(p, id, { gain_db: value }),
       });
     });
+    fader.wrap.querySelector(".slider-caption").textContent = t("ui.bus.fader");
     parts.node.querySelector(".th-controls").append(label, fader.wrap);
     parts.busFader = { control: fader, id };
   }
@@ -300,10 +320,47 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     top.append(handle, name, tag, roleBadge, channelTag, bus, buttons);
     // The loudness sits on the level row, so it never takes the name's room.
     const controls = el("div", "th-controls");
-    controls.append(loudness);
+    // Measurement belongs to gain context, never pan hover.
     const gain = slider(t("ui.track.gain"), GAIN);
+    gain.wrap.append(loudness);
+    // Put feedback beside the lane, never on its name or controls. If there is
+    // no side room, use the viewport's top edge rather than covering another row.
+    const positionLoudness = () => {
+      const lane = node.getBoundingClientRect();
+      const width = loudness.offsetWidth || 240;
+      const height = loudness.offsetHeight || 28;
+      const sideRoom = lane.right + width + 16 <= window.innerWidth;
+      loudness.style.left = `${sideRoom ? lane.right + 8 : Math.max(8, window.innerWidth - width - 8)}px`;
+      const compactGain = gain.wrap.classList.contains("dial");
+      const feedbackTop = sideRoom
+        ? Math.max(
+            8,
+            Math.min(
+              gain.wrap.getBoundingClientRect().top,
+              window.innerHeight - height - (compactGain ? 40 : 8),
+            ),
+          )
+        : 8;
+      loudness.style.top = `${feedbackTop + (compactGain ? 30 : 0)}px`;
+      if (compactGain) {
+        gain.output.style.left = loudness.style.left;
+        gain.output.style.top = `${feedbackTop}px`;
+      }
+    };
+    gain.wrap.addEventListener("pointerenter", positionLoudness);
+    gain.wrap.addEventListener("focusin", positionLoudness);
+    gain.wrap.addEventListener("pointermove", positionLoudness);
+
     const pan = slider(t("ui.track.pan"), PAN);
     pan.wrap.classList.add("pan");
+    const positionPanValue = () => {
+      const lane = node.getBoundingClientRect();
+      pan.output.style.left = `${Math.min(lane.right + 8, window.innerWidth - 92)}px`;
+      pan.output.style.top = `${Math.max(8, Math.min(pan.wrap.getBoundingClientRect().top, window.innerHeight - 36))}px`;
+    };
+    pan.wrap.addEventListener("pointerenter", positionPanValue);
+    pan.wrap.addEventListener("focusin", positionPanValue);
+    pan.wrap.addEventListener("pointermove", positionPanValue);
     controls.append(gain.wrap, pan.wrap);
     // A thin grab zone on the bottom edge: drag to size this lane, double-click to reset it.
     const grip = el("div", "lane-grip", { title: t("ui.track.resize"), "aria-hidden": "true" });
@@ -385,7 +442,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     });
     node.addEventListener("focusin", () => actions.currentTrack(id, { mode: "follow" }));
     node.addEventListener("contextmenu", (event) => actions.contextMenu("track", id, event));
-    name.addEventListener("dblclick", () => rename(name, id));
+    name.addEventListener("dblclick", () => rename(name, id, "track"));
     tag.addEventListener("click", () => actions.cycleKind(id));
     roleBadge.addEventListener("click", () => actions.matchRole(id));
     mute.addEventListener("click", () => {
@@ -471,7 +528,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const chevron = el("button", "bus-chevron", { type: "button" });
     const badge = el("span", "bus-badge", { "aria-hidden": "true" });
     badge.textContent = busLetter(index);
-    const name = el("span", "bus-name");
+    // The name is a label, not a tab stop; like a track name it renames on
+    // double-click (the header's own double-click folds the bus instead).
+    const name = el("span", "bus-name", { title: t("ui.bus.rename") });
     // Two lines (owner, 2026-10-18: the levels were too small to use on one line):
     // badge, name and M on top, the bus level and pan below, always shown.
     const mute = toggle(t("ui.bus.mute"), t("ui.track.mute.short"), "mute");
@@ -481,6 +540,14 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const gain = slider(t("ui.bus.gain"), GAIN);
     const pan = slider(t("ui.bus.pan"), PAN);
     pan.wrap.classList.add("pan");
+    const positionPanValue = () => {
+      const lane = node.getBoundingClientRect();
+      pan.output.style.left = `${Math.min(lane.right + 8, window.innerWidth - 92)}px`;
+      pan.output.style.top = `${Math.max(8, Math.min(pan.wrap.getBoundingClientRect().top, window.innerHeight - 36))}px`;
+    };
+    pan.wrap.addEventListener("pointerenter", positionPanValue);
+    pan.wrap.addEventListener("focusin", positionPanValue);
+    pan.wrap.addEventListener("pointermove", positionPanValue);
     const faderLabel = el("span", "fader-label", { "aria-hidden": "true" });
     faderLabel.textContent = t("ui.bus.fader");
     controls.append(faderLabel, gain.wrap, pan.wrap);
@@ -498,6 +565,10 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     chevron.addEventListener("click", () => actions.toggleBus(id));
     reapply.addEventListener("click", () => actions.reapplyRole(id));
     // Double-click the header itself, not its buttons, sliders or the name being edited.
+    name.addEventListener("dblclick", (event) => {
+      event.stopPropagation();
+      rename(name, id, "bus");
+    });
     node.addEventListener("dblclick", (event) => {
       if (!event.target.closest("button, input, select, label, output")) actions.toggleBus(id);
     });
@@ -560,23 +631,29 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
   const lookupIndex = (id) => latest.project.tracks.findIndex((track) => track.id === id);
   const currentBus = (id) => latest.project.buses.find((bus) => bus.id === id);
 
-  function rename(button, id) {
-    const input = el("input", "track-rename", { type: "text", "aria-label": t("ui.track.name") });
-    input.value = lookup(id).name;
-    button.replaceWith(input);
+  function rename(anchor, id, kind) {
+    const forBus = kind === "bus";
+    const current = () => (forBus ? currentBus(id).name : lookup(id).name);
+    const input = el("input", "track-rename", {
+      type: "text",
+      "aria-label": t(forBus ? "ui.bus.name_field" : "ui.track.name"),
+    });
+    input.value = current();
+    anchor.replaceWith(input);
     input.focus();
     input.select();
     let done = false;
     const finish = (commit) => {
       if (done) return;
       done = true;
-      const value = input.value.trim();
-      input.replaceWith(button);
-      if (commit && value && value !== lookup(id).name) {
+      const value = renamedName(input.value, current());
+      input.replaceWith(anchor);
+      if (commit && value) {
         editor.change({
-          op: "set_track",
-          args: { track_id: id, name: value },
-          provisional: (p) => patchTrack(p, id, { name: value }),
+          op: forBus ? "set_bus" : "set_track",
+          args: forBus ? { bus_id: id, name: value } : { track_id: id, name: value },
+          provisional: (p) =>
+            forBus ? patchBus(p, id, { name: value }) : patchTrack(p, id, { name: value }),
         });
       }
     };
@@ -594,7 +671,8 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     if (document.activeElement !== control.input && control.input.value !== String(value)) {
       control.input.value = value;
     }
-    control.output.textContent = text;
+    if (!control.output.querySelector(".readout-edit")) control.output.textContent = text;
+    control.input.setAttribute("aria-valuetext", text);
   }
 
   function update(state) {
@@ -622,6 +700,8 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       const parts = rows.get(row.id);
       if (!parts) continue;
       parts.node.style.height = `${row.height}px`;
+      parts.node.dataset.controlLines = String(controlLines(row.height));
+      parts.node.classList.toggle("micro-controls", row.height < 32);
       if (parts.kind === "gap") continue;
       parts.node.classList.toggle("group-end", Boolean(row.last));
       // The bus spine runs from the bus header down through its members.
@@ -657,11 +737,18 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.channelTag.hidden = channels === null;
         parts.channelTag.textContent = channels ? t(`ui.track.tag.${channels}`) : "";
         paintLoudness(parts.loudness, trackReadout(state.loudness, track.id));
+        parts.loudness.hidden = false;
+        parts.loudness.textContent = contextualReadout(state.loudness, track.id, formatNumber, t);
+        parts.loudness.title = t("ui.loudness.integrated_hint");
         parts.mute.setAttribute("aria-pressed", String(track.mute));
         parts.solo.setAttribute("aria-pressed", String(track.solo));
         if (document.activeElement !== parts.bus) parts.bus.value = track.bus ?? "";
+        parts.gain.wrap.classList.toggle("dial", controlLines(row.height) === 1);
+        parts.pan.wrap.classList.add("dial");
         setSlider(parts.gain, track.gain_db, formatDb(track.gain_db));
         setSlider(parts.pan, Math.round(track.pan * 100), panText(track.pan));
+        parts.gain.paintDial();
+        parts.pan.paintDial();
         if (parts.busFader) {
           const bus = state.project.buses.find((item) => item.id === parts.busFader.id);
           if (bus) setSlider(parts.busFader.control, bus.gain_db, formatDb(bus.gain_db));

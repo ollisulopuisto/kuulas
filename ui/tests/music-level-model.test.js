@@ -31,22 +31,23 @@ const result = (over = {}) => ({
 });
 
 describe("the offset", () => {
-  test("defaults to -10 dB within -30..0", () => {
+  test("defaults to -10 dB within -30..1", () => {
     assert.equal(DEFAULT_MUSIC_UNDER_DB, -10);
-    assert.deepEqual([MIN_MUSIC_UNDER_DB, MAX_MUSIC_UNDER_DB], [-30, 0]);
+    assert.deepEqual([MIN_MUSIC_UNDER_DB, MAX_MUSIC_UNDER_DB], [-30, 1]);
     assert.equal(normaliseMusicUnder(null), -10);
     assert.equal(normaliseMusicUnder("junk"), -10);
     assert.equal(normaliseMusicUnder("-12"), -12);
     assert.equal(normaliseMusicUnder(-45), -30);
-    assert.equal(normaliseMusicUnder(3), 0);
+    assert.equal(normaliseMusicUnder(3), 1);
   });
 
   test("the field takes a comma decimal and refuses what is out of range, never clamping", () => {
     assert.deepEqual(validateMusicUnder("-7,5"), { ok: true, error: null, value: -7.5 });
+    assert.deepEqual(validateMusicUnder("+1"), { ok: true, error: null, value: 1 });
     assert.equal(validateMusicUnder("x").error, "ui.music_level.error_number");
     assert.equal(validateMusicUnder("").error, "ui.music_level.error_number");
     assert.equal(validateMusicUnder("-31").error, "ui.music_level.error_range");
-    assert.equal(validateMusicUnder("2").error, "ui.music_level.error_range");
+    assert.equal(validateMusicUnder("1.1").error, "ui.music_level.error_range");
   });
 });
 
@@ -65,6 +66,7 @@ describe("the measurement", () => {
 
   test("where the music sits, in words", () => {
     assert.equal(against(-10, t, fmt), 'music_level.under{"db":"10.0"}');
+    assert.equal(against(0, t, fmt), "music_level.equal{}");
     assert.equal(against(2.25, t, fmt), 'music_level.above{"db":"2.3"}');
   });
 
@@ -104,6 +106,7 @@ test("every text the model and the dialog use exists in both catalogs", () => {
     "ui.prefs.music_under_speech",
     "music_level.under",
     "music_level.above",
+    "music_level.equal",
     "error.music_level.no_music",
     "error.music_level.no_speech",
   ];

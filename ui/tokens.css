@@ -327,7 +327,7 @@
   --control-h-sm: 28px; /* M / S, bus picker, chips inside headers */
   --target-min: 44px; /* hit target of the main controls (WCAG 2.5.5) */
   --lane-h: 80px; /* lanes.js DEFAULT_LANE */
-  --bus-h: 60px; /* lanes.js BUS_HEIGHT: a name line and a level line */
+  --bus-h: 68px; /* lanes.js BUS_HEIGHT: a name line and a level line */
   --bus-collapsed-h: 40px; /* a collapsed bus: ribbons or summed waveform */
   --group-gap: 14px; /* lanes.js GROUP_GAP: plain lane between groups */
   --strip-h: 16px; /* focus-mode strips (WP28) */
@@ -378,7 +378,7 @@
   --control-h-sm: 18px;
   --target-min: 24px;
   --lane-h: 40px;
-  --bus-h: 50px;
+  --bus-h: 68px;
   --bus-collapsed-h: 32px;
   --group-gap: 6px;
   --reading-max: 72ch;
@@ -416,6 +416,8 @@
   --accent-hover: var(--p-teal-44);
   --accent-text: var(--p-teal-38); /* accent-coloured text on panels */
   --accent-subtle: var(--p-teal-81); /* selected rows, selected words */
+  --control-gain: var(--p-blue-46); /* gain only, independent of track identity */
+  --control-pan: var(--p-violet-40); /* pan only; also marked with a dashed ring and dot */
   --focus-ring: var(--p-teal-43);
   --warn: var(--p-amber-55); /* fills and strokes: solo, speed chip */
   --warn-text: var(--p-amber-39);
@@ -569,6 +571,8 @@
     --accent-hover: var(--p-teal-80);
     --accent-text: var(--p-teal-80);
     --accent-subtle: var(--p-teal-32);
+    --control-gain: var(--p-blue-88);
+    --control-pan: var(--p-label-purple-74);
     --focus-ring: var(--p-teal-80);
     --warn: var(--p-amber-81);
     --warn-text: var(--p-amber-84);
@@ -718,6 +722,8 @@
   --accent-hover: var(--p-teal-80);
   --accent-text: var(--p-teal-80);
   --accent-subtle: var(--p-teal-32);
+  --control-gain: var(--p-blue-88);
+  --control-pan: var(--p-label-purple-74);
   --focus-ring: var(--p-teal-80);
   --warn: var(--p-amber-81);
   --warn-text: var(--p-amber-84);

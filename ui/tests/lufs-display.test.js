@@ -26,7 +26,11 @@ test("the graphical LUFS meter stays visible at rest and follows loudness during
     querySelector: () => fill,
     querySelectorAll: () => ticks,
   };
-  const root = { hidden: true, querySelector: () => readout };
+  const root = {
+    querySelectorAll: () => [],
+    hidden: true,
+    querySelector: (selector) => (selector === ".lm-readout" ? readout : null),
+  };
   const clipButton = { hidden: true, addEventListener() {} };
   const meter = createLevelMeter({ root, bars, clipButton });
   meter.playing(false);

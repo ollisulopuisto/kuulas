@@ -102,7 +102,9 @@ def test_old_uncompressed_backups_are_compressed_on_open_and_nothing_else(tmp_pa
     folder = pkg.path
     pkg.close()
     backups = folder / "backups"
-    old = []
+    # Closing now creates the final full snapshot as well. All standalone
+    # copies, including that snapshot, must be compressed on the next open.
+    old = list(backups.glob("auto-*.sqlite"))
     for minutes in (30, 20):
         t = datetime.now(UTC) - timedelta(minutes=minutes)
         old.append(package.backup_to(folder / "project.sqlite", backups / name(t)))
@@ -280,7 +282,9 @@ def test_restore_reads_a_compressed_backup_and_keeps_a_safety_copy(tmp_path):
     pkg.history.commit("edit", ops.set_master(pkg.history.state, -7.0))
     folder = pkg.path
     pkg.close()
-    (backup,) = autos(folder)
+    assert len(autos(folder)) == 2  # earlier edit plus the final close snapshot
+    backup = made.name + ".xz"
+    assert backup in autos(folder)
     assert backup.endswith(".xz")
     assert made is not None
     safety = package.restore_backup(folder, backup)
@@ -294,11 +298,13 @@ def test_restore_reads_a_compressed_backup_and_keeps_a_safety_copy(tmp_path):
 
 def test_restore_from_the_command_line(tmp_path, capsys):
     pkg = edited(tmp_path, gain=-2.0)
-    pkg.backup()
+    made = pkg.backup()
     pkg.wait_compressed()
     pkg.history.commit("edit", ops.set_master(pkg.history.state, -9.0))
     pkg.close()
-    (backup,) = autos(pkg)
+    assert len(autos(pkg)) == 2  # final snapshot must not replace the older one
+    backup = made.name + ".xz"
+    assert backup in autos(pkg)
     assert cli.main(["restore-backup", str(pkg.path), backup]) == 0
     assert "pre-restore-" in capsys.readouterr().out
     again = package.open_package(pkg.path)

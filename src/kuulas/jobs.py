@@ -18,7 +18,7 @@ from concurrent.futures import Future
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import media, priority
+from . import media, nap, priority
 from .messages import KuulasError, t
 
 log = logging.getLogger("kuulas.jobs")
@@ -144,7 +144,11 @@ class Jobs:
                     lambda: self._pause(job_id), lambda: self._resume(job_id)):
                 self._enter(work.cancel)
                 entered = True
-                value = work.fn(progress)
+                # Jobs run in this process, so App Nap could throttle them
+                # while every window is hidden (nap.py); recording and
+                # transcription are separate worker processes and immune.
+                with nap.hold(f"kuulas job: {item['kind']}"):
+                    value = work.fn(progress)
             if work.cancel.is_set():
                 _cancelled()
             if work.on_done is not None:

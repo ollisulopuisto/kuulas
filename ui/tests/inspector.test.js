@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
+import { readFileSync } from "node:fs";
+import { beforeEach, describe, test } from "node:test";
+import { fileURLToPath } from "node:url";
+import * as i18n from "../i18n.js";
+import { formatDb, t } from "../i18n.js";
 import {
   clipLengthText,
   createInspector,
@@ -7,7 +11,8 @@ import {
   selectedClip,
   syncGroupOf,
 } from "../inspector.js";
-import { addBusForTrack, hasDuckControl } from "../inspector-track.js";
+import { createTrackClips, trackClipRows, trackFileRows } from "../inspector-clips.js";
+import { addBusForTrack, buildTrackSections, hasDuckControl } from "../inspector-track.js";
 
 class FakeNode {
   constructor(tag) {
@@ -85,6 +90,13 @@ globalThis.document = {
   activeElement: null,
 };
 
+const locales = fileURLToPath(new URL("../../src/kuulas/locales/", import.meta.url));
+const catalog = (lang) => JSON.parse(readFileSync(`${locales}${lang}.json`, "utf8"));
+beforeEach(() => {
+  i18n.setCatalogs({ en: catalog("en"), fi: catalog("fi") });
+  i18n.setLanguageNow("en");
+});
+
 // The server sends sync-group members as { mediaId: origin } (SyncGroup.to_dict).
 const project = {
   media: [{ id: "m1", name: "a.wav" }],
@@ -125,6 +137,7 @@ describe("inspector sections (density rework, 2026-10-18)", () => {
   test("Track, Bus, Level and Sync start open, the rest closed", () => {
     assert.deepEqual(openSections(null), {
       track: true,
+      clips: true,
       bus: true,
       level: true,
       fades: false,
@@ -137,6 +150,7 @@ describe("inspector sections (density rework, 2026-10-18)", () => {
   test("what the user opened or closed is remembered; junk is ignored", () => {
     assert.deepEqual(openSections('{"fades":true,"level":false,"track":false}'), {
       track: false,
+      clips: true,
       bus: true,
       level: false,
       fades: true,
@@ -227,5 +241,162 @@ describe("clip name in inspector", () => {
     assert.equal(sent[0].op, "set_clip");
     assert.equal(sent[0].args.clip_id, "c1");
     assert.equal(sent[0].args.name, "");
+  });
+});
+
+describe("track clip properties list", () => {
+  const project = {
+    rate: 48000,
+    media: [{ id: "m", name: "Audio.wav" }],
+    tracks: [
+      {
+        id: "t",
+        clips: [
+          { id: "b", media: "m", start: 48000, length: 24000, muted: true },
+          { id: "a", media: "m", start: 0, length: 48000, name: "Intro" },
+        ],
+      },
+      { id: "other", clips: [{ id: "x", start: 0, length: 2 }] },
+    ],
+  };
+  test("timeline order includes repeated source uses and muted clips, excludes other tracks", () => {
+    assert.deepEqual(
+      trackClipRows(project, "t").map((x) => [x.id, x.name, x.muted]),
+      [
+        ["a", "Intro", false],
+        ["b", "Audio.wav", true],
+      ],
+    );
+    assert.deepEqual(trackClipRows(project, "gone"), []);
+  });
+  test("click selects/jumps through existing action and edits/deletions refresh the list", () => {
+    const details = new FakeNode("details");
+    const calls = [];
+    const view = createTrackClips({ details, trackId: "t", jump: (...args) => calls.push(args) });
+    view.update({ project, selection: new Set(["a"]) });
+    const buttons = details.all().filter((n) => n.tagName === "button");
+    assert.equal(buttons.length, 2);
+    assert.equal(buttons[0].attrs["aria-pressed"], "true");
+    buttons[1].listeners.click[0]();
+    assert.deepEqual(calls, [["b", "t", 48000]]);
+    view.update({
+      project: { ...project, tracks: [{ id: "t", clips: [] }] },
+      selection: new Set(),
+    });
+    assert.equal(details.all().filter((n) => n.tagName === "button").length, 0);
+  });
+});
+
+describe("track source file list", () => {
+  const project = {
+    rate: 48000,
+    media: [
+      { id: "m1", name: "same.wav" },
+      { id: "m2", name: "same.wav" },
+    ],
+    tracks: [
+      {
+        id: "t",
+        clips: [
+          { id: "c1", media: "m1", start: 0, length: 48000 },
+          { id: "c2", media: "m2", start: 96000, length: 24000, muted: true },
+          { id: "c3", media: "m1", start: 48000, length: 24000 },
+          { id: "c4", start: 144000, length: 24000, name: "Free" },
+        ],
+      },
+      { id: "other", clips: [{ id: "x", media: "m1", start: 0, length: 2 }] },
+    ],
+  };
+  test("one row per source file, names stay separate, timeline order by first clip", () => {
+    assert.deepEqual(
+      trackFileRows(project, "t").map((row) => [row.key, row.name, row.clips.map((c) => c.id)]),
+      [
+        ["m1", "same.wav", ["c1", "c3"]],
+        ["m2", "same.wav", ["c2"]],
+        ["c4", "Free", ["c4"]],
+      ],
+    );
+    assert.deepEqual(trackFileRows(project, "gone"), []);
+  });
+  test("file rows expand to clips that keep jump and selection, empty state unchanged", () => {
+    const details = new FakeNode("details");
+    const calls = [];
+    const view = createTrackClips({ details, trackId: "t", jump: (...args) => calls.push(args) });
+    view.update({ project, selection: new Set(["c3"]) });
+    const files = details.all().filter((n) => n.tagName === "details");
+    assert.equal(files.length, 3);
+    const summaries = files.map((f) => f.querySelector("summary").textContent);
+    assert.deepEqual(summaries, ["same.wav · 2 clips", "same.wav · 1 clip", "Free · 1 clip"]);
+    const buttons = details.all().filter((n) => n.tagName === "button");
+    assert.equal(buttons.length, 4);
+    assert.deepEqual(
+      buttons.map((b) => b.attrs["aria-pressed"]),
+      ["false", "true", "false", "false"],
+    );
+    buttons[0].listeners.click[0]();
+    assert.deepEqual(calls, [["c1", "t", 0]]);
+    view.update({
+      project: { ...project, tracks: [{ id: "t", clips: [] }] },
+      selection: new Set(),
+    });
+    assert.equal(details.all().filter((n) => n.tagName === "button").length, 0);
+    assert.equal(details.all().filter((n) => n.tagName === "details").length, 0);
+  });
+});
+
+describe("track inspector level readouts", () => {
+  test("gain and pan are read-only and follow current shared state", () => {
+    const track = {
+      id: "t",
+      name: "Host",
+      kind: "speech",
+      speaker: "",
+      clips: [],
+      gain_db: -3,
+      pan: -0.25,
+      mute: false,
+      solo: false,
+      bus: null,
+    };
+    const state = { project: { tracks: [track], buses: [] }, loudness: {} };
+    const root = new FakeNode("details");
+    const changes = [];
+    const view = buildTrackSections({
+      target: { track },
+      editor: { change: (edit) => changes.push(edit) },
+      place: () => root,
+      latest: () => state,
+    });
+    view.update(state);
+    const gain = root.all().find((node) => node.attrs["data-level"] === "gain");
+    const pan = root.all().find((node) => node.attrs["data-level"] === "pan");
+    assert.ok(gain && pan, "gain and pan must be display-only outputs");
+    assert.equal(gain.tagName, "output");
+    assert.equal(pan.tagName, "output");
+    assert.equal(gain.textContent, formatDb(-3));
+    assert.match(pan.textContent, /25/);
+    assert.deepEqual(Object.keys(gain.listeners), []);
+    assert.deepEqual(Object.keys(pan.listeners), []);
+    assert.equal(root.all().filter((node) => node.type === "number").length, 0);
+    view.update({
+      ...state,
+      project: { ...state.project, tracks: [{ ...track, gain_db: 6, pan: 0.5 }] },
+    });
+    assert.equal(gain.textContent, formatDb(6));
+    assert.match(pan.textContent, /50/);
+    const mute = root.all().find((node) => node.attrs["data-state"] === "mute");
+    const solo = root.all().find((node) => node.attrs["data-state"] === "solo");
+    for (const output of [mute, solo]) {
+      assert.equal(output.tagName, "output");
+      assert.deepEqual(Object.keys(output.listeners), []);
+      assert.equal(output.textContent, t("ui.inspector.state.off"));
+    }
+    view.update({
+      ...state,
+      project: { ...state.project, tracks: [{ ...track, mute: true, solo: true }] },
+    });
+    assert.equal(mute.textContent, t("ui.inspector.state.on"));
+    assert.equal(solo.textContent, t("ui.inspector.state.on"));
+    assert.deepEqual(changes, []);
   });
 });

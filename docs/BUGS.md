@@ -9,6 +9,7 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
+| 139 | 1.11 | While recording, set and clear the in point from the Markers tab and see the take's running length from the in point | fixed, please check (pending merge): I, O and the corner use the take's place while recording (the playhead stays parked); the Merkit tab has Aseta alkupiste and Poista alkupiste buttons; Pituus counts up from a lone in point live; 3667 node tests, biome, ruff, locale and ui-page checks pass; real-microphone check is the owner's |
 | 138 | 27.10 | Recording view should show short-term LUFS per input instead of only peak bars | fixed, please check in v26.10.27.4: real per-input three-second LUFS, −23/−16 marks and independent clipping; synthetic recorder integration and Chrome checks passed |
 | 137 | 27.10 | Recording setup dialog is overwhelming and poorly organized | fixed, please check in v26.10.27.4: compact essentials, More options and clear action footer; Chrome layout and stop-safety checks passed |
 | 136 | 27.10 | Live recording waveform is absent for New track until Stop; existing tracks update with a different waveform shape | fixed, please check in v26.10.27.4: late track binding preserves buffered peaks; live/final waveform preferences agree; browser event-order regression passed |

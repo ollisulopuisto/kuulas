@@ -19,8 +19,6 @@
         <nav id="menubar" class="menubar"></nav>
         <div class="modes">
           <span id="live-chip" class="chip danger" role="status" hidden></span>
-          <!-- While a take records (record-view.js): opens the record view; the take never stops here. -->
-          <button id="rec-chip" type="button" class="chip danger rec-chip" hidden></button>
           <button id="waveform-gain" type="button" class="chip warn" hidden></button>
         </div>
         <span class="spacer"></span>
@@ -39,6 +37,7 @@
           <button id="record" type="button" class="play rec-button" data-i18n-title="cmd.transport.record.hint">
             <span class="play-icon rec-dot" aria-hidden="true">●</span><span class="lbl" data-i18n="ui.transport.record"></span>
           </button>
+          <div class="recording-controls"><button id="rec-chip" type="button" class="chip danger rec-chip" hidden></button></div>
           <div class="t-row">
             <button id="loop" data-cmd="transport.loop_selection" type="button" class="button ghost icon" aria-pressed="false">
               <svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 7.5v-1a2.5 2.5 0 0 1 2.5-2.5h7.5M10.5 1.8 12.7 4l-2.2 2.2M13.5 8.5v1A2.5 2.5 0 0 1 11 12H3.5M5.5 14.2 3.3 12l2.2-2.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -106,20 +105,18 @@
         <section id="panel-block-level" class="panel silence-panel block-level-panel" data-panel="block-level" hidden></section>
         <div class="side-tabs" role="tablist" data-i18n-aria-label="ui.tabs.label">
           <button id="tab-inspector" type="button" role="tab" class="side-tab" data-tab="inspector" aria-controls="panel-inspector"><span class="tab-icon" data-icon="inspector" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.inspector"></span><span class="tab-key"></span></button>
-          <button id="tab-candidates" type="button" role="tab" class="side-tab" data-tab="candidates" aria-controls="panel-candidates"><span class="tab-icon" data-icon="candidates" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.candidates"></span><span id="cand-count" class="count" hidden></span><span class="tab-key"></span></button>
-          <button id="tab-clipboard" type="button" role="tab" class="side-tab" data-tab="clipboard" aria-controls="panel-clipboard"><span class="tab-icon" data-icon="paste" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.clipboard"></span><span class="tab-key"></span></button>
-          <button id="tab-markers" type="button" role="tab" class="side-tab" data-tab="markers" aria-controls="panel-markers"><span class="tab-icon" data-icon="bookmark" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.markers"></span><span class="tab-key"></span></button>
           <button id="tab-history" type="button" role="tab" class="side-tab" data-tab="history" aria-controls="panel-history"><span class="tab-icon" data-icon="restore" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.history"></span><span class="tab-key"></span></button>
+          <button id="tab-markers" type="button" role="tab" class="side-tab" data-tab="markers" aria-controls="panel-markers"><span class="tab-icon" data-icon="bookmark" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.markers"></span><span class="tab-key"></span></button>
           <button id="tab-material" type="button" role="tab" class="side-tab" data-tab="material" aria-controls="panel-material"><span class="tab-icon" data-icon="folder" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.material"></span><span class="tab-key"></span></button>
+          <button id="tab-candidates" type="button" role="tab" class="side-tab" data-tab="candidates" aria-controls="panel-candidates"><span class="tab-icon" data-icon="candidates" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.candidates"></span><span id="cand-count" class="count" hidden></span><span class="tab-key"></span></button>
           <!-- Hides the whole side panel (View > Show side panel brings it back). -->
           <button id="side-close" type="button" class="button ghost icon side-close" data-icon="close" data-i18n-aria-label="ui.sidebar.close" data-i18n-title="ui.sidebar.close"></button>
         </div>
         <section id="panel-inspector" data-help-id="inspector" class="panel" data-panel="inspector" role="tabpanel" aria-labelledby="tab-inspector" tabindex="0"></section>
         <section id="panel-candidates" class="panel" data-panel="candidates" role="tabpanel" aria-labelledby="tab-candidates" tabindex="0" hidden></section>
-        <section id="panel-clipboard" class="panel" data-panel="clipboard" role="tabpanel" aria-labelledby="tab-clipboard" tabindex="0" hidden></section>
         <section id="panel-markers" class="panel" data-panel="markers" role="tabpanel" aria-labelledby="tab-markers" tabindex="0" hidden></section>
         <section id="panel-history" class="panel" data-panel="history" role="tabpanel" aria-labelledby="tab-history" tabindex="0" hidden></section>
-        <section id="panel-material" class="panel" data-panel="material" role="tabpanel" aria-labelledby="tab-material" tabindex="0" hidden></section>
+        <section id="panel-material" class="panel" data-panel="material" role="tabpanel" aria-labelledby="tab-material" tabindex="0" hidden><div id="materials-recordings"></div><div id="panel-clipboard" data-panel="clipboard" tabindex="0" hidden></div></section>
       </aside>
       <footer class="statusbar" data-i18n-aria-label="ui.view.title">
         <span id="zoom-chip" class="zoom"></span>
@@ -138,6 +135,10 @@
         <span class="spacer"></span>
         <!-- Three-second LUFS from the shared meter; the peak clip latch stays separate. -->
         <span id="level-meter" class="level-meter" hidden>
+          <span class="lm-rms" role="img" data-i18n-aria-label="ui.meter.rms" data-i18n-title="ui.meter.rms">
+            <span class="lm-rms-row"><span data-i18n="ui.meter.left"></span><span class="lm-rms-track"><i class="lm-rms-fill" data-channel="l"></i></span></span>
+            <span class="lm-rms-row"><span data-i18n="ui.meter.right"></span><span class="lm-rms-track"><i class="lm-rms-fill" data-channel="r"></i></span></span>
+          </span>
           <span class="lm-readout"></span>
           <span id="level-bars" class="lm-bars" role="img" data-i18n-aria-label="ui.meter.title" data-i18n-title="ui.meter.title">
             <span class="lm-row"><i class="lm-fill" data-zone="ok"></i></span>

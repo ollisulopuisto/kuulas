@@ -16,10 +16,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import colab_transcribe, local_models
+from . import colab_transcribe, local_memory, local_models
 from .automix import run_process as _run_local_process
 from .clock import FLICKS
 from .messages import KuulasError
+
+ORUKEET_WHEEL = (
+    "https://github.com/Oruk-AI/orukeet/releases/download/v0.1.1/"
+    "orukeet-0.1.1-py3-none-any.whl"
+)
+ORUKEET_TORCH = "torch==2.8.0"
+ORUKEET_TORCHAUDIO = "torchaudio==2.8.0"
 
 
 def _word(text: str, start: float, end: float, spk: str = "") -> dict:
@@ -72,12 +79,14 @@ class _LocalCancel:
 
 def local(path: str | Path, model: str = "small",
           language: str | None = None, progress=None,
-          cpu_threads: int | None = None) -> list[dict]:
+          cpu_threads: int | None = None, allow_low_memory: bool = False) -> list[dict]:
     """Run shared local Orukeet; legacy Whisper model sizes select the Orukeet default.
 
     Explicit model paths are supported. Never accept the shared CLI's generic
     Parakeet fallback when the user's converted Orukeet model is missing.
     """
+    if not allow_low_memory and not local_memory.eligible():
+        raise TranscribeError("error.orukeet.memory")
     _ = cpu_threads  # MLX owns scheduling; retained for persisted jobs and callers.
     legacy = {"", "tiny", "base", "small", "medium", "large", "large-v2", "large-v3",
               "turbo", "orukeet"}
@@ -86,11 +95,17 @@ def local(path: str | Path, model: str = "small",
     if not model_path.is_dir():
         raise TranscribeError("error.transcribe.orukeet_model", path=str(model_path))
     command = colab_transcribe.default_command()
-    # Resolve optional MLX dependencies outside the editor/bundle environment.
+    # Keep the SDK and its CTC dependencies in the same isolated tool environment.
+    # The shared CLI's Orukeet backend reads the SDK installation receipt from the
+    # user's cache; these packages provide the runtime and word alignment code.
     if command[0] == "uvx":
-        command[1:1] = ["--with", "parakeet-mlx>=0.3.0", "--with", "lxml"]
+        command[1:1] = ["--with", ORUKEET_WHEEL,
+                        "--with", ORUKEET_TORCH,
+                        "--with", ORUKEET_TORCHAUDIO]
     elif command[:2] == ["uv", "run"]:
-        command[2:2] = ["--frozen", "--extra", "parakeet"]
+        command[2:2] = ["--frozen", "--extra", "orukeet",
+                        "--with", ORUKEET_TORCH,
+                        "--with", ORUKEET_TORCHAUDIO]
 
     def report(fraction, *_args, **_kwargs):
         if callable(progress):
@@ -100,10 +115,12 @@ def local(path: str | Path, model: str = "small",
     settings = {"command": command, "align": False,
                 "extra_args": ["--backend", "orukeet",
                                "--orukeet-model", str(model_path)]}
+    if allow_low_memory:
+        settings["extra_args"].append("--allow-low-memory")
     try:
         result = colab_transcribe.run(
             [{"id": "local", "name": source.name, "path": str(source)}],
-            {"model": "orukeet", "language": language}, settings, report,
+            {"backend": "orukeet", "language": language}, settings, report,
             _LocalCancel(progress), run_process=_run_local_process)
     except colab_transcribe.ColabError as error:
         raise TranscribeError("error.transcribe.orukeet_failed",

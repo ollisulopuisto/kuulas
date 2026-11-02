@@ -9,14 +9,25 @@ from __future__ import annotations
 import uuid
 from dataclasses import replace
 
-from . import curves, edit_scope, narration
+from . import curves, edit_scope, fx, narration
 from . import gate as gatem
 from . import markers as markersm
 from . import placeholders as placeholdersm
 from .clock import flicks_to_frames, frames_to_flicks
 from .join import join_adjacent
 from .messages import KuulasError
-from .model import Bus, Clip, Marker, Media, Placeholder, Point, Project, SyncGroup, Track
+from .model import (
+    Bus,
+    Clip,
+    FxLayer,
+    Marker,
+    Media,
+    Placeholder,
+    Point,
+    Project,
+    SyncGroup,
+    Track,
+)
 
 #: Crossfade where a cut joins audio that was not adjacent in the source.
 #: A butt splice of two unrelated samples clicks and the room tone jumps;
@@ -72,7 +83,7 @@ def _points(raw) -> tuple[Point, ...]:
 
 
 def add_media(p: Project, media: Media) -> Project:
-    if any(m.id == media.id for m in p.media):
+    if media.id in {m.id for m in p.media}:
         raise EditError("error.edit.media_exists", media_id=media.id)
     return replace(p, media=(*p.media, media))
 
@@ -87,7 +98,7 @@ def add_track(p: Project, track_id: str | None = None, name: str = "Track",
     if kind not in TRACK_KINDS:
         raise EditError("error.edit.bad_track_kind", kind=kind)
     track_id = track_id or new_id("t")
-    if any(t.id == track_id for t in p.tracks):
+    if track_id in {t.id for t in p.tracks}:
         raise EditError("error.edit.track_exists", track_id=track_id)
     p = replace(p, tracks=(*p.tracks, Track(
         id=track_id, name=name, kind=kind, speaker=speaker,
@@ -115,7 +126,7 @@ def delete_track(p: Project, track_id: str) -> Project:
 
 
 TRACK_FIELDS = {"name", "kind", "speaker", "bus", "gain_db", "pan", "mute", "solo",
-                "target_lufs", "mono", "follow_bus_role", "duck"}
+                "target_lufs", "mono", "follow_bus_role", "duck", "fx"}
 
 
 def set_track(p: Project, track_id: str, **fields) -> Project:
@@ -128,12 +139,18 @@ def set_track(p: Project, track_id: str, **fields) -> Project:
     if ("duck" in fields and fields["duck"] is not None
             and not isinstance(fields["duck"], bool)):
         raise EditError("error.edit.bad_arguments", name="set_track", detail="duck")
-    if fields.get("bus") is not None and not any(b.id == fields["bus"] for b in p.buses):
-        raise EditError("error.edit.no_bus", bus_id=fields["bus"])
     # Bus roles. Invariant: follow_bus_role implies kind == the bus's role.
     track = _find_track(p, track_id)
     bus_after = fields.get("bus", track.bus)
-    role = next((b.kind for b in p.buses if b.id == bus_after), None)
+    target_bus = None
+    if bus_after is not None:
+        try:
+            target_bus = p.bus(bus_after)
+        except KeyError:
+            if fields.get("bus") is not None:
+                raise EditError("error.edit.no_bus", bus_id=fields["bus"]) from None
+
+    role = target_bus.kind if target_bus is not None else None
     if "follow_bus_role" in fields:
         fields["follow_bus_role"] = bool(fields["follow_bus_role"])
         if fields["follow_bus_role"]:
@@ -155,7 +172,24 @@ def set_track(p: Project, track_id: str, **fields) -> Project:
         fields["mono"] = bool(fields["mono"])
     if fields.get("target_lufs") is not None:
         fields["target_lufs"] = _target_lufs(fields["target_lufs"])
+    if "fx" in fields:
+        fields["fx"] = _fx_layers(fields["fx"])
     return _replace_track(p, replace(_find_track(p, track_id), **fields))
+
+
+def _fx_layers(raw) -> tuple:
+    """Effect layers from dicts or ``FxLayer``s; a bad kind or cutoff is an error."""
+    layers = []
+    for item in raw or ():
+        layer = item if isinstance(item, FxLayer) else FxLayer.from_dict(dict(item))
+        if layer.kind not in fx.KINDS:
+            raise EditError("error.edit.bad_arguments", name="set_track",
+                            detail=f"fx kind {layer.kind!r}")
+        if not (fx.MIN_HZ <= layer.hz <= fx.MAX_HZ):  # also false for nan
+            raise EditError("error.edit.bad_arguments", name="set_track",
+                            detail=f"fx hz {layer.hz!r}")
+        layers.append(layer)
+    return tuple(layers)
 
 
 #: A loudness target outside this is a typo (-70 is the BS.1770 gate floor).
@@ -949,6 +983,53 @@ def clear_range(p: Project, start: int, end: int, track_ids=None) -> Project:
     return replace(p, tracks=tuple(tracks))
 
 
+def range_clips(project: Project, track_id: str, start: int,
+                end: int) -> tuple[Clip, ...]:
+    """Clip windows relative to the range start, keeping source-clock envelopes."""
+    if start < 0 or end <= start:
+        raise EditError("error.edit.empty_range")
+    try:
+        track = project.track(track_id)
+    except KeyError:
+        raise EditError("error.edit.no_track", track_id=track_id) from None
+    clips = []
+    for original in track.clips:
+        clip = original
+        if clip.end <= start or clip.start >= end:
+            continue
+        if clip.end > end:
+            clip = _cut(clip, end, clip.id)[0]
+        if clip.start < start:
+            clip = _cut(clip, start, clip.id)[1]
+        clips.append(replace(clip, start=clip.start - start))
+    return tuple(sorted(clips, key=lambda c: (c.start, c.offset, c.media)))
+
+
+
+def restore_part(p: Project, source: Project, track_id: str,
+                 start: int, end: int) -> Project:
+    """Overwrite one range from a historical state; later edits stay in place."""
+    clips = range_clips(source, track_id, start, end)
+    _find_track(p, track_id)
+    for clip in clips:
+        try:
+            media = p.media_item(clip.media)
+        except KeyError:
+            raise EditError("error.edit.no_media", media_id=clip.media) from None
+        if clip.offset < 0 or clip.offset + clip.length > media.frames:
+            raise EditError("error.edit.empty_range")
+    result = clear_range(p, start, end, [track_id])
+    track = result.track(track_id)
+    restored = tuple(replace(c, id=new_id("c"), start=c.start + start,
+                             group=None) for c in clips)
+    gate = gatem.remove_range(track.gate, start, end)
+    for a, b in source.track(track_id).gate:
+        if a < end and b > start:
+            gate = gatem.add_range(gate, max(a, start), min(b, end))
+    return _replace_track(result, replace(track, clips=_sorted((*track.clips, *restored)),
+                                          gate=gate))
+
+
 def cut_range(p: Project, start: int, end: int, track_ids=None) -> Project:
     """Ripple-delete ``[start, end)`` on the tracks (``None``: all tracks)."""
     start, end = int(start), int(end)
@@ -1449,7 +1530,7 @@ def add_marker(p: Project, marker_id: str | None, name: str, start: int,
                end: int | None = None, kind: str = "marker") -> Project:
     """A marker, chapter (``end`` None) or region (``end`` after ``start``)."""
     marker_id = marker_id or new_id("k")
-    if any(m.id == marker_id for m in p.markers):
+    if marker_id in {m.id for m in p.markers}:
         raise EditError("error.marker.exists", marker_id=marker_id)
     return _put_marker(p, _checked(Marker(
         id=marker_id, name=str(name).strip(), start=int(start),
@@ -1530,7 +1611,7 @@ def add_placeholder(p: Project, track_id: str, start: int, text: str,
     _find_track(p, track_id)
     text = _clean_text(text)
     placeholder_id = placeholder_id or new_id("h")
-    if any(h.id == placeholder_id for h in p.placeholders):
+    if placeholder_id in {h.id for h in p.placeholders}:
         raise EditError("error.placeholder.exists", placeholder_id=placeholder_id)
     if int(start) < 0:
         raise EditError("error.placeholder.bad_start")

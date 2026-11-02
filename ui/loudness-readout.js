@@ -124,3 +124,12 @@ export function createLoudnessLoader({
     },
   };
 }
+
+/** Contextual integrated measurement: never present a pending old result as live. */
+export function contextualReadout(loudness, trackId, formatNumber, t) {
+  const value = trackReadout(loudness, trackId);
+  if (value.phase === "pending") return t("ui.loudness.pending");
+  if (value.phase === "none") return t("ui.loudness.unavailable");
+  const text = readoutText(value, formatNumber, t);
+  return value.stale ? `${text} · ${t("ui.loudness.updating")}` : text;
+}

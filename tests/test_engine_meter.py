@@ -161,3 +161,19 @@ def test_a_failing_meter_never_silences_the_audio(rig, clock, monkeypatch):
     out = rig.stream.pump()
     assert np.abs(out).max() > 0  # the block was still written
     assert engine.status()["failed_blocks"] == 0
+
+
+@pytest.mark.parametrize("controls", [{"gain_db": -6}, {"pan": -1}, {"mute": True}])
+def test_rms_wire_follows_actual_output_after_mix_controls(rig, clock, controls):
+    from kuulas import ops  # noqa: PLC0415
+    from kuulas.server import meter_message  # noqa: PLC0415
+
+    engine, session, _ = make(rig, clock, {"m": tone(0.5, 0.25)})
+    session.change(ops.set_track(session.state, "t-m", **controls))
+    engine.play(0)
+    output = rig.stream.pump()
+    levels = meter_message(engine.meter())["meter"]
+    for channel, field in enumerate(("rms_l", "rms_r")):
+        expected = meter.to_db(float(np.sqrt(np.mean(output[:, channel] ** 2))))
+        assert levels[field] == pytest.approx(expected, abs=0.1)
+    engine.close()

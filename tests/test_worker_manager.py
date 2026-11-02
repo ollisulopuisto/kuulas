@@ -257,7 +257,7 @@ def test_watchdog_kills_a_stopped_worker_whose_caller_is_stuck(gate, marker):
         time.sleep(0.2)
         gate["playing"] = False
         assert wait_for(lambda: children(marker) == [], timeout=5)
-        assert m._running is None  # the slot is free again
+        assert wait_for(lambda: m._running is None, timeout=5)  # the slot is free again
     finally:
         release.set()
         m.shutdown()

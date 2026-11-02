@@ -623,3 +623,13 @@ replies use the same bounded sender queue without a shutdown action. Quitting
 during an active take is still refused. This fixes the intermittent headless
 self-test `RecorderError: disconnected` on Linux; the regression forces an
 immediate close when shutdown is requested. No real microphone is used.
+
+### Input loudness diagnostics
+
+The editor reads flushed take WAVs on its own background thread for the
+three-second input LUFS display. A failed read or meter calculation leaves the
+value pending and capture continues. The editor log records the take, input
+name and traceback once per failing input until that input recovers, so a
+persistent failure does not write four tracebacks per second. This diagnostic
+change does not establish the cause of the reported blank real-microphone meter;
+real capture still needs verification on the affected installation.

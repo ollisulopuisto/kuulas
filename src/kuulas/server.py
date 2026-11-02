@@ -70,11 +70,13 @@ from . import (
     step_names,
     transcribe,
     ui_prefs,
+    whatsnew,
 )
 from . import (
     profiler as profiler_module,
 )
 from .build_info import build_label
+from .build_info import version as build_version
 from .candidates import UnknownCandidateError
 from .hand_adjusted import balance_cap, hand_adjusted
 from .history import HistoryError
@@ -269,6 +271,13 @@ class WordBody(BaseModel):
     w: str
 
 
+class WordsBody(BaseModel):
+    media: str
+    start: int
+    end: int
+    w: str
+
+
 class ProfileBody(BaseModel):
     action: str
     seconds: float = 30.0
@@ -284,6 +293,14 @@ class RenderListenBody(BaseModel):
     on: StrictBool
 
 
+class PartVersionBody(BaseModel):
+    node: str
+    track_id: str
+    start: int = Field(ge=0)
+    end: int = Field(gt=0)
+    expected_head: str
+
+
 class TransportBody(BaseModel):
     action: str
     at: int | None = None
@@ -295,9 +312,13 @@ class TransportBody(BaseModel):
     preserve_pitch: bool = True
     # play only: [start, end] in frames, played over and over (WP50).
     loop: list[int] | None = None
+    # scrub only: the pointer's speed in programme seconds per second
+    # (negative backward); the burst plays at that tape speed (WP26).
+    velocity: float | None = None
 
 
 class TranscribeBody(BaseModel):
+    allow_low_memory: bool = False
     media_ids: list[str]
     model: str | None = None
     language: str | None = None
@@ -428,11 +449,16 @@ def newer_seq(seq, last) -> bool:
 
 
 def meter_message(levels: dict) -> dict:
-    """The live channel's meter frame: peak and peak-hold per channel, dBFS. (The engine
-    also measures RMS; the display has no use for it yet, so it is not sent.)"""
+    """Output peak dBFS plus shared three-second LUFS, preserving warm-up null.
+
+    Do not whitelist just peaks: the UI uses short_term for its live bar/readout.
+    RMS is per channel in dBFS; None means LUFS is still gathering three seconds.
+    """
+    value = levels.get("short_term")
     return {"type": "meter",
-            "meter": {key: round(float(levels[key]), 1)
-                      for key in ("l", "r", "hold_l", "hold_r")}}
+            "meter": {**{key: round(float(levels[key]), 1)
+                         for key in ("l", "r", "hold_l", "hold_r", "rms_l", "rms_r")},
+                      "short_term": None if value is None else round(float(value), 1)}}
 
 
 # -- the app -------------------------------------------------------------------
@@ -830,6 +856,12 @@ def create_app(session, engine, *, language: str | None = None,
     @app.get("/api/prefs")
     def get_prefs():
         return {"prefs": ui_prefs.load()}
+
+    # -- What's New: shipped changelog entries (Help menu + after an upgrade)
+
+    @app.get("/api/whats-new")
+    def get_whats_new(after: str | None = None):
+        return whatsnew.whats_new(after, build_version() or "")
 
     @app.put("/api/prefs")
     def put_prefs(body: Annotated[dict[str, Any], Body()]):
@@ -1452,6 +1484,24 @@ def create_app(session, engine, *, language: str | None = None,
         # The UI context of the restored step belongs to WP8; none is stored yet.
         return state_response({"context": None})
 
+    @app.get("/api/part-versions")
+    def get_part_versions(track_id: str, start: int, end: int):
+        # Sync routes run in FastAPI's worker pool: traversing history never
+        # blocks the live transport's event loop or holds the session lock.
+        return JSONResponse({"versions": session.part_versions(track_id, start, end)})
+
+    @app.post("/api/part-versions/restore")
+    def post_part_restore(body: PartVersionBody):
+        session.restore_part(body.node, body.track_id, body.start, body.end,
+                             expected_head=body.expected_head)
+        return state_response()
+
+    @app.post("/api/part-versions/preview")
+    def post_part_preview(body: PartVersionBody):
+        project = session.part_preview(body.node, body.track_id, body.start, body.end)
+        engine.play_preview(project, until=body.end - body.start, limit=True)
+        return JSONResponse({"started": True})
+
     @app.get("/api/history")
     def get_history(limit: int | None = None, before: str | None = None,
                     saved: int = 0):
@@ -1570,7 +1620,8 @@ def create_app(session, engine, *, language: str | None = None,
             require_media(media_id)
         try:
             job_ids = session.transcribe(body.media_ids, body.model, body.language,
-                                         body.backend, force=body.force)
+                                         body.backend, force=body.force,
+                                         allow_low_memory=body.allow_low_memory)
         except MediaError as exc:
             return answer(exc, 400)
         return JSONResponse({"jobs": job_ids}, status_code=202)
@@ -1720,6 +1771,12 @@ def create_app(session, engine, *, language: str | None = None,
         session.correct_word(body.media, body.index, body.w)
         return state_response()
 
+    @app.put("/api/words")
+    def put_words(body: WordsBody):
+        require_media(body.media)
+        session.correct_words(body.media, body.start, body.end, body.w)
+        return state_response()
+
     # -- transport -----------------------------------------------------------
 
     # -- recording (WP12a): the recorder is its own program; see record_session ------
@@ -1739,6 +1796,21 @@ def create_app(session, engine, *, language: str | None = None,
     @app.get("/api/record/devices")
     def record_devices():
         return {"devices": need_recorder().devices()}
+
+    @app.get("/api/record/live-transcript")
+    def record_live_transcript(q: str | None = None, track: str | None = None):
+        # The take-so-far's words, searched DURING the take (owner, 2026-11-01):
+        # follow-up questions like "did I say this already" mid-recording.
+        if recorder is None:
+            return {"live": False, "flushing": False, "words": []}
+        # flushing: the take is over but its last words are still landing -
+        # the caller must not read an incomplete list as final.
+        flushing = recorder.live_transcript_flushing()
+        if q is not None:
+            return {"live": True, "flushing": flushing,
+                    "words": recorder.live_transcript_search(q)}
+        return {"live": True, "flushing": flushing,
+                "words": recorder.live_transcript_words(track)}
 
     monitoring = {"on": False}
 
@@ -1831,7 +1903,10 @@ def create_app(session, engine, *, language: str | None = None,
             engine.seek(body.at)
         elif action == "scrub":
             priority.GATE.note_input(scrub=True)
-            engine.scrub(body.at)
+            if body.velocity is None:
+                engine.scrub(body.at)
+            else:
+                engine.scrub(body.at, velocity=body.velocity)
         else:
             raise BadRequestError("error.server.bad_transport", action=action)
         status = engine.status()
@@ -1843,6 +1918,17 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.websocket("/api/live")
     async def live(ws: WebSocket):
+        # A page on another site (or a sandboxed one) must not listen to the live channel
+        # or drive the local server (cross-site WebSocket hijacking).
+        host = (ws.url.hostname or "").lower()
+        if host and host not in _LOCAL_HOSTS:
+            await ws.close(code=1008)
+            return
+        origin = ws.headers.get("origin")
+        if origin is not None and not _local_origin(origin):
+            await ws.close(code=1008)
+            return
+
         await ws.accept()
         messages.set_language(request_language(ws.headers.get("accept-language"),
                                                default_language))

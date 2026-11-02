@@ -399,23 +399,23 @@ describe("keyboard focus", () => {
       "timeline",
       "transcript",
       "inspector",
-      "candidates",
-      "clipboard",
-      "markers",
       "history",
+      "markers",
+      "material",
+      "candidates",
     ]);
   });
 
   test("F6 steps forward and wraps; Shift+F6 steps back and wraps", () => {
     assert.equal(nextPanel("timeline", 1), "transcript");
-    assert.equal(nextPanel("history", 1), "timeline");
-    assert.equal(nextPanel("timeline", -1), "history");
+    assert.equal(nextPanel("candidates", 1), "timeline");
+    assert.equal(nextPanel("timeline", -1), "candidates");
     assert.equal(nextPanel("inspector", -1), "transcript");
   });
 
   test("an unknown or missing focus starts from the timeline", () => {
     assert.equal(nextPanel(null, 1), "transcript");
-    assert.equal(nextPanel("nowhere", -1), "history");
+    assert.equal(nextPanel("nowhere", -1), "candidates");
   });
 });
 

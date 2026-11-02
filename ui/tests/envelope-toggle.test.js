@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { envelopeChange, envelopeToggle } from "../gain-drag.js";
+import {
+  envelopeChange,
+  envelopeDragChange,
+  envelopeMove,
+  envelopePointZone,
+  envelopeToggle,
+} from "../gain-drag.js";
 import { dbToY } from "../lanes.js";
 
 const ROW = 80;
@@ -84,5 +90,46 @@ describe("the envelope edit", () => {
     assert.equal(change.op, "set_clip_envelope");
     assert.deepEqual(change.args, { clip_id: "c1", points: [[700, 0]] });
     assert.equal(change.labelKey, "ui.clipdrag.envelope");
+  });
+
+  test("moves a point in source frames and keeps the pointer's grab offset", () => {
+    const c = clip({
+      envelope: [
+        [200, 0],
+        [1200, -10],
+        [2200, 0],
+      ],
+    });
+    const points = envelopeMove(c, 1, {
+      timelineFrame: 1700,
+      rowHeight: ROW,
+      rowY: dbToY(-14, ROW),
+      grabFrames: -400,
+      grabY: 3,
+    });
+
+    assert.deepEqual(points, [
+      [200, 0],
+      [1300, -12.2],
+      [2200, 0],
+    ]);
+  });
+
+  test("a hit envelope point starts a point drag, not a clip drag", () => {
+    const c = clip({ envelope: [[700, -5]] });
+    assert.deepEqual(
+      envelopePointZone({
+        clip: c,
+        row: { kind: "track" },
+        edge: null,
+        point: 0,
+      }),
+      { kind: "envelope", point: 0 },
+    );
+  });
+
+  test("an envelope drag is one coalesced clip edit", () => {
+    const change = envelopeDragChange("c1", [[700, -5]]);
+    assert.equal(change.coalesce, "clip-envelope-c1");
   });
 });

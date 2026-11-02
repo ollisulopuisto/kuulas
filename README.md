@@ -1,5 +1,7 @@
 # kuulas
 
+**Release v26.10.30.2:** choose Whisper large-v3-turbo or Parakeet Ultra for Colab transcription; fast shuttle uses pitch-preserving grains above 2× and ruler dragging scrubs at pointer velocity; first high-pass playback plumbing is included. Local Orukeet is unchanged. Mac listening and high-pass real-time profiling remain open.
+
 **Release v26.10.27.4:** live recording progress on new tracks, consistent waveform display, compact recording setup and per-input three-second LUFS; packaged Orukeet certificate trust fix; visible toolbar add picker, drag-away removal and Undo; ordinary menu right-click behavior.
 
 **Release v26.10.27.2:** GUI Orukeet install/select/reinstall with verified downloads, progress and cancellation; aligned transcription actions; persistent fast-listening button.
@@ -23,11 +25,11 @@ Taglines (use either, not together): *"A podcast editor where nothing is ever lo
 - **Batch import with flexible placement**: Import multiple files side by side (aligned by BWF recording clocks into sync groups) or sequentially on one track, with natural name sorting and track naming by file or person.
 - **Sync groups and edit expansion**: Tracks recorded together stay locked; edits time-shift the entire sync group; subclips can be resynced to the main clip.
 - **Music reporting**: Session royalty reports (CSV with formula injection protection, HTML) via CLI and `/api/music-report`.
-- **Transcription**: Local Orukeet (Apple silicon) and Colab transcription. Install Orukeet from Text > Transcribe > Orukeet setup, or choose an existing model folder there. Downloads use a [pinned MLX conversion](https://huggingface.co/itsreidar/orukeet-mlx); `~/.models/orukeet-mlx` remains supported for existing installations. Inference runs through the shared podcast tool in an isolated MLX environment. In a source checkout beside the current podcast repository, Colab uses that checkout's tool; Orukeet filler words and repetitions stay in the transcript and can become cut candidates.
+- **Transcription**: Local Orukeet (Apple silicon) and Colab transcription. In Text > Transcribe > Colab settings, choose Whisper large-v3-turbo or Parakeet Ultra, or enter a custom backend model ID. Local transcription stays on Orukeet. Install Orukeet from Text > Transcribe > Orukeet setup, or choose an existing model folder there. Downloads use a [pinned MLX conversion](https://huggingface.co/itsreidar/orukeet-mlx); `~/.models/orukeet-mlx` remains supported for existing installations. Inference runs through the shared podcast tool in an isolated MLX environment. In a source checkout beside the current podcast repository, Colab uses that checkout's tool; Orukeet filler words and repetitions stay in the transcript and can become cut candidates.
 - **Project format (v3)**: Crash-safe `Name.kuulas` package directory, WAL SQLite history tree with constant-time branching undo/redo, and recording clock in flicks.
 - **Desktop app wrapper**: Native window via pywebview (`--extra desktop`), recent projects window, native file dialogs, and local file drag-and-drop linking.
 
-*Verification note:* GitHub Actions currently runs the test and desktop-smoke jobs on macOS and Linux; Windows jobs are disabled for now. The playback/navigation fixes were checked in Chrome with synthetic media and a simulated clock at three zoom levels. Real-device playback and microphone confirmation remain the owner's checks.
+*Verification note:* Code pull requests run the full suite on macOS and Linux; docs-only changes skip the heavy matrix. The Linux desktop smoke check runs when desktop-wrapper files change; Windows jobs are disabled for now. See [docs/CI.md](docs/CI.md) for the manual full-suite and urgent DMG build paths. The playback/navigation fixes were checked in Chrome with synthetic media and a simulated clock at three zoom levels. Real-device playback and microphone confirmation remain the owner's checks.
 
 **Toolbar, scripting and hardening (v26.10.26.5):** customizable docked toolbar
 (WP86) with pinning, reordering, and Auto-Silence badge count; headless project

@@ -1,3 +1,5 @@
+import { createPartVersionsDialog } from "./part-versions-dialog.js";
+import { partRange } from "./part-versions-model.js";
 // The editor's entry point: wires the store, the API, the live channel, the
 // canvases and the keyboard together. The decisions live in small pure modules
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
@@ -131,6 +133,7 @@ import { createMarkersPanel } from "./markers-panel.js";
 import { implicitMarkPlan } from "./marks.js";
 import { createMarksCorner } from "./marks-corner.js";
 import { createMaterialPanel } from "./material-panel.js";
+import { createMaterialsPanel } from "./materials-panel.js";
 import { missingNotice } from "./media-copy-model.js";
 import { MENU, menuTargets } from "./menu-model.js";
 import { heldFromEvent } from "./modifiers.js";
@@ -232,6 +235,7 @@ import { createTransport } from "./transport.js";
 import { noteUse, readUse, writeUse } from "./use-hints.js";
 import * as View from "./view.js";
 import { changeKey, createSaver, recordOf, restoreFrom } from "./view-memory.js";
+import { createWhatsNewDialog } from "./whatsnew-dialog.js";
 import { nextWheelMode, wheelModeChoice } from "./wheel.js";
 
 const $ = (id) => document.getElementById(id);
@@ -278,6 +282,7 @@ function applyTabs() {
   const platform = detectPlatform();
   for (const [id, tab] of Object.entries(SIDE_TAB_COMMANDS)) {
     const button = $(`tab-${tab}`);
+    if (!button || id === "panel.show_clipboard") continue;
     const name = t(`ui.tabs.${tab}`);
     const combos = tabKeyEntries ? shortcutsFor(id, tabKeyEntries) : [];
     const shown = combos.map((combo) => formatCombo(combo, platform));
@@ -397,6 +402,7 @@ $("notice-undo").addEventListener("click", () => {
 // -- server state -----------------------------------------------------------
 
 let fitWhole = true; // the view shows the whole edit and keeps doing so on resize/import
+let fitLive = false; // only an explicit fit during a take keeps the growing take in view
 let views = View.initialViews();
 let history = View.createViewHistory();
 let settleTimer = null;
@@ -406,13 +412,13 @@ let exportFormatList = null; // the same as [{ id, label, ... }], for the export
 
 const rate = () => getState().project?.rate ?? RATE;
 const totalFrames = () => projectEnd(getState().project);
+const viewEnd = () => View.viewEnd(getState().project, recordView.liveFrame());
 // What every export honours (owner, 2026-10-21): the In/Out range or the selected clips'
 // tracks and span; null is the whole mix (export-selection-model.js).
 const exportSelection = () => resolveExportSelection(getState(), { length: totalFrames() });
 const width = () => Math.max(1, timeline?.size().width ?? 1);
-const viewLevels = () =>
-  View.zoomLevels({ width: width(), rate: rate(), totalFrames: totalFrames() });
-const bounds = () => ({ width: width(), totalFrames: totalFrames() });
+const viewLevels = () => View.zoomLevels({ width: width(), rate: rate(), totalFrames: viewEnd() });
+const bounds = () => ({ width: width(), totalFrames: viewEnd() });
 
 function apply(response) {
   const patch = serverPatch(response, getState());
@@ -629,8 +635,9 @@ function startPreviewTicker() {
 
 function setView({ zoom, scroll }, { record = true, whole = false } = {}) {
   const next = Math.max(View.SAMPLE_ZOOM, zoom);
-  const at = View.clampScroll(scroll, next, width(), totalFrames());
+  const at = View.clampScroll(scroll, next, width(), viewEnd());
   fitWhole = whole;
+  fitLive = whole && recordView.liveFrame() !== null;
   setState({ zoom: next, scroll: at });
   views = View.rememberView(views, { zoom: next, scroll: at });
   if (record) history = View.visitView(history, { zoom: next, scroll: at });
@@ -666,7 +673,7 @@ function followEvent(event) {
       scrollFor(at, state.zoom, width()),
       state.zoom,
       width(),
-      totalFrames(),
+      viewEnd(),
     );
   }
   if (Object.keys(patch).length > 0) setState(patch);
@@ -678,6 +685,7 @@ function jumpTo(frame) {
 }
 // A manual view operation (scroll, overview drag or click, zoom, fit) detaches Follow.
 function markPaused() {
+  fitLive = false;
   followEvent({ type: "view-op" });
 }
 
@@ -1086,7 +1094,7 @@ const actions = {
         anchorFrame: anchorFrame(),
         width: width(),
         levels,
-        totalFrames: totalFrames(),
+        totalFrames: viewEnd(),
       },
     );
     views = result.views;
@@ -1207,7 +1215,7 @@ function onWheel(intent, x) {
         state.scroll + intent.dx * state.zoom,
         state.zoom,
         width(),
-        totalFrames(),
+        viewEnd(),
       );
       // Detach Follow first: the scroll below would otherwise be pulled back to the playhead.
       markPaused();
@@ -1378,9 +1386,13 @@ const panelElements = {
   history: $("panel-history"),
   material: $("panel-material"),
 };
-const SIDEBAR_TABS = ["inspector", "candidates", "clipboard", "markers", "history", "material"];
+const SIDEBAR_TABS = ["inspector", "history", "markers", "material", "candidates"];
 
 function focusPanel(name) {
+  if (name === "clipboard") {
+    setState({ materialsScope: "clipboard" });
+    name = "material";
+  }
   // A sidebar tab that is not showing must show before it can take the focus.
   if (SIDEBAR_TABS.includes(name)) {
     setSidebar(true);
@@ -1490,6 +1502,7 @@ const keyboard = setupKeyboard({
     getState,
     patch: setState,
     openHelp: () => void help.open(),
+    openWhatsNew: (after) => openWhatsNew(after),
     revealSidebar: () => setSidebar(true),
     undo: () => undo(),
     redo: () => redo(),
@@ -1513,6 +1526,10 @@ const keyboard = setupKeyboard({
     expandHistoryGroups() {
       focusPanel("history");
       historyPanel.expandAll();
+    },
+    openPartVersions: () => {
+      const range = partRange(getState());
+      if (range) void partVersionsDialog.open(range, getState().project.rate);
     },
     openHistory: () => focusPanel("history"),
     edit: (change) => editor.change(change),
@@ -1671,6 +1688,8 @@ const keyboard = setupKeyboard({
     openGateUnderClips: () => openGateUnderClips(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
+    // Transcribe every recording on any track (music-only ones stay untouched).
+    transcribeAll: (backend = "local") => void transcribeAll(backend),
     restartTranscriptions: () => void restartTranscriptions(),
     openColabSettings: () => void colabDialogsFor().openSettings(),
     openOrukeetSetup: () => void orukeetDialogFor().open().catch(showError),
@@ -1718,9 +1737,12 @@ document.addEventListener("keyup", (event) => {
 
 $("play").addEventListener("click", () => actions.togglePlay());
 // Record sits beside Play: the same command as Transport > Record… (no key of its own yet).
-$("record").addEventListener("click", () =>
-  keyboard.registry.run("transport.record", null, getState()),
-);
+// While a take records the button is the red Stop (record-view.js): the click does not open
+// the view, the pointer gesture on the button stops the take.
+$("record").addEventListener("click", () => {
+  if (recordView.isRecording()) return;
+  keyboard.registry.run("transport.record", null, getState());
+});
 $("loop").addEventListener("click", () =>
   keyboard.registry.run("transport.loop", null, getState()),
 );
@@ -2385,6 +2407,13 @@ const inspector = createInspector({
   },
 });
 
+const partVersionsDialog = createPartVersionsDialog({
+  t,
+  api,
+  apply,
+  notice: (text) => showNotice(text, "ok", { undo: true }),
+});
+
 // -- history (WP8) ------------------------------------------------------------------------------------
 
 // Restore adds a step equal to an older one; the step left behind stays one Undo away.
@@ -2793,6 +2822,23 @@ async function transcribeTrack(backend = "local") {
   else await transcript.transcribe(ids);
 }
 
+/** Text > Transcribe > All on this computer: every recording used on any track, except
+ * recordings whose only clips are on music tracks (they are not transcribed). */
+async function transcribeAll(backend = "local") {
+  const state = getState();
+  const project = state.project;
+  if (!project) return;
+  const used = new Set();
+  for (const track of project.tracks) for (const clip of track.clips) used.add(clip.media);
+  const ids = withoutMusic(project, [...used]);
+  if (ids.length === 0) {
+    showNotice(t("ui.transcript.nothing_to_transcribe"), "error");
+    return;
+  }
+  if (backend === "colab") await transcribeOnColab(ids);
+  else await transcript.transcribe(ids);
+}
+
 // Transcription is a background job in a separate process (WP79): it goes on when this window
 // is closed. The window looks for what the jobs did meanwhile (a result added, a failure) every
 // few seconds and once at the start, and follows a job that is still running.
@@ -2917,15 +2963,21 @@ const recordView = createRecordView({
   apply,
   notify: showNotice,
   chip: $("rec-chip"),
+  recordButton: $("record"),
   addMarker: () => keyboard.registry.run("marker.add", null, getState()),
   onLive: () => {
+    // An in mark with no out mark counts up to the take's place in the corner (Pituus).
+    if (getState().inPoint !== null) marksCorner.render(getState());
+    if (recordView.isVisible()) return;
     const project = getState().project;
     $("empty").hidden =
       !project ||
       recordView.isRecording() ||
       project.tracks.some((track) => track.clips.length > 0);
-    followLiveHead();
+    if (fitLive) fitWholeEdit();
+    else followLiveHead();
     timeline?.redraw();
+    overview?.redraw();
   },
 });
 // The view follows the take's head while it records, until you steer away (live-follow.js).
@@ -3002,6 +3054,19 @@ async function openMusicReport() {
   // Like every export: the In/Out range or the selected clips' span is the default (tracks are
   // ignored, the report is about time); the dialog's box turns it off.
   await musicReportDialog.open({ selection: exportSelection(), rate: rate() });
+}
+
+// Help > What's New… (manual: the current version) and the after-upgrade
+// showing (startup: everything since the version last seen). The server reads
+// the shipped CHANGELOG.md, so only released entries ever show.
+let whatsNewDialog = null;
+async function openWhatsNew(after = null) {
+  whatsNewDialog ??= createWhatsNewDialog({
+    api,
+    t,
+    onShown: (version) => prefs.set("whats-new-seen", version),
+  });
+  return whatsNewDialog.open(after);
 }
 
 async function openStatistics() {
@@ -3849,8 +3914,12 @@ async function copyMaterialRecording(id) {
     return false;
   }
 }
-const materialPanel = createMaterialPanel({
+const materialsPanel = createMaterialsPanel({
   root: $("panel-material"),
+  select: (scope) => setState({ materialsScope: scope }),
+});
+const materialPanel = createMaterialPanel({
+  root: $("materials-recordings"),
   actions: {
     filter: (name) => setState({ materialFilter: name }),
     text: (value) => setState({ materialText: value }),
@@ -4140,6 +4209,21 @@ const timeline = createTimeline({
   actions: {
     pointerDown: onPointerDown,
     seek: (frame) => void transport.seek(frame),
+    scrub: (frame, velocity) => void transport.scrub(frame, velocity),
+    // A marker flag dragged along the ruler (owner, 2026-11-01): one undoable move on release.
+    moveMarker({ markerId, frame }) {
+      const marker = getState().project?.markers.find((item) => item.id === markerId);
+      if (!marker || marker.start === frame) return;
+      editor.change({
+        op: "move_marker",
+        args: { marker_id: markerId, start: frame },
+        label: t("ui.markers.history.move"),
+        done: () => {
+          setState({ markerSelected: markerId });
+          showNotice(t("ui.markers.moved", { name: marker.name }), "ok", { undo: true });
+        },
+      });
+    },
     // A click on a clip (no travel) also completes a lone in or out mark (marks.js).
     clickSeek: (frame) => {
       const mark = implicitMarkPlan(getState(), frame);
@@ -4217,11 +4301,12 @@ const timeline = createTimeline({
       });
     },
     // Double-click on the gain line: the envelope's new points, one undo step.
-    clipEnvelope({ clipId, points }) {
+    clipEnvelope({ clipId, points, coalesce }) {
       const { op, args, labelKey } = envelopeChange(clipId, points);
       editor.change({
         op,
         args,
+        coalesce,
         label: t(labelKey),
         provisional: (p) => patchClip(p, clipId, { envelope: points }),
       });
@@ -4322,12 +4407,13 @@ overview = createOverview({
   canvas: $("overview"),
   getState,
   getTimelineWidth: width,
+  getLiveEnd: () => recordView.liveFrame(),
   actions: {
     scrollTo(scroll) {
       fitWhole = false;
       // Detach Follow first, as the wheel and the zoom do (see markPaused).
       markPaused();
-      setState({ scroll: View.clampScroll(scroll, getState().zoom, width(), totalFrames()) });
+      setState({ scroll: View.clampScroll(scroll, getState().zoom, width(), viewEnd()) });
     },
   },
 });
@@ -4351,6 +4437,7 @@ const marksCorner = createMarksCorner({
   run: (id) => keyboard.registry.run(id, null, getState()),
   patch: setState,
   copy: (text) => void clock.copy(text),
+  liveFrame: () => recordView.liveFrame(),
   t,
 });
 
@@ -4623,7 +4710,9 @@ function render(state, patch, previous = null) {
     clipboardPanel.update(state);
   if (touched("project", "markerSelected", "playhead", "inPoint", "outPoint", "syncClips"))
     markersPanel.update(state);
-  if (state.sidebarTab === "material" && touched("project", "sidebarTab")) loadMaterial();
+  if (state.sidebarTab === "material" && touched("project", "sidebarTab", "materialsScope"))
+    loadMaterial();
+  if (touched("materialsScope", "sidebarTab", "project")) materialsPanel.update(state);
   if (touched("material", "materialFilter", "materialText", "sidebarTab"))
     materialPanel.update(state);
   if (state.head && touched("head")) void refreshCandidates();
@@ -4885,7 +4974,7 @@ async function restoreView(pending = api.getViewMemory()) {
     const { patch, whole } = restoreFrom(view, {
       project: getState().project,
       width: width(),
-      totalFrames: totalFrames(),
+      totalFrames: viewEnd(),
     });
     if (patch.zoom !== undefined) {
       setView({ zoom: patch.zoom, scroll: patch.scroll ?? 0 }, { record: false, whole });
@@ -5036,6 +5125,19 @@ connectLive({
 });
 
 installTooltips();
+
+// After an upgrade, once: What's New with everything since the version last
+// seen. No stored version means this feature's first run - show the current
+// version's notes, not the whole history. Never in the way of work: it waits
+// for the first idle moment, and a fetch failure is silence, not an error.
+void (async () => {
+  try {
+    const seen = prefs.get("whats-new-seen");
+    await openWhatsNew(seen);
+  } catch {
+    /* no changelog shipped, no server: nothing to tell */
+  }
+})();
 
 // The long-task monitor of the performance rule (no main-thread task over 16 ms):
 // open the page with ?dev to log every task that breaks it.

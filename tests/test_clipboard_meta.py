@@ -56,14 +56,14 @@ TRANSCRIPTS = {
 # -- the data ------------------------------------------------------------------
 
 
-def test_a_copy_records_the_tracks_their_kinds_and_each_clips_media():
+def test_a_copy_records_tracks_media_and_does_not_carry_clip_mutes():
     got = make_entry(project(), ["a1", "a2", "b1"], now=1000.0)
     assert got.tracks == ("Anna", "Jingle")
     assert got.track_kinds == ("speech", "music")
     names = {ref.media_sha256[:1]: ref.media_name for ref in got.refs}
     assert names == {"a": "anna.wav", "b": "ville.wav"}
     muted = [ref.muted for ref in got.refs if ref.media_sha256[0] == "a"]
-    assert sorted(muted) == [False, True]  # gains, fades, mutes were already kept
+    assert sorted(muted) == [False, False]  # mute state belongs to the source timeline
     assert got.span == (0, 148_000)
 
 

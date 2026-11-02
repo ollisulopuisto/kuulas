@@ -6,6 +6,7 @@ No real audio device: ``FakeSource`` calls the block callback from the test.
 import errno
 import gc
 import os
+import threading
 import time
 import tracemalloc
 
@@ -310,6 +311,74 @@ class NullWav:
         pass
 
 
+class SettledCapture(Capture):
+    """Test-only barrier for memory observations, not a change to ring semantics.
+
+    A ring slot is consumed before its block is converted/written and metered.
+    With no producer emitting, this lock waits for that whole operation to end.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._block_lock = threading.Lock()
+
+    def _take_block(self):
+        with self._block_lock:
+            super()._take_block()
+
+    def wait_writer_idle(self):
+        """Call only after the fake producer has stopped emitting."""
+        assert self.wait_drained(), "ring did not drain"
+        with self._block_lock:
+            pass
+
+
+def test_memory_barrier_waits_for_write_not_just_ring_consumption(tmp_path):
+    src = FakeSource(channels=1, blocksize=BLOCK)
+    c = SettledCapture(src, folder=tmp_path, take="barrier", channels=[1],
+                       names=["A"], rate=RATE, blocksize=BLOCK,
+                       report=lambda _ev: None, opener=NullWav)
+    writing = threading.Event()
+    release = threading.Event()
+    observing = threading.Event()
+    settled = threading.Event()
+    write = c._write
+
+    def held_write(block):
+        writing.set()
+        assert release.wait(5), "test did not release writer"
+        write(block)
+
+    def observe():
+        observing.set()
+        c.wait_writer_idle()
+        settled.set()
+
+    c._write = held_write
+    waiter = threading.Thread(target=observe)
+    c.start()
+    try:
+        src.emit(1)
+        assert writing.wait(5)
+        # This is intentionally the existing, weaker production helper:
+        # read advanced, but the final write has not completed.
+        assert c.wait_drained()
+        assert c.ring.pending() == 0
+        assert c.total_frames == 0
+        waiter.start()
+        assert observing.wait(5)
+        assert not settled.wait(0.05)
+        release.set()
+        assert settled.wait(5)
+        assert c.total_frames == BLOCK
+        assert c.ring.dropped_frames == 0
+    finally:
+        release.set()
+        if waiter.ident is not None:
+            waiter.join(timeout=5)
+        c.stop()
+
+
 def test_hours_of_audio_run_in_bounded_memory(tmp_path):
     """Three hours at 48 kHz through callback, ring and writer, as fast as the
     machine goes; memory after the first ten minutes must not grow."""
@@ -321,7 +390,7 @@ def test_hours_of_audio_run_in_bounded_memory(tmp_path):
         if ev["ev"] in ("opened", "closed", "error"):
             kept.append(ev)
 
-    c = Capture(src, folder=tmp_path, take="long", channels=[1], names=["A"],
+    c = SettledCapture(src, folder=tmp_path, take="long", channels=[1], names=["A"],
                 rate=RATE, blocksize=block, report=report, opener=NullWav,
                 poll_seconds=0.0002)
     c.start()
@@ -331,7 +400,9 @@ def test_hours_of_audio_run_in_bounded_memory(tmp_path):
         src.emit(1)
         if i % 16 == 0:  # the ring holds 20 s: 58 blocks of this size
             c.wait_drained()
-    c.wait_drained()
+    # Both samples observe a live but idle writer, with no conversion buffers
+    # in flight. Ring consumption alone does not guarantee this.
+    c.wait_writer_idle()
     gc.collect()
     tracemalloc.start()
     base, _ = tracemalloc.get_traced_memory()
@@ -339,7 +410,7 @@ def test_hours_of_audio_run_in_bounded_memory(tmp_path):
         src.emit(1)
         if i % 16 == 0:  # the ring holds 20 s: 58 blocks of this size
             c.wait_drained()
-    c.wait_drained()
+    c.wait_writer_idle()
     gc.collect()
     now, _peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()

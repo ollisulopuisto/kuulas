@@ -55,6 +55,16 @@ class _Entry:
         self.value, self.nbytes, self.spill = value, nbytes, spill
 
 
+class _Computation:
+    """One gate shared by its current runner and every registered waiter."""
+
+    __slots__ = ("lock", "users")
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.users = 0
+
+
 class MemoryBudget:
     def __init__(self, limit_bytes: int = DEFAULT_LIMIT):
         self.limit = int(limit_bytes)
@@ -63,7 +73,7 @@ class MemoryBudget:
         self._lock = threading.RLock()
         #: One lock per key being computed, so two threads wanting the same
         #: envelope compute it once (a speech lane per core asks together).
-        self._computing: dict[tuple[str, str], threading.Lock] = {}
+        self._computing: dict[tuple[str, str], _Computation] = {}
         self._counts: dict[str, dict[str, int]] = {}
         self._lookups = 0
         self._ns_limits: dict[str, int] = dict(NAMESPACE_LIMITS)
@@ -222,20 +232,31 @@ class MemoryBudget:
         value = self.get(ns, key, spill=spill)
         if value is not None:
             return value
+        cache_key = (ns, key)
         with self._lock:
-            gate = self._computing.setdefault((ns, key), threading.Lock())
-        with gate:
+            gate = self._computing.get(cache_key)
+            if gate is None:
+                gate = self._computing[cache_key] = _Computation()
+            gate.users += 1
+        try:
+            with gate.lock:
+                with self._lock:
+                    entry = self._entries.get(cache_key)
+                if entry is not None:  # another thread finished it while we waited
+                    return entry.value
+                value = compute()
+                self.put(ns, key, value, nbytes, spill=spill)
+                if spill is not None and isinstance(value, np.ndarray):
+                    self._spill(_Entry(value, 0, spill))
+                return value
+        finally:
             with self._lock:
-                entry = self._entries.get((ns, key))
-            if entry is not None:  # another thread finished it while we waited
-                return entry.value
-            value = compute()
-            self.put(ns, key, value, nbytes, spill=spill)
-            if spill is not None and isinstance(value, np.ndarray):
-                self._spill(_Entry(value, 0, spill))
-        with self._lock:
-            self._computing.pop((ns, key), None)
-        return value
+                gate.users -= 1
+                # A waiter may still hold this gate even after an exception,
+                # eviction or an oversized result. Keep new callers on the
+                # same lock until the last registered caller has left.
+                if gate.users == 0:
+                    self._computing.pop(cache_key, None)
 
 
 #: The process-wide budget; stores, histories and sessions use it unless given another.

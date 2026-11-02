@@ -1,5 +1,17 @@
 # kuulas implementation plan
 
+**Release v26.11.1.6:** Record becomes Stop during a take; marker flags drag along the ruler and the Markers tab can set the in point while recording. Also: grouped clip labels move every group member at the leading edge; current track headers have a track-color tint; stale Colab sessions retry once with a fresh session; pressing 0 fits a growing recording. Includes v26.11.1.4's faster-whisper Colab path, grouped Inspector files and inline bus renaming.
+
+**Release v26.11.1.5:** stale Colab sessions reported as “not found” retry once with a fresh session; grouped clip labels move every group member at the leading edge; the current track header has a track-color tint; pressing 0 fits a growing recording. Includes v26.11.1.4's faster-whisper Colab path, grouped Inspector files and inline bus renaming.
+
+**Release v26.11.1.4:** packaged Colab Whisper uses faster-whisper 1.2.1 with CUDA float16 instead of the optimized Photon/Kestrel runtime that rejected T4 GPUs; real T4 verification remains an owner check. The Inspector groups clips by source file and supports inline bus renaming. Also includes v26.11.1.2's shuttle boundary, WebSocket Host/Origin validation, waveform tile performance and What's New dialog fixes.
+
+**Release v26.10.30.6:** post-recording health notices for input overflows and inserted silence; live overview follows a recording's growing end; skip obscured timeline repaints during recording; live waveform draw cost is bounded to the visible window.
+
+**Build v26.10.31.2:** block-levelling review shows measured level, deviation, proposed gain and a live count of checked blocks, tracks and speakers before Apply. Open cut candidates now have overview ticks; transcript Undo/Redo revision switching is covered at session level and explained in English and Finnish help. Recording health notices cover healthy, overflow, dropout and combined takes, and remain visible after a problematic take. CI uses Node 24, changed-path filters and parallel Python, lint and UI jobs. The short-project grain test accounts for one minimum-length final grain. Regenerated the keys reference and embedded design-prototype help from their canonical sources. Real recording-device checks remain for the owner.
+
+**Release v26.10.30.2:** Colab model selection for Whisper large-v3-turbo and Parakeet Ultra (WP87); WP26 high-speed grains and ruler-velocity scrub; partial WP23a high-pass playback plumbing. The earlier v26.10.30.1 tag predates the selector.
+
 **Release v26.10.27.4:** live recording progress on new tracks, consistent waveform display, compact recording setup and per-input three-second LUFS; packaged Orukeet certificate trust fix; visible toolbar add picker, drag-away removal and Undo; ordinary menu right-click behavior.
 
 **Release v26.10.27.2:** GUI Orukeet install/select/reinstall with verified downloads, progress and cancellation; aligned transcription actions; persistent fast-listening button.
@@ -143,9 +155,12 @@ The project owner's standing rules, which apply to every WP on top of the above:
   WP's commit message.
 - **No secrets on command lines or in chat.** A secret goes into a file the
   owner edits (e.g. a `.env` that is gitignored); code reads it from there.
-- **CI, once a remote exists:** pull requests run the fast subset (lint +
-  unit tests), and `main` runs everything, including the slow and hardware-free
-  integration tests. Never cut the main-branch run down to save time.
+- **CI:** pull requests run the full lint and test suite on macOS and Linux.
+  The identical `main` push run is omitted to avoid paying twice for the same
+  merge; use the manual full-suite workflow when a main-branch recheck is
+  needed. The desktop smoke check is change-scoped and Linux-only. An urgent
+  DMG can be built from a selected branch through the manual `dmg` workflow;
+  see `docs/CI.md` for the artifact and release paths.
 - **GPU work** (bulk transcription, WP9/Colab) may use Google Colab, but never
   send private audio through Google Drive; send it to the VM directly.
 
@@ -301,7 +316,7 @@ plugin on a voice, undo anything, export a mastered file.
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 26 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
+| 26 | ✓ WP28 focus mode | M | shipped; focused editable automation-band treatment parked | Sonnet 5.5 |
 | 27 | WP43 narration placeholders | M | estimated length, replace with a take | Sonnet 5.5 |
 | 28 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
 | 29 | WP19f spot | S | parsing | Haiku 5.5 |
@@ -880,7 +895,7 @@ undo without touching the mouse.
 
 ### WP6 — Mouse editing
 
-Status: open. Needs WP4.
+Status: partly done. Core mouse editing and volume-envelope point dragging are built; owner acceptance checks remain in `docs/M1-VERIFY.md`.
 
 All on the canvas, hit-testing in `timeline.js` (pure function, tested):
 
@@ -915,9 +930,10 @@ All on the canvas, hit-testing in `timeline.js` (pure function, tested):
   over it; Alt+Cmd keeps its own meanings. The press does not change the selection.
 - Drag the clip gain line vertically: `set_clip gain_db` with coalesce key
   `clip-gain-<id>`, live while dragging.
-- Alt+click on the gain line: add envelope point at that source frame
-  (`set_clip_envelope` with the new list); drag a point to move it; Alt+click
-  a point to delete it.
+- Double-click near the gain line or envelope: add a point at that source frame;
+  double-click an existing point to remove it. Drag a point to move it in time
+  and level while preserving the pointer's grab offset; updates coalesce into
+  one undo step (`set_clip_envelope`).
 - Drag top corners of a clip: fade in/out.
 - Snap to clip edges and playhead within 8 px (hold Mod to disable).
 
@@ -1598,7 +1614,8 @@ Keys (add to WP5):
 
 UI: candidates are drawn as translucent bands across the lanes of their
 group, with a list panel (time, duration, transcript text under it, state).
-The transcript highlights candidate words. The engine needs a `skip=(a, b)`
+The overview also shows a tick for each open candidate span. The transcript
+highlights candidate words. The engine needs a `skip=(a, b)`
 option on `play` for the preview (test it in WP2's style).
 
 Tests first (`tests/test_markers.py`):
@@ -2071,7 +2088,7 @@ Tests first: `test_saved_speech_mix_kind_loads_as_speech`,
 
 ### WP23 — FX layers: real-time where possible, rendered where not
 
-Status: open. **Split in two** (owner wants R30 built first):
+Status: **partial in v26.10.30.1.** The first stateful high-pass layer is saved with the track and applied only during plain forward 1× playback through the engine API. It has no editor UI, does not affect export, and is not allocation-free or verified for real-time safety; callback profiling and listening remain acceptance gates. **Split in two** (owner wants R30 built first):
 **WP23a** (MVP, ★): the layer model, tier 1 (real-time) and tier 2 (analyse
 once, apply live), bypass, latency compensation, the CPU meter.
 **WP23b** (phase 3): tier 3 (render), export waits for renders, and the
@@ -2289,7 +2306,7 @@ Tests first: `test_report_lists_each_music_use_with_programme_times`,
 
 ### WP26 — Fast listening and scrubbing
 
-Status: the JKL key logic (`shuttle.py`: speed ladder, tape or grains) done in v26.10.18.1; engine skip list and tape-rate playback done in v26.10.18.21 (not yet heard); JKL keys and the speed chip done in v26.10.18.23; hold-K scrub and K-tap steps, scrub grains above 2x, pitch-kept fast listening (pedalboard chunk rendering, plan in the engine job report) and the UI open. Needs WP2, WP5.
+Status: **implementation merged in v26.10.30.1; owner listening check remains.** The JKL ladder and key state, hold-K scrub, pitch-kept fast listening, grains above 2× and ruler-velocity scrubbing are built. Engine tests and headless UI checks pass. Speech intelligibility, clicks and drag feel have not been verified by ear on a Mac. Needs WP2, WP5.
 
 **Sped-up listening (pitch preserved).** `.` toggles between normal speed
 and *fast*. Fast defaults to 1.5× and can be set from 1.1× to 3× (Shift+. and
@@ -2399,32 +2416,32 @@ one frame), `test_words_line_up_after_rate_change` (within 1 ms),
 
 ### WP28 — Focus mode: one track at a time
 
-Status: open. Needs WP4, WP5, WP22. Sonnet 5.5. Decided by Opus from
-`docs/OPUS-BRIEF.md`.
+Status: core WP28 is done and wired (v26.10.20.37). Current behavior and keys
+are documented in [Focus Mode](design/FOCUS-MODE.md), section 8. The focused
+editable automation-band treatment below remains a parked follow-up; focus
+history and following the active speaker are parked v2 ideas. Sonnet 5.5.
+Decided by Opus from `docs/OPUS-BRIEF.md`.
 
 Focus changes what you **see**; solo changes what you **hear**. They are
-separate, with one key that does both.
+separate, with Alt+Shift+F combining them.
 
 First version:
 
-- **F** toggles focus on the focused track (the track the ↑/↓ cursor is
-  on, WP5). **Esc** leaves focus. While focused, ↑/↓ moves focus to the next
-  track, so you can walk through the tracks one at a time.
+- **Shift+F** focuses the current speaker; **Alt+Shift+F** also solos that
+  speaker. Plain F remains Fit selection. **Esc** leaves focus after clearing
+  the current selection and marks. Up/Down moves focus by speaker.
 - **Speaker focus is the default unit.** Focusing a track focuses every track
   with the same speaker (WP22), so one person's split tracks expand together.
-- **Auto-shrink:** the focused lanes take all the remaining height; every
-  other lane shrinks to a 16 px strip showing its name, its half waveform and
-  its clip edges. Sync stays visible at a glance. The shrink animates over
-  120 ms, or instantly under `prefers-reduced-motion`. A setting turns
-  auto-shrink off (then focus only highlights the lane).
-- **Shift+F** focuses and solos (exclusive, WP24.1). Leaving focus restores
-  the solo set as it was before; focus remembers it.
-- **The transcript follows focus:** other speakers' words are dimmed, not
-  hidden, so the conversation still reads. A toggle (Alt+F) hides them
-  instead.
-- **The focused track's automation** (ducking, gain) is drawn as an editable
-  band under its waveform at a readable height, so ducking can be corrected in
-  place.
+- **Auto-shrink:** the focused speaker's lanes grow; the others share about
+  40% of available height, between 16 and 64 px each, keeping waveforms and
+  clip edges readable. The 120 ms resize respects reduced motion and does not
+  move lanes during playback or a drag. A setting turns resizing off.
+- **Solo is optional.** Alt+Shift+F also solos the focused speaker; leaving
+  focus restores the previous solo set.
+- **The transcript follows focus:** other speakers' words are dimmed, or
+  hidden with Alt+F.
+- **Parked follow-up:** draw the focused track's automation (ducking, gain) as
+  an editable band under its waveform at a readable height.
 - "Focus on a clip" is not a new feature: Mod+H (zoom to selection) with focus
   on already gives it.
 
@@ -2434,10 +2451,10 @@ focus), and focus that follows whoever is talking during playback.
 Focus, the remembered solo set and the lane heights are UI state: never in
 history and never in the project file.
 
-Tests (pure functions, `node --test`): lane layout given focus (heights sum
-to the viewport; strips 16 px; focused lanes share the rest), speaker focus
-expands every track of the speaker, Shift+F then Esc restores the previous
-solo set, ↑/↓ in focus moves focus.
+Tests (`ui/tests/focus-mode.test.js` and related UI tests): lane layout given
+focus (heights sum to the viewport; reduced lane heights stay readable, focused
+lanes share the rest), speaker focus expands every track of the speaker,
+Alt+Shift+F then Esc restores the previous solo set, ↑/↓ in focus moves focus.
 
 ---
 
@@ -4006,4 +4023,16 @@ Tests first (pure, in `ui/tests/`):
 Build: the rail and its CSS (tokens, no literal text, English source and Finnish translation in the same commit, R39); the View menu switch and "Reset toolbar"; "Add to toolbar" on menu rows and Remove on the button's right-click menu; the Auto-Silence count badge; tooltips with the key, through `data-tip`. The transcript's search field and the local use hints are separate commits in this WP.
 
 Budget: the rail renders with no layout thrash on a state change; an edit's round trip is unchanged (rule 14).
+
+### WP87 — Choose the Colab transcription model
+
+Status: **built 2026-10-30** (v26.10.30.1; Colab Whisper engine updated in v26.11.1.3). Colab settings offer Whisper
+large-v3-turbo (`whisper`), Parakeet Ultra (`parakeet-ultra`), and a custom
+backend model ID. Existing `turbo` settings migrate to `whisper`; local
+Orukeet is unchanged. The packaged Colab command pins shared podcast
+revision `8fc54ff6dfde7d2cce71eff6b1dc93196eba56de`, which implements both
+built-in IDs and runs Whisper with faster-whisper 1.2.1. Kuulas accepts the
+timing labels returned by either engine.
+English/Finnish labels and help are included. Unit, UI, and static checks pass;
+a live Colab run and packaged installation remain owner/release checks.
 

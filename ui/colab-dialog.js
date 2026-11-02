@@ -3,7 +3,13 @@
 //  - askConsent(names): "The audio is uploaded to Google", with Cancel and "Do not ask again".
 //  - openSettings(): the command kuulas runs, its folder, extra arguments, model, language.
 
-import { colabForm, colabSettingsBody, signinPolls, signinView } from "./colab-model.js";
+import {
+  COLAB_MODEL_CHOICES,
+  colabForm,
+  colabSettingsBody,
+  signinPolls,
+  signinView,
+} from "./colab-model.js";
 import { enhanceDialog } from "./dialog-keys.js";
 
 const make = (tag, className, text) => {
@@ -82,6 +88,36 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
     fields[name] = input;
     return label;
   };
+  const modelField = () => {
+    const row = make("div", "form-row");
+    const select = make("select");
+    select.name = "model";
+    select.id = "colab-model-select";
+    select.setAttribute("aria-describedby", "colab-model-hint");
+    for (const choice of COLAB_MODEL_CHOICES) {
+      const option = make("option", "", t(choice.labelKey));
+      option.value = choice.value;
+      select.append(option);
+    }
+    const customModel = make("input");
+    customModel.type = "text";
+    customModel.name = "customModel";
+    customModel.id = "colab-model-custom";
+    customModel.placeholder = t("ui.colab.model_custom_placeholder");
+    customModel.setAttribute("aria-label", t("ui.colab.model_custom_label"));
+    customModel.setAttribute("aria-describedby", "colab-model-hint");
+    customModel.hidden = true;
+    const controls = make("div", "form-field");
+    const hint = make("small", "form-help", t("ui.colab.model_hint"));
+    hint.id = "colab-model-hint";
+    controls.append(select, customModel, hint);
+    const label = make("label", "form-label", t("ui.colab.model"));
+    label.htmlFor = select.id;
+    row.append(label, controls);
+    fields.model = select;
+    fields.customModel = customModel;
+    return row;
+  };
   const noDrive = make("input");
   noDrive.type = "checkbox";
   const noDriveLabel = make("label", "check-row");
@@ -107,13 +143,17 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
     field("command", "ui.colab.command", "ui.colab.command_hint"),
     field("cwd", "ui.colab.cwd", "ui.colab.cwd_hint"),
     field("extra", "ui.colab.extra_args"),
-    field("model", "ui.colab.model"),
+    modelField(),
     field("language", "ui.colab.language"),
     alignLabel,
     noDriveLabel,
     error,
     buttons,
   );
+  const updateCustomModelVisibility = () => {
+    fields.customModel.hidden = fields.model.value !== "custom";
+  };
+  fields.model.addEventListener("change", updateCustomModelVisibility);
   dialog.append(title, form);
   document.body.append(dialog);
   enhanceDialog(dialog, { t });
@@ -321,7 +361,8 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
       try {
         const { resolved } = await api.colabSettings();
         const form = colabForm(resolved);
-        for (const key of Object.keys(fields)) fields[key].value = form[key];
+        for (const key of Object.keys(fields)) fields[key].value = form[key] ?? "";
+        updateCustomModelVisibility();
         noDrive.checked = form.noDrive;
         align.checked = form.align;
       } catch (e) {

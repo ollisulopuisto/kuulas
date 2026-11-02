@@ -11,5 +11,6 @@ Litteraatti on kaikkien puheraitojen sanat aikajärjestyksessä, puhuja reunassa
 - Poista valitut sanat: {key:edit.delete}. Ne poistuvat litteraatista ja väli jää ääneen. Litteraatti näyttää vain sen, mitä kuullaan, joten mykistettyjä ja Auto-Silencen sulkemia sanoja ei piirretä.
 - Leikkaa ne: {key:edit.cut}. Ennen leikkausta litteraatti näyttää, mitä muuta lähtisi: muiden puhujien sanat samalta kohdalta.
 - {key:transport.play} toistaa ja pysäyttää edelleen; {key:nav.home} palaa aikajanalle.
+- Litteraatin korvaamisen tai korjaamisen voi kumota: Kumoa ja Tee uudelleen vaihtavat tallennettujen litteraattiversioiden välillä eivätkä käynnistä uutta litterointia. Tavalliset aikajanamuokkaukset eivät poista litteraatin sisältöä.
 
 Leikkauksen poistamista sanoista jää pieni merkki; leikkauslistalta ne saa takaisin. Katso myös [[clip]].

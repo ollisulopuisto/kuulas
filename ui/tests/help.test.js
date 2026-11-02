@@ -76,6 +76,15 @@ describe("the keyboard focus model", () => {
   });
 });
 
+describe("What's New headings", () => {
+  test("name Kuulas and ask what is new in both locales", () => {
+    assert.equal(CATALOGS.en["ui.whatsnew.title"], "Kuulas: What's new?");
+    assert.equal(CATALOGS.fi["ui.whatsnew.title"], "Kuulas: mitä uutta?");
+    assert.equal(CATALOGS.en["ui.whatsnew.title_in"], "Kuulas: What's new? — {version}");
+    assert.equal(CATALOGS.fi["ui.whatsnew.title_in"], "Kuulas: mitä uutta? — {version}");
+  });
+});
+
 describe("parseTopic", () => {
   test("reads front matter lists and the body", () => {
     const topic = parseTopic(

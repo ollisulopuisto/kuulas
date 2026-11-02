@@ -54,6 +54,7 @@ import { registerTranscriptCommands } from "./transcript-commands.js";
 // is docked in the sidebar, so it takes the side panels' keys: the timeline's
 // letters and arrows do not fire while the keyboard is in help.
 export const CONTEXT_OF_PANEL = {
+  material: "side",
   timeline: "timeline",
   transcript: "transcript",
   inspector: "side",

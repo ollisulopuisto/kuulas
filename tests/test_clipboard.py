@@ -88,6 +88,14 @@ def test_two_entries_made_at_the_same_now_have_distinct_ids():
     assert e1.id < e2.id  # time-ordered within the process
 
 
+def test_copy_of_a_muted_clip_is_unmuted_in_the_clipboard():
+    p = project(track("ta", clip("a1", muted=True)))
+
+    got = make_entry(p, ["a1"], now=1000.0)
+
+    assert got.refs[0].muted is False
+
+
 def test_a_range_copy_trims_correctly_at_both_edges():
     p = project(
         track("ta",
@@ -120,8 +128,8 @@ def test_a_range_copy_trims_correctly_at_both_edges():
                 envelope=((500, -6.0), (2000, -2.0)), track_slot=0,
                 rel_start=0),
         # wide: own start cut (fade_in lost), own end kept (fade_out kept),
-        # offset moved by the left trim, muted kept.
-        ClipRef("b" * 64, 2_500, 5_000, fade_out=960, muted=True,
+        # offset moved by the left trim; clipboard copies are unmuted.
+        ClipRef("b" * 64, 2_500, 5_000, fade_out=960,
                 track_slot=1, rel_start=0),
         ClipRef("a" * 64, 3_000, 4_000, fade_in=480, fade_out=960,
                 track_slot=0, rel_start=1_000),

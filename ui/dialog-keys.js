@@ -94,6 +94,10 @@ export function requestCancel(dialog) {
 export function handleDialogKey(event, active = event.target) {
   const dialog = topDialog();
   if (!dialog) return "none";
+  // A field marked data-dialog-enter-local keeps Enter for itself (the record view's live
+  // transcript search: Enter while typing must never arm the two-step stop, the dialog's
+  // primary button).
+  if (event.key === "Enter" && active?.closest?.("[data-dialog-enter-local]")) return "none";
   const primary = primaryOf(dialog);
   const action = dialogKeyAction(event, {
     field: fieldKind(active),

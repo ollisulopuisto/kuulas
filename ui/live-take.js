@@ -84,12 +84,27 @@ export function createLiveTake() {
       const at_ = positions[index];
       const values = peaks[index];
       if (!active || !at_ || at_.length === 0 || !(zoom > 0)) return out;
-      let before = 0;
-      for (let i = 0; i < at_.length; i += 1) {
+      // Level events are kept for the whole take so zooming out can still show its history.
+      // Drawing the current viewport must not rescan that entire history every 100 ms. Find
+      // the event just before the visible start (its span may cross the left edge), then stop
+      // as soon as events move past the right edge.
+      const origin = at - preroll;
+      const firstPosition = scroll - origin;
+      let lo = 0;
+      let hi = at_.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (at_[mid] < firstPosition) lo = mid + 1;
+        else hi = mid;
+      }
+      const first = Math.max(0, lo - 1);
+      let before = first === 0 ? 0 : at_[first - 1];
+      for (let i = first; i < at_.length; i += 1) {
         const from = Math.floor((frameOf(before) - scroll) / zoom);
         const to = Math.floor((frameOf(at_[i]) - scroll) / zoom);
         before = at_[i];
-        if (to < 0 || from >= out.length) continue;
+        if (from >= out.length) break;
+        if (to < 0) continue;
         const value = values[i];
         for (let x = Math.max(0, from); x <= Math.min(out.length - 1, to); x += 1) {
           if (value > out[x]) out[x] = value;

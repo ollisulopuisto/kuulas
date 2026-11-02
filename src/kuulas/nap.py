@@ -1,0 +1,78 @@
+"""Keep the editor out of App Nap while an in-process job runs (macOS).
+
+Exports, masters, automixes and analyses run on the editor's own job pool
+(``jobs.py``). When every Kuulas window is hidden, App Nap may throttle the
+process — timers coalesce and CPU priority drops — and a forty-minute
+master render crawls.
+
+Recording and transcription run in separate worker processes
+(``kuulas_recorder``, ``bgjobs.py``). App Nap's candidacy rules are
+app-centric (foreground, windows, audible), so a plain worker process is
+not itself a candidate — but a worker spawned while its editor parent is
+napped can inherit the lowered scheduling priority, and the editor is what
+dispatches and reports on that work. Their machine-wide ``caffeinate``
+assertions stay as they are; this module covers the editor process itself.
+
+``hold(reason)`` brackets the work with an ``NSProcessInfo`` activity.
+``NSActivityUserInitiatedAllowingIdleSystemSleep`` keeps this user-requested
+work out of App Nap while leaving the system and display sleep flags clear.
+The machine can still sleep on its normal schedule.
+
+Off macOS, without PyObjC, or if the assertion itself fails, ``hold`` is a
+no-op: the job still runs, the OS simply keeps its default heuristics.
+Like ``desktop.py``, the Cocoa object is injectable so tests need no Mac.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import logging
+import sys
+from collections.abc import Iterator
+from typing import Any
+
+log = logging.getLogger("kuulas.nap")
+
+#: NSActivityUserInitiatedAllowingIdleSystemSleep from NSProcessInfo.h.
+#: User-initiated work is not throttled by App Nap, while the idle-system-sleep
+#: and idle-display-sleep disabled flags remain clear.
+NS_ACTIVITY_USER_INITIATED_ALLOWING_IDLE_SYSTEM_SLEEP = 0x00EFFFFF
+
+
+@contextlib.contextmanager
+def hold(reason: str, *, platform: str | None = None,
+         process_info: Any = ...) -> Iterator[None]:
+    """Bracket in-process work the OS must not throttle when hidden.
+
+    ``reason`` names the work in Activity Monitor and ``pmset -g
+    assertions``. Never raises: a power assertion is never worth a job.
+    """
+    platform = sys.platform if platform is None else platform
+    if platform != "darwin":
+        yield
+        return
+    if process_info is ...:
+        try:
+            from Foundation import NSProcessInfo  # noqa: PLC0415
+
+            process_info = NSProcessInfo.processInfo()
+        except Exception:  # noqa: BLE001 - PyObjC missing or a headless run
+            process_info = None
+    if process_info is None:
+        yield
+        return
+    token = None
+    try:
+        token = process_info.beginActivityWithOptions_reason_(
+            NS_ACTIVITY_USER_INITIATED_ALLOWING_IDLE_SYSTEM_SLEEP, reason)
+    except Exception as e:  # noqa: BLE001 - see the docstring
+        log.debug("could not hold off App Nap for %r: %s", reason, e)
+    try:
+        yield
+    finally:
+        if token is not None:
+            try:
+                process_info.endActivity_(token)
+            except Exception as e:  # noqa: BLE001
+                log.debug("could not release the App Nap hold for %r: %s",
+                          reason, e)

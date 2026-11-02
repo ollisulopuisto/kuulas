@@ -9,6 +9,7 @@ import {
   blockText,
   canApply,
   changedBySpeaker,
+  impactSummary,
   leftAloneCount,
   loudBySpeaker,
   loudText,
@@ -81,6 +82,27 @@ describe("the measurement", () => {
       [["anna", 1]],
     );
   });
+
+  test("the impact summary counts only checked blocks and their tracks", () => {
+    assert.deepEqual(impactSummary(result(), allChangedIds(result())), {
+      blocks: 2,
+      speakers: 2,
+      tracks: 2,
+      unchanged: 1,
+    });
+    assert.deepEqual(impactSummary(result(), new Set(["anna#1"])), {
+      blocks: 1,
+      speakers: 1,
+      tracks: 1,
+      unchanged: 1,
+    });
+    assert.deepEqual(impactSummary(result(), new Set()), {
+      blocks: 0,
+      speakers: 0,
+      tracks: 0,
+      unchanged: 1,
+    });
+  });
 });
 
 describe("the ticks", () => {
@@ -98,11 +120,11 @@ describe("the ticks", () => {
 });
 
 describe("the text", () => {
-  test("a row says where, how far off and the gain, signed", () => {
+  test("a row says where, measured level, deviation and proposed gain", () => {
     const row = blockText(block("a", 21, 29, 12, -12), RATE, t, fmt, clock);
     assert.equal(
       row,
-      'ui.block_level.row{"start":"0:21","end":"0:29","deviation":"+12.0","gain":"-12.0"}',
+      'ui.block_level.row{"start":"0:21","end":"0:29","level":"-20.0","deviation":"+12.0","gain":"-12.0"}',
     );
   });
 
@@ -132,6 +154,7 @@ test("every text the model and the dialog use exists in both catalogs", () => {
     "ui.block_level.row",
     "ui.block_level.none",
     "ui.block_level.left",
+    "ui.block_level.summary",
     "ui.block_level.loud",
     "ui.block_level.loud_row",
     "ui.block_level.markers",

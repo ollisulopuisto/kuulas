@@ -98,3 +98,29 @@ def test_gap_between_segments_resets_the_three_second_window(tmp_path):
     )
     sidecar_path.write_text(json.dumps(sidecar))
     assert reader.read(tmp_path, "Take", RATE, ["Host"], now=1) == [None]
+
+
+def test_reader_reports_persistent_failure_once_and_reports_again_after_recovery(
+    tmp_path, monkeypatch, caplog
+):
+    write_take(tmp_path)
+    reader = RecordingLoudnessReader()
+    original = reader._read_channel
+
+    def fail(*_args):
+        raise RuntimeError("meter cache unavailable")
+
+    monkeypatch.setattr(reader, "_read_channel", fail)
+    for now in range(10):
+        assert reader.read(tmp_path, "Take", RATE, ["Host"], now=now) == [None]
+    messages = [r for r in caplog.records if "meter cache unavailable" in r.message]
+    assert len(messages) == 1
+    assert "Host" in messages[0].message
+    assert "Take" in messages[0].message
+    assert messages[0].exc_info is not None
+
+    monkeypatch.setattr(reader, "_read_channel", original)
+    assert reader.read(tmp_path, "Take", RATE, ["Host"], now=11)[0] is not None
+    monkeypatch.setattr(reader, "_read_channel", fail)
+    assert reader.read(tmp_path, "Take", RATE, ["Host"], now=12) == [None]
+    assert len([r for r in caplog.records if "meter cache unavailable" in r.message]) == 2

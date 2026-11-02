@@ -201,6 +201,8 @@ export function createMarkersPanel({ root, actions }) {
     const rows = markerRows(state.project?.markers, rate);
     const can = [
       "marker.add",
+      "mark.in",
+      "mark.clear_in",
       "export.chapters_text",
       "export.chapters_json",
       "export.regions",
@@ -232,6 +234,10 @@ export function createMarkersPanel({ root, actions }) {
         "div",
         { class: "actionbar", role: "group", "aria-label": t("ui.markers.title") },
         toolbarButton("marker.add", t("cmd.marker.add"), state, "plus"),
+        // I and Shift+I as buttons (owner, 2026-11-01): set or clear the in point here;
+        // while a take records they use the take's place, and Pituus counts up from it.
+        toolbarButton("mark.in", t("cmd.mark.in"), state, "bookmark"),
+        toolbarButton("mark.clear_in", t("cmd.mark.clear_in"), state, "close"),
         toolbarButton("export.chapters_text", t("cmd.export.chapters_text"), state, "export"),
         toolbarButton("export.chapters_json", t("cmd.export.chapters_json"), state, "export"),
         toolbarButton("export.regions", t("cmd.export.regions"), state, "export"),

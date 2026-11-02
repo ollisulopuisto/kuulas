@@ -33,6 +33,28 @@ def _sun_path_limit() -> int:
     return 104 if sys.platform == "darwin" else 108
 
 
+def peer_uid(sock: socket.socket) -> int | None:
+    """The UID of the peer process at the other end of a Unix domain socket, or None."""
+    if hasattr(socket, "SO_PEERCRED"):
+        try:
+            cred = sock.getsockopt(
+                socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i"))
+            _pid, uid, _gid = struct.unpack("3i", cred)
+        except (OSError, struct.error):
+            return None
+        else:
+            return uid
+    if sys.platform == "darwin":
+        try:
+            cred = sock.getsockopt(0, 1, 16)  # SOL_LOCAL=0, LOCAL_PEERCRED=1
+            _version, uid = struct.unpack("II", cred[:8])
+        except (OSError, struct.error):
+            return None
+        else:
+            return uid
+    return None
+
+
 def default_socket_path() -> Path:
     env = os.environ.get(SOCKET_ENV)
     if env:
@@ -105,6 +127,12 @@ class Listener:
             conn, _ = self.sock.accept()
         except OSError:
             return None  # closed
+        # Refuse connections from peers running under a different user account.
+        p_uid = peer_uid(conn)
+        if p_uid is not None and p_uid != os.getuid():
+            with contextlib.suppress(OSError):
+                conn.close()
+            return None
         return Connection(conn)
 
     def close(self) -> None:

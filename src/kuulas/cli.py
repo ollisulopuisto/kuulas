@@ -16,7 +16,16 @@ from pathlib import Path
 
 import uvicorn
 
-from . import diag, export_formats, logsetup, memory, offload, package, profiler
+from . import (
+    diag,
+    export_formats,
+    live_engine,
+    logsetup,
+    memory,
+    offload,
+    package,
+    profiler,
+)
 from .build_info import build_label
 from .messages import KuulasError, t
 
@@ -190,7 +199,10 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
     session = Session(folder)
     engine = Engine(session)
     # Only a viewer of the recorder: closing it below never stops a take.
-    recorder = RecordSession(session)
+    # Live take transcription reuses the installed Orukeet (live_engine); with
+    # no installation the factory is None and the take records as before.
+    recorder = RecordSession(
+        session, live_engine_factory=live_engine.factory_or_none())
     sock = bind_local(port)
     try:
         url = f"http://{HOST}:{sock.getsockname()[1]}/"

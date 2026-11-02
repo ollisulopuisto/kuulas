@@ -91,7 +91,7 @@ def test_colab_success_keeps_timing_and_language(folder):
 
     def colab(items, params, settings, report, cancel):
         assert params == {"model": "small", "language": "fi"}
-        assert settings == {"command": ["x"]}
+        assert settings == {"command": ["x"], "extra_args": ["--backend", "colab"]}
         report(0.5, "halfway", False)
         return {"results": {i["id"]: {"words": WORDS, "timing": "ctc-v1",
                                       "language": "fi", "rejected": 0}

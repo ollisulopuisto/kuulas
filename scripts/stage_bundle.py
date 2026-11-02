@@ -173,6 +173,8 @@ def stage(src: Path, out: Path, wheels: Path, label: str) -> Path:
     shutil.copytree(src / "src" / "kuulas", package,
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     (package / "build_label.txt").write_text(label + "\n", encoding="utf-8")
+    # What's New reads the shipped changelog from beside the package.
+    shutil.copy(src / "CHANGELOG.md", package / "CHANGELOG.md")
     shutil.copytree(src / "src" / "kuulas_recorder", out / "src" / "kuulas_recorder",
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     shutil.copytree(src / "ui", out / "src" / "ui",

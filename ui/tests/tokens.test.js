@@ -103,6 +103,10 @@ const BUSES = ["1", "2", "3", "4", "5", "6", "7", "8"];
 function pairs() {
   const list = [];
   for (const fg of [...TEXT, ...STATUS_TEXT]) for (const bg of SURFACES) list.push([fg, bg, 4.5]);
+  for (const fg of ["--control-gain", "--control-pan"]) {
+    list.push([fg, "--surface-panel", 4.5]);
+    list.push([fg, "--surface-lane", 3]);
+  }
   list.push(["--text", "--accent-subtle", 4.5]);
   list.push(["--accent-text", "--accent-subtle", 4.5]);
   list.push(["--text-on-accent", "--accent", 4.5]);

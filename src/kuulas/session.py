@@ -52,10 +52,12 @@ from . import (
     edit_scope,
     export_names,
     import_plan,
+    local_memory,
     material,
     material_search,
     music_duck,
     music_level,
+    nap,
     narration,
     narration_script,
     offload,
@@ -107,6 +109,7 @@ from .loudness import gain_to_target, measure_clip, track_target_lufs
 from .media import ImportResult, MediaError, MediaStore, file_sha256
 from .messages import KuulasError, t
 from .model import Project, SyncGroup
+from .part_versions import distinct_versions, gate_snapshot, snapshot
 from .paste_apply import apply_paste
 from .paste_plan import _targets, plan_paste
 from .people import Interview, Passage, Person
@@ -441,6 +444,57 @@ class Session:
             except KeyError as e:
                 raise ops.EditError("error.edit.no_track", track_id=e.args[0]) from None
         return rest, rest
+
+    def part_versions(self, track_id: str, start: int, end: int) -> list[dict]:
+        """Scan all branches on a read connection, without holding the edit lock."""
+        with self.lock:
+            path, edit = self.history.path, self.history.edit
+            current = self.history.state
+        names = {media.id: media.name for media in current.media}
+        # A transaction makes head, occurrence metadata and content one snapshot.
+        reader = History(path, edit=edit, read_only=True)
+        try:
+            reader.db.execute("begin")
+            head = reader.db.execute(
+                "select head from edits where id=?", (edit,)).fetchone()[0]
+            nodes = reader.nodes()
+            metadata = {row["id"]: row for row in nodes}
+            versions = distinct_versions(
+                ((row["id"], reader.project_at(row["id"])) for row in nodes),
+                track_id, start, end, current=head)
+            return [{"node": v.last_node, "first_node": v.first_node,
+                     "created": metadata[v.last_node]["created"],
+                     "first_created": metadata[v.first_node]["created"],
+                     "current": v.current, "head": head,
+                     "clips": [clip.to_dict() for clip in v.clips],
+                     "names": list(dict.fromkeys(names.get(c.media, c.media)
+                                                  for c in v.clips))}
+                    for v in versions]
+        finally:
+            reader.close()
+
+    def part_preview(self, node: str, track_id: str, start: int, end: int) -> Project:
+        """A temporary excerpt; preview does not commit or move the timeline."""
+        with self.lock:
+            current = self.history.state
+            source = self.history.project_at(node)
+            clips = snapshot(source, track_id, start, end)
+            track = current.track(track_id)
+            track = replace(track, clips=clips,
+                            gate=gate_snapshot(source, track_id, start, end),
+                            mute=False, solo=False, automation=())
+            return replace(current, tracks=(track,), markers=(), placeholders=())
+
+    def restore_part(self, node: str, track_id: str, start: int, end: int,
+                     *, expected_head: str) -> Project:
+        with self.lock:
+            if self.history.head != expected_head:
+                raise ops.EditError("error.part_versions.stale")
+            source = self.history.project_at(node)
+            result = ops.restore_part(self.history.state, source, track_id, start, end)
+            return self._commit(t("history.restore_part"), result, "restore_part",
+                                {"node": node, "track_id": track_id,
+                                 "start": start, "end": end})
 
     def sync_state(self, clip_id: str) -> sync_state.SyncState:
         with self.lock:
@@ -1084,7 +1138,8 @@ class Session:
             entry, problem = None, None
             try:
                 entry = self._describe(
-                    make_entry_range(project, start, end, scope, name=name))
+                    make_entry_range(project, start, end, scope, name=name,
+                                     preserve_mute=True))
             except KuulasError as e:
                 problem = t(e.key, **e.params)
             new = remove(project, start, end, scope)
@@ -1339,7 +1394,10 @@ class Session:
     def export(self, args: dict, *, progress=None, cancel=None,
                workers: int | None = None) -> dict:
         """Render a mix, selection or track stems without changing the edit."""
-        return export_module.run(self, args, progress, cancel, workers)
+        # The synchronous export shares the editor process with the queued
+        # ones (``jobs.py``): hold App Nap off for it just the same.
+        with nap.hold("kuulas export"):
+            return export_module.run(self, args, progress, cancel, workers)
 
     def chapters(self, style: str = "text") -> str:
         """The chapter markers as a chapter list: ``"text"`` (``hh:mm:ss
@@ -3032,7 +3090,7 @@ class Session:
 
     def transcribe(self, media_ids: list[str], model: str | None = None,
                    language: str | None = None, backend: str = "local",
-                   force: bool = False) -> list[str]:
+                   force: bool = False, allow_low_memory: bool = False) -> list[str]:
         """Start ONE background job for the chosen recordings (``local``:
         Orukeet here; ``colab``: the WP78 tool). The job is a file in the
         project and a separate worker process (``kuulas.transcribe_worker``) that
@@ -3042,6 +3100,8 @@ class Session:
         Recordings used only on music tracks are refused (``error.transcribe.music_only``)
         unless ``force``: music is not transcribed nor uploaded to Colab by default.
         Returns the job id in a list."""
+        if backend != "colab" and not allow_low_memory and not local_memory.eligible():
+            raise ops.EditError("error.orukeet.memory")
         ids = list(dict.fromkeys(media_ids))
         items, previous, names = [], {}, []
         with self.lock:
@@ -3070,7 +3130,7 @@ class Session:
             previous=previous, names=names, model=model if colab else (model or "small"),
             language=language, cpu_threads=max(1, os.cpu_count() or 1),
             settings=colab_module.resolve_settings(colab_module.load_settings())
-            if colab else None, forced=force)
+            if colab else None, forced=force, allow_low_memory=allow_low_memory)
         self._launch_background(job_id)
         return [job_id]
 
@@ -3161,14 +3221,6 @@ class Session:
         done.update(new)
         bgjobs.write_json_atomic(bgjobs.marker_file(folder, job_id),
                                  {"media": done, "reported": True})
-        for what, key in (("added", "notice.transcribe.added"),
-                          ("conflict", "notice.transcribe.conflict"),
-                          ("invalid", "notice.transcribe.invalid"),
-                          ("missing", "notice.transcribe.missing")):
-            listed = [names[m] for m, o in new.items() if o == what]
-            if listed:
-                self._notify("ok" if what == "added" else "error", job_id, key,
-                             names=", ".join(listed))
         if len(done) >= len(names) and all(o == "added" for o in done.values()):
             shown = bgjobs.describe(folder, job_id)
             bgjobs.remove_files(folder, job_id)
@@ -3177,6 +3229,17 @@ class Session:
                                                "progress": 1.0, "error": None}
                 while len(self._finished_jobs) > 20:
                     del self._finished_jobs[next(iter(self._finished_jobs))]
+        # A success notice is the observable completion signal. Publish it only
+        # after finalizing the job so clients cannot see "done" while its files
+        # are still present.
+        for what, key in (("added", "notice.transcribe.added"),
+                          ("conflict", "notice.transcribe.conflict"),
+                          ("invalid", "notice.transcribe.invalid"),
+                          ("missing", "notice.transcribe.missing")):
+            listed = [names[m] for m, o in new.items() if o == what]
+            if listed:
+                self._notify("ok" if what == "added" else "error", job_id, key,
+                             names=", ".join(listed))
 
     def _ingest_one(self, job: dict, job_id: str, media_id: str, mine: bool) -> str:
         """Store one media's result. Returns ``added``, ``conflict`` (the transcript
@@ -3228,6 +3291,8 @@ class Session:
         job = bgjobs.read_json(bgjobs.job_file(folder, job_id))
         if info is None or job is None:
             raise bgjobs.BackgroundJobError("error.jobs.unknown", job_id=job_id)
+        if job.get("backend") != "colab" and not local_memory.eligible():
+            raise ops.EditError("error.orukeet.memory")
         if info["foreign"]:
             raise bgjobs.BackgroundJobError("error.transcribe.foreign_host",
                                             host=info["host"])
@@ -3252,7 +3317,8 @@ class Session:
             if path != bgjobs.job_file(folder, job_id):
                 path.unlink(missing_ok=True)
         package.write_json_atomic(bgjobs.job_file(folder, job_id),
-                                  {**job, "previous": previous})
+                                  {**job, "previous": previous,
+                                   "allow_low_memory": False})
         package.write_json_atomic(bgjobs.status_file(folder, job_id), {
             "state": "queued", "progress": 0.0, "message": "", "indeterminate": True,
             "log": [], "pid": None, "host": job.get("host"), "finished": None})
@@ -3277,15 +3343,42 @@ class Session:
     def correct_word(self, media_id: str, index: int, text: str) -> Project:
         """Correct the text of one word of one media's transcript: a new
         transcript revision, one undo step. Its timing and speaker stay."""
+        return self.correct_words(media_id, index, index, text)
+
+    def correct_words(self, media_id: str, start: int, end: int, text: str) -> Project:
+        """Replace a contiguous source word range as one transcript revision.
+
+        Replacement tokens share the selected time span in proportion to their
+        character counts, so merging or splitting words keeps the surrounding
+        transcript anchored to the same audio.
+        """
         with self.lock:
             words = list(self.transcripts().get(media_id, ()))
-            if not 0 <= index < len(words):
+            if not 0 <= start <= end < len(words):
                 raise ops.EditError("error.edit.no_word", media_id=media_id,
-                                    index=index, count=len(words))
-            old = words[index]["w"]
-            words[index] = {**words[index], "w": text.strip()}
+                                    index=start, count=len(words))
+            replacements = text.split()
+            if not replacements:
+                raise ops.EditError("error.transcript.empty")
+            selected = words[start:end + 1]
+            span_start = selected[0]["s"]
+            span_end = selected[-1]["e"]
+            total_weight = sum(map(len, replacements))
+            replacement_words = []
+            elapsed_weight = 0
+            for token in replacements:
+                token_start = span_start + round(
+                    (span_end - span_start) * elapsed_weight / total_weight)
+                elapsed_weight += len(token)
+                token_end = span_start + round(
+                    (span_end - span_start) * elapsed_weight / total_weight)
+                replacement_words.append({**selected[0], "w": token,
+                                          "s": token_start, "e": token_end})
+            old = " ".join(word["w"] for word in selected)
+            words[start:end + 1] = replacement_words
             return self.set_transcript(
-                media_id, words, t("history.correct_word", old=old, new=text.strip()))
+                media_id, words,
+                t("history.correct_word", old=old, new=" ".join(replacements)))
 
     def _view_key(self, *parts: object) -> str:
         """Key of a memoized view: this project, and what the view is of."""

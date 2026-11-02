@@ -5,7 +5,12 @@ import { backingSize } from "./canvas-size.js";
 import { formatClock } from "./i18n.js";
 import { siblingsOf } from "./labels.js";
 import { projectEnd } from "./lanes.js";
-import { audibleSegments, overviewMarks, overviewRuns } from "./overview-segments.js";
+import {
+  audibleSegments,
+  overviewCandidateTicks,
+  overviewMarks,
+  overviewRuns,
+} from "./overview-segments.js";
 import { trackHues } from "./paint.js";
 import { readTheme } from "./theme.js";
 import { overviewScroll, overviewWindow } from "./view.js";
@@ -16,7 +21,13 @@ import { overviewScroll, overviewWindow } from "./view.js";
 const OVERVIEW_ALPHA = 0.6;
 const OVERVIEW_LABEL_PX = 10;
 
-export function createOverview({ canvas, getState, getTimelineWidth, actions }) {
+export function createOverview({
+  canvas,
+  getState,
+  getTimelineWidth,
+  getLiveEnd = () => 0,
+  actions,
+}) {
   const context = canvas.getContext("2d");
   let queued = false;
   let theme = readTheme();
@@ -49,7 +60,11 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, width, height);
     if (!state.project) return;
-    const total = projectEnd(state.project);
+    const liveEnd = getLiveEnd();
+    const total = Math.max(
+      projectEnd(state.project),
+      Number.isFinite(liveEnd) ? Math.max(0, liveEnd) : 0,
+    );
     if (total === 0) return;
     const tracks = state.project.tracks;
     const plotTop = OVERVIEW_LABEL_PX + 6;
@@ -73,6 +88,11 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
         );
       }
     });
+    context.globalAlpha = 0.9;
+    context.fillStyle = theme.candidate;
+    for (const tick of overviewCandidateTicks(state.candidates, total, width)) {
+      context.fillRect(tick.x, plotTop, 1.5, Math.max(1, height - plotTop - 2));
+    }
     context.globalAlpha = 1;
     // Clips of the selected clip's recording, wherever they are in the edit.
     const siblings = siblingsOf(state.project, state.selection);
@@ -113,8 +133,12 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
     const state = getState();
     if (!state.project) return;
     const rect = canvas.getBoundingClientRect();
+    const liveEnd = getLiveEnd();
     const scroll = overviewScroll({
-      total: projectEnd(state.project),
+      total: Math.max(
+        projectEnd(state.project),
+        Number.isFinite(liveEnd) ? Math.max(0, liveEnd) : 0,
+      ),
       zoom: state.zoom,
       width: getTimelineWidth(),
       strip: rect.width,
