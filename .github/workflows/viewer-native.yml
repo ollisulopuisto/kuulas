@@ -15,7 +15,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Swift reader conformance
         working-directory: viewer
         run: swift test
@@ -32,7 +32,7 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent 'build/Build/Products/Release/Kuulas Viewer.app' 'Kuulas-Viewer-preview.zip'
           shasum -a 256 Kuulas-Viewer-preview.zip > Kuulas-Viewer-preview.sha256
       - name: Upload installable preview (not a release)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Kuulas-Viewer-preview-${{ github.event.pull_request.head.sha }}
           path: |
