@@ -4632,6 +4632,7 @@ function render(state, patch, previous = null) {
     const value = formatNumber(state.waveformGain, { digits: state.waveformGain < 10 ? 1 : 0 });
     button.textContent = `×${value}`;
     button.title = t("ui.view.waveform_reset", { value });
+    button.setAttribute("aria-label", button.title);
   }
   if (touched("followMode", "followPaused")) {
     $("follow").textContent = t(
@@ -4808,6 +4809,7 @@ function updateFollowChip(state) {
   const time = frameToTime(playheadNow(state), state.project?.rate);
   arrow.textContent = side === "left" ? `◀ ${time}` : `${time} ▶`;
   arrow.title = t("ui.view.follow_arrow", { time });
+  arrow.setAttribute("aria-label", arrow.title);
 }
 // Right-click on a toolbar button removes it; adding uses the visible plus picker.
 // Layout changes are explicit user actions and are remembered per user.
