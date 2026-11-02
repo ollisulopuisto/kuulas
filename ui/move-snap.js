@@ -50,11 +50,7 @@ export function moveTargets(project, movedIds, { playhead, inPoint, outPoint }) 
     if (typeof marker.start === "number" && Number.isFinite(marker.start)) {
       frames.add(marker.start);
     }
-    if (
-      marker.kind === "region" &&
-      typeof marker.end === "number" &&
-      Number.isFinite(marker.end)
-    ) {
+    if (marker.kind === "region" && typeof marker.end === "number" && Number.isFinite(marker.end)) {
       frames.add(marker.end);
     }
   }
