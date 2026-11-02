@@ -9,7 +9,7 @@ Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi oll
 
 ## Muokkaa
 - Jaa toistokohdasta: {key:edit.split}
-- Poista: {key:edit.delete}. Pehmeä leikkaus: ääni hiljenee, väli jää ja leikkauslistalta sen voi palauttaa. Leikepöytä ei muutu.
+- Poista: {key:edit.delete}. Kun leikkeet on valittu, ne poistetaan ja väli jää; Kumoa palauttaa ne. In–Out-välillä jakso hiljennetään paikalleen, jotta sen voi palauttaa leikkauslistalta. Leikepöytä ei muutu.
 - Leikkaa: {key:edit.cut}. Kopioi leikepöydälle ja sulkee välin tahdistusryhmän jokaiselta raidalta.
 - Nosta: {key:edit.lift_cut}. Kopioi leikepöydälle ja poistaa pehmeästi paikallaan: väli jää ja sen voi palauttaa.
 - Sulje aukko kaikilta raidoilta: {key:edit.close_gap_all}. Poistaa valinnan tai merkityn välin jokaiselta raidalta ja sulkee aukon; leikepöytä ei muutu.

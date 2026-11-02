@@ -55,17 +55,6 @@ describe("why an edit key does nothing", () => {
     assert.equal(keyOf("edit.remove_clips", state()), "ui.edit.idle.remove_clips");
   });
 
-  test("Backspace on clips that are all muted already says so", () => {
-    const muted = {
-      ...project,
-      tracks: [{ ...project.tracks[0], clips: [clip("a1", 0, 10, { muted: true })] }],
-    };
-    assert.equal(
-      keyOf("edit.delete", state({ project: muted, selection: new Set(["a1"]) })),
-      "ui.edit.idle.delete_muted",
-    );
-  });
-
   test("Mod+C on a range with no audio under it says so", () => {
     const s = state({ inPoint: 30 * S, outPoint: 40 * S });
     assert.equal(

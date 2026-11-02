@@ -79,10 +79,10 @@ describe("the plans follow the intent", () => {
   const clipsFirst = base({ ...marks, selection: picked, intent: "clips" });
   const rangeFirst = base({ ...marks, selection: picked, intent: "range" });
 
-  test("Backspace: mutes the selected clips, or the range", () => {
+  test("Backspace: removes selected clips, or soft-mutes the range", () => {
     const onClips = deletePlan(clipsFirst);
-    assert.equal(onClips.op, "set_clips");
-    assert.deepEqual(onClips.args, { clip_ids: ["a2", "v1"], muted: true });
+    assert.equal(onClips.op, "delete_clips");
+    assert.deepEqual(onClips.args, { clip_ids: ["a2", "v1"] });
     const onRange = deletePlan(rangeFirst);
     assert.equal(onRange.op, "mute_range");
     assert.deepEqual(onRange.args, {
@@ -122,17 +122,17 @@ describe("the plans follow the intent", () => {
 
   test("selected-only mode with no track selected refuses a range, not the clips", () => {
     const strict = { rangeMode: "selected" };
-    assert.equal(deletePlan({ ...clipsFirst, ...strict }).op, "set_clips");
+    assert.equal(deletePlan({ ...clipsFirst, ...strict }).op, "delete_clips");
     assert.ok(deletePlan({ ...rangeFirst, ...strict }).refuse);
   });
 
   test("clearing the selection leaves the range as the target, clearing the marks the clips", () => {
     assert.equal(deletePlan({ ...clipsFirst, selection: new Set() }).op, "mute_range");
     const noMarks = { ...clipsFirst, inPoint: null, outPoint: null };
-    assert.equal(deletePlan(noMarks).op, "set_clips");
+    assert.equal(deletePlan(noMarks).op, "delete_clips");
   });
 
-  test("a muted selection with marks and clips-intent does nothing rather than mute the range", () => {
+  test("a muted selection with marks and clips-intent deletes clips rather than the range", () => {
     const muted = {
       ...clipsFirst,
       project: {
@@ -143,7 +143,7 @@ describe("the plans follow the intent", () => {
         })),
       },
     };
-    assert.equal(deletePlan(muted), null);
+    assert.equal(deletePlan(muted).op, "delete_clips");
   });
 });
 

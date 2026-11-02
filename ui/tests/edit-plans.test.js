@@ -100,21 +100,28 @@ describe("delete (soft cut, gap kept)", () => {
     const plan = deletePlan(state({ ...range, rangeMode: "selected" }));
     assert.deepEqual(plan, { refuse: { key: "ui.scope.none_selected" } });
   });
-  test("selected clips are muted, with no clipboard and no range needed", () => {
+  test("selected clips are removed, with no clipboard and no range needed", () => {
     const plan = deletePlan(state({ selection: new Set(["a1", "v1"]) }));
-    assert.equal(plan.op, "set_clips");
-    assert.deepEqual(plan.args, { clip_ids: ["a1", "v1"], muted: true });
+    assert.equal(plan.op, "delete_clips");
+    assert.deepEqual(plan.args, { clip_ids: ["a1", "v1"] });
+  });
+  test("selected muted clips can also be removed", () => {
+    const mutedProject = {
+      ...project,
+      tracks: project.tracks.map((track) => ({
+        ...track,
+        clips: track.clips.map((item) => ({ ...item, muted: true })),
+      })),
+    };
+    const plan = deletePlan(state({ project: mutedProject, selection: new Set(["a1"]) }));
+    assert.equal(plan.op, "delete_clips");
+    assert.deepEqual(plan.args, { clip_ids: ["a1"] });
   });
   test("a range wins over a selection", () => {
     assert.equal(deletePlan(state({ ...range, selection: new Set(["a1"]) })).op, "mute_range");
   });
-  test("nothing selected and no range: nothing to do; already-muted clips too", () => {
+  test("nothing selected and no range: nothing to do", () => {
     assert.equal(deletePlan(state()), null);
-    const muted = {
-      ...project,
-      tracks: [{ id: "A", clips: [clip("a1", 0, 10, { muted: true })] }],
-    };
-    assert.equal(deletePlan(state({ project: muted, selection: new Set(["a1"]) })), null);
   });
   test("the current track does not narrow a range: it is still all tracks", () => {
     assert.deepEqual(deletePlan(state({ ...range, focusTrack: null })).args.track_ids, [

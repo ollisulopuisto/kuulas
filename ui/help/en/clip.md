@@ -9,7 +9,7 @@ A clip is a stretch of one recording placed on a track. Several clips can come f
 
 ## Edit it
 - Split at the play cursor: {key:edit.split}
-- Delete: {key:edit.delete}. A soft cut: the audio goes quiet, the gap stays, and the Cuts list can restore it. The clipboard is untouched.
+- Delete: {key:edit.delete}. With clips selected, removes those clips and leaves the gap; Undo restores them. With an In-Out range, silences the range in place so the Cuts list can restore it. The clipboard is untouched.
 - Cut: {key:edit.cut}. Copies to the clipboard and closes the gap on every track of the sync group.
 - Lift-cut: {key:edit.lift_cut}. Copies to the clipboard and soft-deletes in place: the gap stays and can be restored.
 - Close the gap on all tracks: {key:edit.close_gap_all}. Ripples the selection or in-out range out of every track; the clipboard is untouched.

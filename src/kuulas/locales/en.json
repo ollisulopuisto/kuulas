@@ -1130,7 +1130,7 @@
     "other": "Merged {count} clips into {into}; {left} could not be merged (not touching, different source or different gain)"
   },
   "cmd.edit.cut.hint": "Remove the selection or in-out range and close the gap",
-  "cmd.edit.delete.hint": "Mute the selection or range in place; the gap stays and can be restored",
+  "cmd.edit.delete.hint": "Delete selected clips (Undo restores them); with an in-out range, mute it in place so it can be restored",
   "cmd.clip.mute.hint": "Mute the selected clips, or unmute them",
   "ui.edit.label.split": "Split",
   "ui.edit.label.delete_range": "Delete",

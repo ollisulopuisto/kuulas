@@ -22,9 +22,7 @@ const REASONS = {
   "edit.lift_cut": fixed("cut"),
   "edit.close_gap_all": fixed("close_gap"),
   "edit.remove_clips": fixed("remove_clips"),
-  "edit.delete": (state) =>
-    // Clips are selected, so they must all be muted already.
-    reason(selectedClips(state).length > 0 ? "delete_muted" : "delete"),
+  "edit.delete": fixed("delete"),
   "edit.copy": (state) => reason(editTarget(state) === null ? "copy" : "copy_empty"),
   "edit.split": fixed("split"),
   "edit.split_all": fixed("split_all"),

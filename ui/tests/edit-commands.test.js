@@ -588,11 +588,12 @@ describe("the clipboard commands (WP46)", () => {
     assert.deepEqual(h.toasts[0][1], { undo: true });
   });
 
-  test("Backspace never touches the clipboard: it sends a plain mute, no clipboard op", () => {
+  test("Backspace removes selected clips without touching the clipboard", () => {
     const state = withClip({ selection: new Set(["a1"]) });
     const h = setup(state);
     h.registry.run("edit.delete", null, state);
-    assert.equal(h.sent[0].op, "set_clips");
+    assert.equal(h.sent[0].op, "delete_clips");
+    assert.deepEqual(h.sent[0].args, { clip_ids: ["a1"] });
     h.sent[0].done({ project });
     assert.equal(h.refreshed(), 0);
     assert.equal(h.copied.length, 0);

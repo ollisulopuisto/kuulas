@@ -108,7 +108,7 @@ function span(state) {
 
 const secondsOf = (state, frames) => frames / rateOf(state);
 
-/** Backspace and Delete: mute in place (the range, else the selected clips: the latest intent); the gap stays. */
+/** Backspace deletes selected clips; an in-out range is soft-muted so its gap can be restored. */
 export function deletePlan(state) {
   if (!state?.project) return null;
   const range = editRange(state);
@@ -123,10 +123,10 @@ export function deletePlan(state) {
       { tracks: true },
     );
   }
-  const live = selectedClips(state).filter((entry) => !entry.clip.muted);
-  if (live.length === 0) return null;
-  return plan("set_clips", { clip_ids: live.map((e) => e.clip.id), muted: true }, "delete_clips", {
-    count: live.length,
+  const chosen = selectedClips(state);
+  if (chosen.length === 0) return null;
+  return plan("delete_clips", { clip_ids: chosen.map((e) => e.clip.id) }, "delete_clips", {
+    count: chosen.length,
   });
 }
 
@@ -191,7 +191,7 @@ export function resetGainsPlan(state) {
 
 /**
  * Cmd+Backspace: really delete the selected clips and leave every other clip where it was
- * (owner, 2026-10-18); the gap stays. Backspace only mutes.
+ * (owner, 2026-10-18); the gap stays. Backspace now does the same for selected clips.
  */
 export function removeClipsPlan(state) {
   if (!state?.project) return null;

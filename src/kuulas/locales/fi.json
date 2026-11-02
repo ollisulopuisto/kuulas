@@ -1126,7 +1126,7 @@
     "other": "Yhdistetty {count} leikettä {into} leikkeeksi; {left} jäi yhdistämättä (eivät kosketa, eri lähde tai eri voimakkuus)"
   },
   "cmd.edit.cut.hint": "Poista valinta tai merkitty väli ja sulje aukko",
-  "cmd.edit.delete.hint": "Mykistä valinta tai väli paikallaan; aukko jää ja sen voi palauttaa",
+  "cmd.edit.delete.hint": "Poistaa valitut leikkeet (Kumoa palauttaa ne); In–Out-välillä mykistää välin paikalleen, jotta sen voi palauttaa",
   "cmd.clip.mute.hint": "Mykistä valitut leikkeet tai palauta niiden ääni",
   "ui.edit.label.split": "Jako",
   "ui.edit.label.delete_range": "Poisto",
