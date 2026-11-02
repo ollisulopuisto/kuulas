@@ -158,9 +158,9 @@ def _inline_transcription_worker(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _isolated_orukeet_setting(tmp_path_factory, monkeypatch):
-    """Tests never read or change the user's selected transcription model."""
+    """Tests never read a real Orukeet installation receipt or cache."""
     folder = tmp_path_factory.mktemp("orukeet-setting")
-    monkeypatch.setenv("KUULAS_ORUKEET_FILE", str(folder / "model.json"))
+    monkeypatch.setenv("ORUKEET_INSTALLATION", str(folder / "installation.json"))
 
 
 @pytest.fixture(autouse=True)

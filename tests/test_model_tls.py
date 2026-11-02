@@ -19,7 +19,7 @@ def test_offline_selftest_checks_roots_without_network(monkeypatch):
     monkeypatch.delenv('KUULAS_SELFTEST_HTTPS', raising=False)
     def offline(*args, **kwargs):
         pytest.fail('normal selftests must not require internet access')
-    monkeypatch.setattr(local_models, 'urlopen', offline)
+    monkeypatch.setattr(selftest.urllib.request, 'urlopen', offline)
     assert 'model_tls' in selftest.CHECKS
     assert 'trusted roots' in selftest.check_model_tls()
 
@@ -33,13 +33,12 @@ def test_build_probe_verifies_actual_weight_endpoint_with_bounded_read(monkeypat
             assert 0 < size <= 8
             return super().read(size)
     def open_url(request, **kwargs):
-        assert request.full_url.endswith('/model.safetensors')
-        assert local_models.REVISION in request.full_url
+        assert request.full_url == local_models.ORUKEET_WHEEL
         assert request.get_header('Range') == 'bytes=0-7'
         context = kwargs['context']
         assert context.verify_mode == ssl.CERT_REQUIRED
         assert context.check_hostname
         return Probe(b'synthetic header')
-    monkeypatch.setattr(local_models, 'urlopen', open_url)
-    assert 'model HTTPS verified' in selftest.check_model_tls()
+    monkeypatch.setattr(selftest.urllib.request, 'urlopen', open_url)
+    assert 'Orukeet SDK HTTPS verified' in selftest.check_model_tls()
     assert reads == [8]

@@ -26,7 +26,7 @@ def test_boundary(monkeypatch, memory, expected):
 def test_local_refuses_before_model_or_process(monkeypatch, memory):
     monkeypatch.setattr(local_memory, "physical_memory", lambda: memory)
     monkeypatch.setattr(
-        local_models, "model_path", lambda: pytest.fail("model inspected")
+        local_models, "status", lambda: pytest.fail("SDK readiness inspected")
     )
     with pytest.raises(transcribe.TranscribeError, match=None) as error:
         transcribe.local("not-present.wav")

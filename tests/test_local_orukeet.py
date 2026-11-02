@@ -14,8 +14,14 @@ from kuulas.jobs import JobCancelledError
 @pytest.fixture
 def model(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    folder = tmp_path / ".models" / "orukeet-mlx"
+    folder = tmp_path / "orukeet" / "model"
     folder.mkdir(parents=True)
+    runtime = tmp_path / "orukeet" / "runtime"
+    runtime.mkdir()
+    receipt = tmp_path / "orukeet" / "installation.json"
+    receipt.write_text(json.dumps({"model": str(folder), "runtime": str(runtime),
+                                   "device": "cpu"}))
+    monkeypatch.setenv("ORUKEET_INSTALLATION", str(receipt))
     return folder
 
 
@@ -42,7 +48,7 @@ def test_local_uses_shared_orukeet_and_preserves_words(model, monkeypatch, tmp_p
     cmd = calls[0]
     assert cmd[cmd.index("--backend") + 1] == "orukeet"
     assert "--model" not in cmd
-    assert cmd[cmd.index("--orukeet-model") + 1] == str(model)
+    assert "--orukeet-model" not in cmd
     assert cmd[cmd.index("--extra") + 1] == "orukeet"
     with_args = [cmd[i + 1] for i, word in enumerate(cmd[:-1]) if word == "--with"]
     assert "torch==2.8.0" in with_args
@@ -51,8 +57,8 @@ def test_local_uses_shared_orukeet_and_preserves_words(model, monkeypatch, tmp_p
     assert reports[-1] == 1.0
 
 
-def test_missing_orukeet_model_does_not_fall_back_to_parakeet(model):
-    model.rmdir()
+def test_missing_sdk_files_do_not_fall_back_to_parakeet(model):
+    (model.parent / "runtime").rmdir()
     with pytest.raises(transcribe.TranscribeError) as error:
         transcribe.local("speech.wav")
     assert error.value.key == "error.transcribe.orukeet_model"

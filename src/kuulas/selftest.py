@@ -214,14 +214,17 @@ def check_tools() -> str:
 
 
 def check_model_tls() -> str:
-    """Check packaged roots offline; DMG builds also probe the real weight CDN."""
+    """Check packaged roots offline; DMG builds also probe the SDK wheel CDN."""
     import os  # noqa: PLC0415
     import ssl  # noqa: PLC0415
+
+    import certifi  # noqa: PLC0415
 
     from . import local_models  # noqa: PLC0415
     from .messages import t  # noqa: PLC0415
 
-    context = local_models.download_context()
+    context = ssl.create_default_context()
+    context.load_verify_locations(cafile=certifi.where())
     count = len(context.get_ca_certs())
     if (not context.check_hostname or context.verify_mode != ssl.CERT_REQUIRED
             or not count):
@@ -229,14 +232,15 @@ def check_model_tls() -> str:
         raise SelftestError(problem)
     detail = f"{count} trusted roots"
     if os.environ.get("KUULAS_SELFTEST_HTTPS") == "1":
-        url = (f"{local_models.MODEL_URL}/resolve/{local_models.REVISION}/"
-               "model.safetensors")
-        # Fixed pinned HTTPS model origin; no request-supplied URL.
+        url = local_models.ORUKEET_WHEEL
+        # Fixed official Orukeet SDK wheel URL; no request-supplied URL.
         request = urllib.request.Request(  # noqa: S310
             url, headers={"Range": "bytes=0-7"})
-        with local_models.urlopen(request, timeout=TIMEOUT, context=context) as response:
+        with urllib.request.urlopen(  # noqa: S310 - fixed HTTPS URL above
+            request, timeout=TIMEOUT, context=context
+        ) as response:
             response.read(8)
-        detail += "; model HTTPS verified"
+        detail += "; Orukeet SDK HTTPS verified"
     return detail
 
 
