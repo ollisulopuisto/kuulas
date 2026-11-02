@@ -328,6 +328,21 @@ describe("hit testing", () => {
     assert.equal(hitTest({ layout, project, view, x: 152, y: y + 30 }).point, null);
   });
 
+  test("muted and Auto-Silence clips do not expose hidden envelope hit targets", () => {
+    const row = layout.rows[0];
+    const y = RULER_HEIGHT + row.top + dbToY(6, row.height);
+    const original = project.tracks[0].clips[0];
+    for (const flags of [{ muted: true }, { auto_silence: [[900, 1100]] }]) {
+      const silentProject = {
+        ...project,
+        tracks: [{ ...project.tracks[0], clips: [{ ...original, ...flags }] }, project.tracks[1]],
+      };
+      const hit = hitTest({ layout, project: silentProject, view, x: 152, y });
+      assert.equal(hit.clip.id, original.id);
+      assert.equal(hit.point, null);
+    }
+  });
+
   test("dB maps to y and back, with +12 at the top and the floor at the bottom", () => {
     assert.ok(dbToY(12, 48) < dbToY(0, 48));
     assert.ok(dbToY(0, 48) < dbToY(-30, 48));

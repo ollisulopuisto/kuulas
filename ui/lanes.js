@@ -2,7 +2,7 @@
 // Pure (no DOM), so the same numbers serve the canvas, the track headers
 // beside it and the tests.
 
-import { implicitPortions } from "./clip-silence.js";
+import { clipGainOverlayAllowed, implicitPortions } from "./clip-silence.js";
 import { frameToX, xToFrame } from "./format.js";
 import { stretchAt } from "./gate.js";
 import { markerIdAtX } from "./markers-model.js";
@@ -354,6 +354,7 @@ export function automationPointAt(track, view, x, rowY, rowHeight) {
 }
 
 function envelopePointAt(clip, view, x, rowY, rowHeight) {
+  if (!clipGainOverlayAllowed(clip)) return null;
   let nearest = null;
   for (const [index, [sourceFrame, db]] of (clip.envelope ?? []).entries()) {
     const px = frameToX(envelopeFrame(clip, sourceFrame), view.scroll, view.zoom);

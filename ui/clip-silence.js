@@ -1,6 +1,11 @@
 // Auto-Silence ranges are in absolute source frames; this view maps them through one clip.
 import { gateAt } from "./gate.js";
 
+/** Gain automation is hidden on clips whose silence is explicit or Auto-Silence-derived. */
+export function clipGainOverlayAllowed(clip) {
+  return !clip?.muted && !(clip?.auto_silence?.length > 0);
+}
+
 export function implicitSilenceRanges(clip) {
   const sourceStart = clip.offset ?? 0;
   const sourceEnd = sourceStart + clip.length;
