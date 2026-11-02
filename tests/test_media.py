@@ -278,6 +278,22 @@ def test_moved_linked_file_is_found_again_by_hash(tmp_path):
     np.testing.assert_array_equal(fresh.read(media.id, 0, 10), decoded(moved)[:, :10])
 
 
+def test_linked_pcm_wav_relinks_to_sample_identical_flac_with_different_subtype(tmp_path):
+    src = tmp_path / "voice.wav"
+    samples = np.random.default_rng(10).integers(-30000, 30000, 4800)
+    audio = (samples / 32768).astype(np.float32)
+    write_int16(src, audio[None], 48000)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src)
+    replacement = tmp_path / "voice.flac"
+    source_audio, rate = sf.read(src, dtype="float32")
+    sf.write(replacement, source_audio, rate, format="FLAC", subtype="PCM_24")
+
+    assert store.same_wav_as_flac(media.id, replacement)
+    assert store.relink_one(media.id, replacement) == {
+        media.id: str(replacement.resolve())}
+
+
 
 def test_transcription_uses_verified_resolved_path_after_project_move(tmp_path):
     old = tmp_path / "old.kuulas"

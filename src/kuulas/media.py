@@ -121,11 +121,14 @@ def _sha256(path: Path) -> str:
 
 def _wav_pcm_sha256(path: Path, *, expected_format: str | None = None,
                     rate: int | None = None, channels: int | None = None,
-                    frames: int | None = None, subtype: str | None = None) -> str | None:
+                    frames: int | None = None, subtype: str | None = None,
+                    fingerprint_subtype: str | None = None) -> str | None:
     """Fingerprint supported integer WAV samples independent of WAV/FLAC headers.
 
-    This is a narrow relink identity: only PCM WAV sources and same-subtype
-    FLAC candidates qualify. Container bytes remain the primary media identity.
+    This is a narrow relink identity: only integer PCM WAV sources and PCM
+    FLAC candidates qualify. The declared subtypes may differ when decoding
+    produces identical normalized int32 samples. Container bytes remain the
+    primary media identity.
     """
     try:
         info = sf.info(str(path))
@@ -141,7 +144,8 @@ def _wav_pcm_sha256(path: Path, *, expected_format: str | None = None,
                 or (subtype is not None and info.subtype != subtype)):
             return None
         digest = hashlib.sha256()
-        digest.update(f"kuulas-pcm-v1|{info.samplerate}|{info.channels}|{info.subtype}\0".encode())
+        identity_subtype = fingerprint_subtype or info.subtype
+        digest.update(f"kuulas-pcm-v1|{info.samplerate}|{info.channels}|{identity_subtype}\0".encode())
         step = CHUNK_SEC * info.samplerate
         with sf.SoundFile(str(path)) as audio:
             while True:
@@ -1118,7 +1122,7 @@ class MediaStore:
         candidate = _wav_pcm_sha256(
             path, expected_format="flac", rate=meta["source_rate"],
             channels=meta["channels"], frames=meta["source_frames"],
-            subtype=meta["subtype"])
+            fingerprint_subtype=meta["subtype"])
         return candidate == digest
 
     def same_wav_as_flac(self, media_id: str, path: str | Path) -> bool:
