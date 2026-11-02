@@ -3525,5 +3525,9 @@
   "ui.whatsnew.title": "Kuulas: What's new?",
   "ui.whatsnew.title_in": "Kuulas: What's new? — {version}",
   "ui.whatsnew.version_date": "v{version} — {date}",
-  "ui.whatsnew.close": "Close"
+  "ui.whatsnew.close": "Close",
+  "ui.track.controls.open": "Track controls",
+  "ui.track.controls.pin": "Pin track controls open",
+  "ui.track.controls.unpin": "Unpin track controls",
+  "ui.track.controls.close": "Close track controls"
 }

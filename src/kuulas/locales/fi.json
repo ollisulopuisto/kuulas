@@ -3525,5 +3525,9 @@
   "ui.whatsnew.title": "Kuulas: mitä uutta?",
   "ui.whatsnew.title_in": "Kuulas: mitä uutta? — {version}",
   "ui.whatsnew.version_date": "v{version} — {date}",
-  "ui.whatsnew.close": "Sulje"
+  "ui.whatsnew.close": "Sulje",
+  "ui.track.controls.open": "Raidan säätimet",
+  "ui.track.controls.pin": "Kiinnitä raitasäätimet auki",
+  "ui.track.controls.unpin": "Irrota raitasäätimet",
+  "ui.track.controls.close": "Sulje raitasäätimet"
 }

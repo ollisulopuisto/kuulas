@@ -19,6 +19,7 @@ import { modClick } from "./modifiers.js";
 import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
+import { initialTrackControlsState, transitionTrackControls } from "./track-controls-model.js";
 import { dropIndex } from "./track-drop.js";
 import { parseDbText, parsePanText } from "./value-edit.js";
 
@@ -30,6 +31,7 @@ const COMPACT_BELOW_PX = 40;
 /** Below the smallest lane a user can size (lanes.js MIN_LANE) a header is a focus-mode strip
  *  (WP28): the name only, small. */
 const STRIP_BELOW_PX = 24;
+const TRACK_CONTROLS_HOVER_MS = 240;
 
 /** "L 30", "R 30" or "C" for a pan in -1..1. */
 // A committed rename needs a non-empty, actually-changed name; a blanked or
@@ -223,11 +225,78 @@ function paintLoudness(node, readout) {
 export function createTrackHeaders({ root, editor, actions, onBusCreated = () => {} }) {
   let signature = "";
   let rows = new Map();
+  let controlsState = initialTrackControlsState();
+  let hoverTimer = 0;
+  let positionedOpenTrackId = null;
+
+  function positionPopover(parts, force = false) {
+    if (!force && positionedOpenTrackId === parts.node.dataset.track) return;
+    const box = parts.node.getBoundingClientRect();
+    const popoverWidth = Math.min(320, window.innerWidth - 16);
+    const left =
+      box.right + popoverWidth + 8 <= window.innerWidth
+        ? box.right + 6
+        : Math.max(8, box.left - popoverWidth - 6);
+    parts.popover.style.left = `${left}px`;
+    parts.popover.style.top = `${Math.max(8, Math.min(box.top, window.innerHeight - 360))}px`;
+    parts.popover.style.width = `${popoverWidth}px`;
+    parts.popover.style.maxHeight = `${Math.max(160, window.innerHeight - 16)}px`;
+    positionedOpenTrackId = parts.node.dataset.track;
+  }
+
+  function renderControlsState() {
+    for (const [id, parts] of rows) {
+      if (parts.kind !== "track") continue;
+      const open = controlsState.openTrackId === id;
+      parts.trigger.setAttribute("aria-expanded", String(open));
+      parts.popover.hidden = !open;
+      parts.node.classList.toggle("controls-open", open);
+      const pinned = controlsState.pinnedTrackId === id;
+      parts.pin.setAttribute("aria-pressed", String(pinned));
+      parts.pin.title = t(pinned ? "ui.track.controls.unpin" : "ui.track.controls.pin");
+      parts.pin.setAttribute("aria-label", parts.pin.title);
+      if (open) positionPopover(parts);
+    }
+    if (!controlsState.openTrackId) positionedOpenTrackId = null;
+  }
+
+  function transitionControls(action) {
+    controlsState = transitionTrackControls(controlsState, action);
+    renderControlsState();
+  }
+
+  function closeOnEscape(event) {
+    if (event.key !== "Escape" || !controlsState.openTrackId) return;
+    const trigger = rows.get(controlsState.openTrackId)?.trigger;
+    event.preventDefault();
+    event.stopPropagation();
+    transitionControls({ type: "escape" });
+    trigger?.focus();
+  }
+
+  function closeOutside(event) {
+    if (!controlsState.openTrackId || controlsState.pinnedTrackId) return;
+    const parts = rows.get(controlsState.openTrackId);
+    if (parts && !parts.node.contains(event.target) && !parts.popover.contains(event.target)) {
+      transitionControls({ type: "outside" });
+    }
+  }
+  document.addEventListener("keydown", closeOnEscape);
+  document.addEventListener("pointerdown", closeOutside);
+  const repositionPopover = () => {
+    const parts = rows.get(controlsState.openTrackId);
+    if (parts?.kind === "track") positionPopover(parts, true);
+  };
+  window.addEventListener("resize", repositionPopover);
+  window.addEventListener("scroll", repositionPopover, true);
 
   // Rows follow the lane layout: a bus header above its member tracks.
   function build(state) {
+    for (const parts of rows.values()) parts.popover?.remove();
     root.replaceChildren();
     rows = new Map();
+    controlsState = initialTrackControlsState();
+    positionedOpenTrackId = null;
     for (const row of layoutFor(state).rows) {
       let parts;
       if (row.kind === "track") {
@@ -249,9 +318,10 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const bus = latestProject().buses[index];
     const id = bus.id;
     parts.node.classList.add("merged");
+    parts.popover.classList.add("merged");
     const badge = el("span", "bus-badge", { title: t("ui.bus.name", { name: bus.name }) });
     badge.textContent = busLetter(index);
-    parts.node.querySelector(".th-top").prepend(badge);
+    parts.popover.querySelector(".th-popover-heading").prepend(badge);
     const label = el("span", "fader-label", { "aria-hidden": "true" });
     label.textContent = t("ui.bus.fader");
     const fader = slider(t("ui.bus.gain"), GAIN);
@@ -267,7 +337,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       });
     });
     fader.wrap.querySelector(".slider-caption").textContent = t("ui.bus.fader");
-    parts.node.querySelector(".th-controls").append(label, fader.wrap);
+    parts.controls.append(label, fader.wrap);
     parts.busFader = { control: fader, id };
   }
 
@@ -298,6 +368,14 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const solo = toggle(t("ui.track.solo"), t("ui.track.solo.short"), "solo");
     const buttons = el("span", "ms");
     buttons.append(mute, solo);
+    const trigger = el("button", "button track-controls-trigger", {
+      type: "button",
+      "aria-label": t("ui.track.controls.open"),
+      title: t("ui.track.controls.open"),
+      "aria-expanded": "false",
+      "aria-haspopup": "true",
+    });
+    trigger.textContent = "⋯";
     // The bus picker is compact: its option text starts with the bus letter,
     // which is what shows in the narrow select (the badge of the group).
     const bus = el("select", "bus-select", { "aria-label": t("ui.track.bus") });
@@ -317,7 +395,28 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     bus.append(newBus);
     // A small handle at the left: drag the header up or down to move the track.
     const handle = el("span", "track-handle", { title: t("ui.track.drag"), "aria-hidden": "true" });
-    top.append(handle, name, tag, roleBadge, channelTag, bus, buttons);
+    top.append(handle, name, buttons, trigger);
+    const popover = el("section", "track-header track-controls-popover", { hidden: "" });
+    popover.dataset.track = track.id;
+    const popoverHeading = el("div", "th-popover-heading");
+    const popoverName = el("strong", "th-popover-name");
+    popoverName.textContent = track.name;
+    const popoverActions = el("div", "th-popover-actions");
+    const pin = el("button", "button track-controls-pin", {
+      type: "button",
+      "aria-label": t("ui.track.controls.pin"),
+      title: t("ui.track.controls.pin"),
+    });
+    pin.textContent = "⌖";
+    const close = el("button", "button track-controls-close", {
+      type: "button",
+      "aria-label": t("ui.track.controls.close"),
+      title: t("ui.track.controls.close"),
+    });
+    close.textContent = "×";
+    popoverActions.append(pin, close);
+    popoverHeading.append(popoverName, tag, roleBadge, channelTag, bus, popoverActions);
+    popover.append(popoverHeading);
     // The loudness sits on the level row, so it never takes the name's room.
     const controls = el("div", "th-controls");
     // Measurement belongs to gain context, never pan hover.
@@ -364,7 +463,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     controls.append(gain.wrap, pan.wrap);
     // A thin grab zone on the bottom edge: drag to size this lane, double-click to reset it.
     const grip = el("div", "lane-grip", { title: t("ui.track.resize"), "aria-hidden": "true" });
-    node.append(top, controls, grip);
+    popover.append(controls);
+    node.append(top, grip);
+    document.body.append(popover);
     const id = track.id;
     grip.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;
@@ -390,6 +491,64 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       grip.addEventListener("pointercancel", done);
     });
     grip.addEventListener("dblclick", () => actions.setLaneHeight(id, null));
+    const openFromHover = () => {
+      clearTimeout(hoverTimer);
+      hoverTimer = window.setTimeout(
+        () => transitionControls({ type: "open", trackId: id }),
+        TRACK_CONTROLS_HOVER_MS,
+      );
+    };
+    const closeAfterLeave = () => {
+      clearTimeout(hoverTimer);
+      hoverTimer = window.setTimeout(() => {
+        transitionControls({
+          type: "leave",
+          trackId: id,
+          pointerInside: node.matches(":hover") || popover.matches(":hover"),
+          focusInside:
+            node.contains(document.activeElement) || popover.contains(document.activeElement),
+        });
+      }, 120);
+    };
+    const closeAfterFocusLeaves = () => {
+      window.setTimeout(() => {
+        if (!node.contains(document.activeElement) && !popover.contains(document.activeElement)) {
+          transitionControls({
+            type: "leave",
+            trackId: id,
+            pointerInside: node.matches(":hover") || popover.matches(":hover"),
+            focusInside: false,
+          });
+        }
+      }, 0);
+    };
+    node.addEventListener("pointerenter", openFromHover);
+    node.addEventListener("pointerleave", closeAfterLeave);
+    node.addEventListener("focusout", closeAfterFocusLeaves);
+    popover.addEventListener("pointerenter", () => clearTimeout(hoverTimer));
+    popover.addEventListener("pointerleave", closeAfterLeave);
+    popover.addEventListener("focusout", closeAfterFocusLeaves);
+    node.addEventListener("focusin", (event) => {
+      actions.currentTrack(id, { mode: "follow" });
+      if (event.target !== trigger) transitionControls({ type: "open", trackId: id });
+    });
+    popover.addEventListener("focusin", () => transitionControls({ type: "open", trackId: id }));
+    trigger.addEventListener("click", (event) => {
+      event.stopPropagation();
+      transitionControls({ type: "toggle", trackId: id });
+    });
+    pin.addEventListener("click", () => {
+      if (controlsState.pinnedTrackId === id) {
+        transitionControls({ type: "unpin", trackId: id });
+      } else {
+        transitionControls({ type: "pin", trackId: id });
+      }
+      const pinned = controlsState.pinnedTrackId === id;
+      pin.setAttribute("aria-pressed", String(pinned));
+      pin.title = t(pinned ? "ui.track.controls.unpin" : "ui.track.controls.pin");
+      pin.setAttribute("aria-label", pin.title);
+    });
+    close.addEventListener("click", () => transitionControls({ type: "escape" }));
     handle.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;
       event.preventDefault();
@@ -505,6 +664,11 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     });
     return {
       node,
+      trigger,
+      popover,
+      popoverName,
+      pin,
+      controls,
       name,
       tag,
       roleBadge,
@@ -678,6 +842,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
   function update(state) {
     latest = state;
     if (!state.project) {
+      for (const parts of rows.values()) parts.popover?.remove();
       root.replaceChildren();
       signature = "";
       return;
@@ -717,6 +882,13 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       if (parts.kind === "track") {
         const track = state.project.tracks[row.index];
         parts.node.classList.toggle("current", state.focusTrack === track.id);
+        parts.popover.dataset.controlLines = parts.node.dataset.controlLines;
+        parts.popover.classList.toggle("current", state.focusTrack === track.id);
+        parts.popover.style.setProperty(
+          "--track-colour",
+          parts.node.style.getPropertyValue("--track-colour"),
+        );
+        parts.popoverName.textContent = track.name;
         parts.node.classList.toggle("scope-dim", dimmed.has(track.id));
         const hue = hues.get(track.id);
         parts.node.style.setProperty(
@@ -783,6 +955,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         setSlider(parts.pan, Math.round(bus.pan * 100), panText(bus.pan));
       }
     }
+    renderControlsState();
   }
 
   return { update };

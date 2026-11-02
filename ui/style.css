@@ -379,13 +379,13 @@ button.chip {
 }
 .editor[data-rail="labels"] {
   --rail-w: 124px;
-  --heads-w: calc(200px + var(--rail-w));
-  --heads-w-min: calc(188px + var(--rail-w));
+  --heads-w: calc(160px + var(--rail-w));
+  --heads-w-min: calc(150px + var(--rail-w));
 }
 .editor[data-rail="icons"] {
   --rail-w: 44px;
-  --heads-w: calc(200px + var(--rail-w));
-  --heads-w-min: calc(188px + var(--rail-w));
+  --heads-w: calc(160px + var(--rail-w));
+  --heads-w-min: calc(150px + var(--rail-w));
 }
 .tool-rail {
   flex: none;
@@ -6095,6 +6095,201 @@ legend.form-heading {
   padding: 0;
   max-height: 8em;
   overflow-y: auto;
+}
+
+/* Channel controls live in a viewport overlay. The 160 px track column stays
+   still so M/S/name remain at the same coordinates while it opens. */
+.track-header[data-track] .th-top {
+  gap: 5px;
+}
+.track-header[data-track]:not(.track-controls-popover) {
+  grid-template-rows: var(--control-h-sm);
+  align-content: center;
+  row-gap: 0;
+  padding-block: 0;
+}
+.track-header[data-track] .track-name {
+  min-width: 0;
+}
+.track-controls-trigger {
+  flex: none;
+  width: 22px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+.track-controls-trigger:hover,
+.track-controls-trigger[aria-expanded="true"] {
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: var(--surface-panel);
+}
+.track-header[data-control-lines="1"][data-track]:not(.track-controls-popover) {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: var(--control-h-sm);
+  gap: 4px;
+  padding: 0 8px 0 12px;
+}
+.track-header[data-control-lines="1"][data-track]:not(.track-controls-popover) .th-top {
+  display: contents;
+}
+.track-header[data-control-lines="1"][data-track]:not(.track-controls-popover) .track-handle {
+  display: none;
+}
+.track-header[data-control-lines="1"][data-track]:not(.track-controls-popover) .track-name {
+  grid-column: 1;
+}
+.track-header[data-control-lines="1"][data-track]:not(.track-controls-popover) .ms {
+  grid-column: 2;
+}
+.track-header[data-control-lines="1"][data-track]:not(.track-controls-popover)
+  .track-controls-trigger {
+  grid-column: 3;
+}
+.track-controls-popover {
+  position: fixed;
+  z-index: 1000;
+  display: block;
+  padding: 10px 12px 14px;
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-raised);
+}
+.track-controls-popover[hidden] {
+  display: none;
+}
+.track-controls-popover::before,
+.track-controls-popover::after {
+  display: none;
+}
+.track-controls-popover .th-popover-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin-bottom: 8px;
+}
+.track-controls-popover .th-popover-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.track-controls-popover .th-popover-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.track-controls-popover .th-popover-actions button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.track-controls-popover .th-popover-actions button:hover,
+.track-controls-popover .th-popover-actions button[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-panel));
+}
+.track-header.track-controls-popover .th-controls .slider-control {
+  min-height: 42px;
+}
+.track-header.track-controls-popover .th-controls .slider-control:not(.dial) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 18px 24px;
+  gap: 4px 8px;
+}
+.track-header.track-controls-popover .th-controls .slider-caption {
+  display: block;
+  grid-column: 1;
+  grid-row: 1;
+}
+.track-header.track-controls-popover .th-controls .slider-control:not(.dial) output {
+  grid-column: 2;
+  grid-row: 1;
+}
+.track-header.track-controls-popover .th-controls .slider-control:not(.dial) input[type="range"] {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+}
+.track-header.track-controls-popover .th-controls .slider-control.dial {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  grid-template-rows: 18px 36px;
+  width: auto;
+  gap: 4px 8px;
+  justify-self: stretch;
+}
+.track-header.track-controls-popover .th-controls .slider-control.dial .slider-caption {
+  display: block;
+  grid-column: 1;
+  grid-row: 1;
+}
+.track-header.track-controls-popover .th-controls .slider-control.dial input[type="range"] {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  width: 36px;
+  height: 36px;
+}
+.track-header.track-controls-popover .th-controls .slider-control.dial::after {
+  left: auto;
+  right: 16px;
+  top: 5px;
+}
+.track-header.track-controls-popover .th-controls .slider-control.dial output {
+  display: block;
+  position: static;
+  grid-column: 1;
+  grid-row: 2;
+  width: auto;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.track-header.track-controls-popover .th-controls .loudness-readout {
+  position: static;
+  display: block;
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+.track-controls-popover .bus-select {
+  width: 64px;
+}
+.track-controls-popover[data-control-lines="1"] .th-controls,
+.track-controls-popover[data-control-lines="2"] .th-controls,
+.track-controls-popover[data-control-lines="3"] .th-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.track-controls-popover[data-control-lines="1"] .th-controls > *,
+.track-controls-popover[data-control-lines="2"] .th-controls > *,
+.track-controls-popover[data-control-lines="3"] .th-controls > * {
+  display: grid;
+}
+.track-controls-popover[data-control-lines="1"] .th-controls .loudness-readout,
+.track-controls-popover[data-control-lines="2"] .th-controls .loudness-readout,
+.track-controls-popover[data-control-lines="3"] .th-controls .loudness-readout {
+  display: block;
 }
 /* A live length counts from the in point to the take's place while recording. */
 .mrow.live .v {

@@ -7,11 +7,21 @@ const source = readFileSync(new URL("../tracks.js", import.meta.url), "utf8");
 const tokens = readFileSync(new URL("../tokens.css", import.meta.url), "utf8");
 
 test("channel header width is compact in both densities and toolbar layouts", () => {
-  assert.equal((tokens.match(/--heads-w:\s*200px/g) || []).length, 2);
-  assert.equal((tokens.match(/--heads-w-min:\s*188px/g) || []).length, 2);
-  assert.equal((tokens.match(/--heads-w-max:\s*300px/g) || []).length, 2);
-  assert.equal((css.match(/--heads-w:\s*calc\(200px \+ var\(--rail-w\)\)/g) || []).length, 2);
-  assert.equal((css.match(/--heads-w-min:\s*calc\(188px \+ var\(--rail-w\)\)/g) || []).length, 2);
+  assert.equal((tokens.match(/--heads-w:\s*160px/g) || []).length, 2);
+  assert.equal((tokens.match(/--heads-w-min:\s*150px/g) || []).length, 2);
+  assert.equal((tokens.match(/--heads-w-max:\s*170px/g) || []).length, 2);
+  assert.equal((css.match(/--heads-w:\s*calc\(160px \+ var\(--rail-w\)\)/g) || []).length, 2);
+  assert.equal((css.match(/--heads-w-min:\s*calc\(150px \+ var\(--rail-w\)\)/g) || []).length, 2);
+});
+
+test("track controls are an overlay opened from the header and an explicit button", () => {
+  assert.match(source, /track-controls-trigger/);
+  assert.match(source, /t\("ui\.track\.controls\.open"\)/);
+  assert.match(source, /el\("section", "track-header track-controls-popover"/);
+  assert.match(source, /TRACK_CONTROLS_HOVER_MS = 240/);
+  assert.match(source, /window\.setTimeout\([\s\S]{0,180}TRACK_CONTROLS_HOVER_MS/);
+  assert.match(css, /\.track-controls-popover\s*\{[^}]*position:\s*fixed/s);
+  assert.match(css, /\.track-controls-popover\[hidden\]/);
 });
 
 test("track controls reserve equal rails and move values above them", () => {
