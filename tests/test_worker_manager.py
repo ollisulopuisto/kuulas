@@ -42,9 +42,12 @@ def children(marker) -> list[int]:
         parts = line.split(None, 3)
         if len(parts) < 3:
             continue
-        pid, ppid, stat = int(parts[0]), int(parts[1]), parts[2]
+        pid, ppid = int(parts[0]), int(parts[1])
         command = parts[3] if len(parts) > 3 else ""
-        if ppid == me and (marker in command or stat.startswith("Z")):
+        # Match the worker under test even when it is a zombie. Counting every
+        # zombie child here also counts unrelated subprocesses from other tests
+        # and can make the concurrency assertion report phantom workers.
+        if ppid == me and marker in command:
             found.append(pid)
     return found
 
