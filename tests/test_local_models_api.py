@@ -15,6 +15,10 @@ from kuulas.session import Session
 
 @pytest.fixture
 def api(tmp_path, monkeypatch):
+    # Production limits local Orukeet to Apple silicon; the GUI readiness
+    # contract is host-independent, so the platform check sees a Mac.
+    monkeypatch.setattr(local_models.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(local_models.platform, "machine", lambda: "arm64")
     receipt = tmp_path / "cache" / "installation.json"
     monkeypatch.setenv("ORUKEET_INSTALLATION", str(receipt))
     session = Session(tmp_path / "Empty.kuulas")

@@ -10,6 +10,9 @@ export const LEVELS = [256, 1024, 4096, 16384, 65536];
 export const TILE_PEAKS = 1024;
 /** The bottom of the dB-shaped scale; -48 dBFS is as low as speech detail matters. */
 const DB_FLOOR = -48;
+/** Precomputed constants for the dB scale inner loop (20 * log10(x) = 20 / ln(10) * ln(x)). */
+const DB_FACTOR = 20 / Math.LN10;
+const INV_DB_FLOOR = 1 / -DB_FLOOR;
 
 /** The coarsest level that still has at least one peak per pixel. */
 export function pickLevel(framesPerPixel) {
@@ -83,13 +86,6 @@ export function columnsFromTiles({ lookup, level, startFrame, framesPerPixel, co
   return { data, missing: [...missing].sort((a, b) => a - b) };
 }
 
-function level(value, scale, gain) {
-  const magnitude = Math.min(1, Math.abs(value) * gain);
-  if (magnitude <= 0) return 0;
-  if (scale !== "db") return magnitude;
-  return Math.max(0, Math.min(1, (20 * Math.log10(magnitude) - DB_FLOOR) / -DB_FLOOR));
-}
-
 /**
  * Vertical extent of each column's bar inside a lane box of `height` px, as
  * [top, bottom] pairs (Float32Array, y down). `mode` "half" or "full"; `scale`
@@ -98,18 +94,65 @@ function level(value, scale, gain) {
 export function waveformColumns(peaks, mode = "half", scale = "linear", height = 48, gain = 1) {
   const count = peaks.length / 2;
   const out = new Float32Array(count * 2);
-  for (let i = 0; i < count; i += 1) {
-    const low = peaks[2 * i];
-    const high = peaks[2 * i + 1];
-    if (mode === "full") {
-      const centre = height / 2;
-      out[2 * i] = centre - level(Math.max(high, 0), scale, gain) * centre;
-      out[2 * i + 1] = centre + level(Math.min(low, 0), scale, gain) * centre;
+  // Performance optimization: hoist mode ("full" vs "half") and scale ("db" vs "linear")
+  // checks out of the hot pixel column loop, and inline level math using precomputed
+  // DB_FACTOR and INV_DB_FLOOR constants to eliminate per-column function call overhead.
+  if (mode === "full") {
+    const centre = height / 2;
+    if (scale === "db") {
+      for (let i = 0; i < count; i += 1) {
+        const high = peaks[2 * i + 1];
+        const low = peaks[2 * i];
+        const magHigh = Math.min(1, Math.max(high, 0) * gain);
+        const magLow = Math.min(1, Math.abs(Math.min(low, 0)) * gain);
+        const lvlHigh =
+          magHigh > 0
+            ? Math.max(0, Math.min(1, (DB_FACTOR * Math.log(magHigh) - DB_FLOOR) * INV_DB_FLOOR))
+            : 0;
+        const lvlLow =
+          magLow > 0
+            ? Math.max(0, Math.min(1, (DB_FACTOR * Math.log(magLow) - DB_FLOOR) * INV_DB_FLOOR))
+            : 0;
+        out[2 * i] = centre - lvlHigh * centre;
+        out[2 * i + 1] = centre + lvlLow * centre;
+      }
     } else {
-      const bar = level(Math.max(Math.abs(low), Math.abs(high)), scale, gain) * height;
-      const drawn = bar > 0 ? Math.min(height, Math.max(1, bar)) : 0;
-      out[2 * i] = height - drawn;
-      out[2 * i + 1] = height;
+      for (let i = 0; i < count; i += 1) {
+        const high = peaks[2 * i + 1];
+        const low = peaks[2 * i];
+        const lvlHigh = Math.min(1, Math.max(high, 0) * gain);
+        const lvlLow = Math.min(1, Math.abs(Math.min(low, 0)) * gain);
+        out[2 * i] = centre - lvlHigh * centre;
+        out[2 * i + 1] = centre + lvlLow * centre;
+      }
+    }
+  } else {
+    if (scale === "db") {
+      for (let i = 0; i < count; i += 1) {
+        const absLow = Math.abs(peaks[2 * i]);
+        const absHigh = Math.abs(peaks[2 * i + 1]);
+        const maxVal = absLow > absHigh ? absLow : absHigh;
+        const mag = Math.min(1, maxVal * gain);
+        const lvl =
+          mag > 0
+            ? Math.max(0, Math.min(1, (DB_FACTOR * Math.log(mag) - DB_FLOOR) * INV_DB_FLOOR))
+            : 0;
+        const bar = lvl * height;
+        const drawn = bar > 0 ? Math.min(height, Math.max(1, bar)) : 0;
+        out[2 * i] = height - drawn;
+        out[2 * i + 1] = height;
+      }
+    } else {
+      for (let i = 0; i < count; i += 1) {
+        const absLow = Math.abs(peaks[2 * i]);
+        const absHigh = Math.abs(peaks[2 * i + 1]);
+        const maxVal = absLow > absHigh ? absLow : absHigh;
+        const mag = Math.min(1, maxVal * gain);
+        const bar = mag * height;
+        const drawn = bar > 0 ? Math.min(height, Math.max(1, bar)) : 0;
+        out[2 * i] = height - drawn;
+        out[2 * i + 1] = height;
+      }
     }
   }
   return out;

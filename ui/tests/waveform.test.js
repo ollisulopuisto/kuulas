@@ -46,6 +46,29 @@ describe("waveformColumns", () => {
     const out = waveformColumns(pairs([-0.4, 0.4]), "half", "linear", 40, 4);
     assert.equal(out[0], 0);
   });
+
+  test("handles empty peaks array across all modes", () => {
+    for (const mode of ["half", "full"]) {
+      for (const scale of ["linear", "db"]) {
+        const out = waveformColumns(new Float32Array(0), mode, scale, 48, 1);
+        assert.equal(out.length, 0);
+      }
+    }
+  });
+
+  test("boundary inputs: silence, zero gain, infinite or negative peaks", () => {
+    const testPeaks = pairs([0, 0], [-1, 1], [-0.00001, 0.00001], [0.5, 0.5], [-0.5, -0.5]);
+    for (const mode of ["half", "full"]) {
+      for (const scale of ["linear", "db"]) {
+        const zeroGain = waveformColumns(testPeaks, mode, scale, 48, 0);
+        if (mode === "half") {
+          assert.deepEqual(Array.from(zeroGain), [48, 48, 48, 48, 48, 48, 48, 48, 48, 48]);
+        } else {
+          assert.deepEqual(Array.from(zeroGain), [24, 24, 24, 24, 24, 24, 24, 24, 24, 24]);
+        }
+      }
+    }
+  });
 });
 
 describe("choosing tiles", () => {

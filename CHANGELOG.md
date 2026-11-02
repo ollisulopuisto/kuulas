@@ -1,3 +1,9 @@
+## [v26.11.1.7] - 2026-11-01
+
+- **Live transcript while recording.** The newest seconds of a take are transcribed in the background as it grows, and the record view's search finds words during the take ("did I say this already"). When the take stops, its words become the media's transcript with no cold re-run.
+- **The corner stop confirmation fits again.** The two-step stop's words no longer overflow the small corner button.
+- **Enter in the live transcript search is safe.** It no longer arms the two-step stop while a take records.
+
 ## [v26.11.1.6] - 2026-11-01
 
 - **Recording controls stay available during a take.** Record becomes Stop, marker flags drag along the ruler, and the Markers tab can set the in point while recording.

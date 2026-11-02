@@ -22,7 +22,7 @@ import {
   targetTrackRow,
 } from "./clip-drag.js";
 import { overLabel } from "./clip-overs.js";
-import { implicitSilenceRanges } from "./clip-silence.js";
+import { implicitPortions, implicitSilenceRanges } from "./clip-silence.js";
 import { averageWordFrames, layoutClipWords, wordsWideEnough } from "./clip-words.js";
 import { dropTarget as clipboardDropTarget, dropOutlines } from "./clipboard-drag.js";
 import { DEFAULT_DRAG_MODE, dragIntent } from "./drag-mode.js";
@@ -898,7 +898,7 @@ export function createTimeline({
         drawClipWords(state, track, clip, wordsView, { left, y, w }, colours);
       // The gain line only where it says something: not 0 dB, an envelope, or selected.
       if (row.height >= 40 && gainLineVisible(clip, selected || Object.hasOwn(clipOvers, clip.id)))
-        drawGain(state, clip, left, right, top, row.height);
+        drawGain(state, track, clip, left, right, top, row.height);
       if (row.height >= 40 && (selected || clip.id === hoverClipId))
         drawFadeHandles(clip, { left, right, zoom: state.zoom }, { top, y, h });
       if (siblings.has(clip.id)) drawSiblingMarks(left, y, w, h);
@@ -1589,7 +1589,21 @@ export function createTimeline({
   }
 
   // Clip gain: a dashed line at gain_db; envelope points as dots joined by lines.
-  function drawGain(state, clip, left, right, top, rowHeight) {
+  function drawGain(state, track, clip, left, right, top, rowHeight) {
+    if (clip.muted) return;
+    const portions = implicitPortions(clip, track.gate);
+    const audibleRanges = portions.length
+      ? portions.filter(({ closed }) => !closed).map(({ range }) => range)
+      : [[clip.start, clip.start + clip.length]];
+    if (audibleRanges.length === 0) return;
+    overlay.save();
+    overlay.beginPath();
+    for (const [from, to] of audibleRanges) {
+      const x1 = frameToX(from, state.scroll, state.zoom);
+      const x2 = frameToX(to, state.scroll, state.zoom);
+      overlay.rect(x1, top, Math.max(0, x2 - x1), rowHeight);
+    }
+    overlay.clip();
     const baseline = top + dbToY(clip.gain_db ?? 0, rowHeight);
     const hot = Object.hasOwn(clipOvers, clip.id);
     const lineColour = hot ? theme.clipping : theme.gain;
@@ -1621,6 +1635,7 @@ export function createTimeline({
       }
     }
     overlay.globalAlpha = 1;
+    overlay.restore();
   }
 
   // Fade handles (WP6): a dot at the end of each fade, with the fade's shape as a line from
