@@ -90,6 +90,9 @@ export function createAutomixDialog({
   dialog.setAttribute("aria-labelledby", "automix-title");
   const heading = el("h2", "", t("ui.automix.title"));
   heading.id = "automix-title";
+  const loadingNotice = el("p", "form-note", t("ui.automix.loading"));
+  loadingNotice.setAttribute("role", "status");
+  loadingNotice.hidden = true;
 
   const inputs = {};
   const messages = {};
@@ -664,11 +667,18 @@ export function createAutomixDialog({
   form.method = "dialog";
   form.noValidate = true;
   form.append(mix, processing, out, remote, advanced, error, buttons);
-  dialog.append(heading, form);
+  dialog.append(heading, loadingNotice, form);
   document.body.append(dialog);
   enhanceDialog(dialog, { t });
 
   // -- state -------------------------------------------------------------------------------
+  let loadingSettings = false;
+  let openToken = 0;
+  dialog.addEventListener("close", () => {
+    openToken += 1;
+    loadingSettings = false;
+    loadingNotice.hidden = true;
+  });
   const values = () => ({
     targetLufs: inputs.targetLufs.value,
     adBreak: adBox.checked ? "1" : "",
@@ -684,10 +694,12 @@ export function createAutomixDialog({
   async function installed() {
     try {
       const answer = await api.plugins?.();
-      pluginNote.hidden = !answer?.remote_failed;
-      return Array.isArray(answer?.plugins) ? answer.plugins : [];
+      return {
+        plugins: Array.isArray(answer?.plugins) ? answer.plugins : [],
+        remoteFailed: Boolean(answer?.remote_failed),
+      };
     } catch {
-      return [];
+      return { plugins: [], remoteFailed: false };
     }
   }
 
@@ -758,7 +770,7 @@ export function createAutomixDialog({
       t,
     );
     remoteLine.hidden = remoteLine.textContent === "";
-    start.disabled = !ok;
+    start.disabled = loadingSettings || !ok;
     return ok;
   }
   form.addEventListener("input", refresh);
@@ -771,6 +783,7 @@ export function createAutomixDialog({
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (loadingSettings) return;
     error.hidden = true;
     if (!refresh()) return;
     const request = validateAutomix(values());
@@ -805,6 +818,7 @@ export function createAutomixDialog({
     element: dialog,
     /** `context.range`: selectionChoice of the selection now; `context.rate`: the project's. */
     async open(context = {}) {
+      const token = ++openToken;
       range = context.range ?? { enabled: false, range: null };
       rangeRate = context.rate ?? 48000;
       const remembered = loadForm();
@@ -817,15 +831,24 @@ export function createAutomixDialog({
         else inputs[key].value = remembered[key];
       }
       error.hidden = true;
+      loadingSettings = true;
+      loadingNotice.hidden = false;
+      refresh();
+      if (!dialog.open) dialog.showModal();
+      inputs.targetLufs.focus();
       try {
         // What is stored fills the fields; what the defaults would be shows as the hint.
         const answer = await api.automixerSettings();
+        if (token !== openToken) return;
         const stored = answer.settings ?? {};
         const resolved = answer.resolved ?? {};
         defaults.dir = answer.default_output_dir ?? "";
         const specs = answer.option_specs ?? [];
         capabilities = answer.capabilities ?? {};
-        installedPlugins = await installed();
+        const pluginScan = await installed();
+        if (token !== openToken) return;
+        installedPlugins = pluginScan.plugins;
+        pluginNote.hidden = !pluginScan.remoteFailed;
         for (const { field } of Object.values(optionControls)) {
           field?.setInstalled(installedPlugins);
         }
@@ -862,11 +885,13 @@ export function createAutomixDialog({
         inputs.extra.value = formatWords(stored.extra_args);
         inputs.extra.placeholder = t("ui.automix.extra_args_placeholder");
       } catch (e) {
+        if (token !== openToken) return;
         showError(e.message);
       }
+      if (token !== openToken) return;
+      loadingSettings = false;
+      loadingNotice.hidden = true;
       refresh();
-      if (!dialog.open) dialog.showModal();
-      inputs.targetLufs.focus();
     },
   };
 }

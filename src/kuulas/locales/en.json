@@ -2231,6 +2231,7 @@
   "cmd.export.automix": "Export mix (automixer)…",
   "cmd.export.automix.hint": "Writes the stems to a temporary folder, runs the automixer on them and puts the finished mix beside the project. Runs in the background; Cancel stops it.",
   "ui.automix.title": "Mix with the automixer",
+  "ui.automix.loading": "Loading Automixer settings…",
   "ui.automix.target_lufs": "Target loudness (LUFS)",
   "ui.automix.ad_spot": "Break starts at",
   "ui.automix.ad_duration": "Break length (seconds)",

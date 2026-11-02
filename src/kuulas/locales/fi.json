@@ -2227,6 +2227,7 @@
   "cmd.export.automix": "Vie miksaus (automixer)…",
   "cmd.export.automix.hint": "Kirjoittaa raidat väliaikaiseen kansioon, ajaa niille automixerin ja tallentaa valmiin miksauksen projektin viereen. Toimii taustalla; Peruuta pysäyttää.",
   "ui.automix.title": "Miksaa automixerilla",
+  "ui.automix.loading": "Ladataan automixerin asetuksia…",
   "ui.automix.target_lufs": "Tavoiteäänekkyys (LUFS)",
   "ui.automix.ad_spot": "Katko alkaa kohdassa",
   "ui.automix.ad_duration": "Katkon pituus (sekuntia)",
