@@ -12,6 +12,7 @@ import { candidateBands, flagFits, flagText } from "./candidates-model.js";
 import { backingSize } from "./canvas-size.js";
 import {
   canStartClipDrag,
+  clipClickSeekFrame,
   clipDragIds,
   groupBounds,
   inMoveZone,
@@ -67,6 +68,7 @@ import {
   hitTest,
   layoutFor,
   paintOrder,
+  pointerIntent,
   projectEnd,
   RULER_HEIGHT,
   visibleRows,
@@ -2266,8 +2268,20 @@ export function createTimeline({
     if (!zone && !moving && intent === "range") beginRangeDrag(event, hit);
     if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
     else if (zone) startTweak(hit, event, zone);
-    else if (moving)
-      startClip(hit, event, before, portionDragEdit(getState().project, hit, before));
+    else if (moving) {
+      const clickIntent = pointerIntent(hit, {
+        shift: event.shiftKey,
+        mod: modClick(event, detectPlatform()),
+        alt: event.altKey,
+      });
+      startClip(
+        hit,
+        event,
+        before,
+        portionDragEdit(getState().project, hit, before),
+        clickIntent?.seek ?? null,
+      );
+    }
   });
 
   // Dragging a clip's gain line, envelope point or fade handle (WP6): live edits (coalesced by
@@ -2474,13 +2488,13 @@ export function createTimeline({
 
   // `portion` (clip-drag.js portionDragEdit): the press was on an implicit portion. Past DRAG_PX
   // it is opened as a clip, and the drag goes on with that clip alone; a click changes nothing.
-  function startClip(hit, event, before, portion = null) {
+  function startClip(hit, event, before, portion = null, clickSeekFrame = null) {
     clipSession = clipSessionFor(hit.clip.id, before, {
       fromIndex: hit.row.index,
       origin: locate(event),
       pointerId: event.pointerId,
       alone: event.altKey,
-      seekFrame: hit.frame,
+      seekFrame: clickSeekFrame,
     });
     clipSession.portion = portion;
     overlayCanvas.setPointerCapture?.(event.pointerId);
@@ -2610,7 +2624,10 @@ export function createTimeline({
       session.ended = commit ? "commit" : "cancel";
       return;
     }
-    if (commit && !session.dragging) actions.clickSeek?.(session.seekFrame);
+    if (commit) {
+      const seekFrame = clipClickSeekFrame(session.seekFrame, session.dragging);
+      if (seekFrame !== null) actions.clickSeek?.(seekFrame);
+    }
     if (commit && session.dragging) sendMove(session);
   }
 
