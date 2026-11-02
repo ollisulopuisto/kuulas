@@ -1,6 +1,6 @@
-// Moving clips by hand (owner, 2026-10-18): the edges snap to other clips' edges, the playhead
-// and the marks, and holding a modifier makes the movement fine (a tenth of the pointer's
-// travel). Pure; timeline.js applies it in updateClip. The radius is in pixels.
+// Moving clips by hand (owner, 2026-10-18): the edges snap to other clips' edges, the playhead,
+// in/out marks and session markers, and holding a modifier makes the movement fine (a tenth of
+// the pointer's travel). Pure; timeline.js applies it in updateClip. The radius is in pixels.
 import { snapToPoints } from "./snap.js";
 
 export const SNAP_PX = 8;
@@ -32,7 +32,7 @@ export function snapMove({ moved, delta, targets, zoom, radiusPx = SNAP_PX }) {
   return best === null ? { delta, at: null } : { delta: delta + best.shift, at: best.at };
 }
 
-/** Frames worth snapping to: other clips' edges, the playhead and the marks, sorted, unique. */
+/** Frames worth snapping to: other clip edges, the playhead, marks and session markers. */
 export function moveTargets(project, movedIds, { playhead, inPoint, outPoint }) {
   const skip = new Set(movedIds);
   const frames = new Set();
@@ -45,6 +45,14 @@ export function moveTargets(project, movedIds, { playhead, inPoint, outPoint }) 
   }
   for (const frame of [playhead, inPoint, outPoint]) {
     if (typeof frame === "number" && Number.isFinite(frame)) frames.add(frame);
+  }
+  for (const marker of project?.markers ?? []) {
+    if (typeof marker.start === "number" && Number.isFinite(marker.start)) {
+      frames.add(marker.start);
+    }
+    if (marker.kind === "region" && typeof marker.end === "number" && Number.isFinite(marker.end)) {
+      frames.add(marker.end);
+    }
   }
   return [...frames].sort((a, b) => a - b);
 }
