@@ -137,7 +137,7 @@ jobs:
       - name: Python tests
         if: runner.os != 'Windows'
         run: uv run pytest -q --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pytest-report-${{ matrix.os }}

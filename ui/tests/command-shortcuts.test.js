@@ -104,3 +104,60 @@ test("all catalog command tokens name real commands and render in both languages
   setShortcutResolver(null);
   setLanguageNow("en");
 });
+
+test("command buttons derive aria-label from command catalog when not explicitly set", () => {
+  const entries = [
+    { id: "view.fit", labelKey: "cmd.view.fit", raw: ["0"] },
+    { id: "transport.loop_selection", labelKey: "cmd.transport.loop_selection", raw: [] },
+  ];
+  const t = (key) => (key === "cmd.view.fit" ? "Show the whole edit" : key);
+
+  const nodeWithoutLabel = {
+    dataset: { cmd: "view.fit" },
+    attrs: {},
+    getAttribute(k) {
+      return this.attrs[k] ?? null;
+    },
+    hasAttribute(k) {
+      return Object.hasOwn(this.attrs, k);
+    },
+    setAttribute(k, v) {
+      this.attrs[k] = v;
+    },
+  };
+
+  const nodeWithLabel = {
+    dataset: { cmd: "view.fit" },
+    attrs: { "aria-label": "Custom label" },
+    getAttribute(k) {
+      return this.attrs[k] ?? null;
+    },
+    hasAttribute(k) {
+      return Object.hasOwn(this.attrs, k);
+    },
+    setAttribute(k, v) {
+      this.attrs[k] = v;
+    },
+  };
+
+  applyCommandShortcuts(
+    { querySelectorAll: (sel) => (sel === "[data-cmd]" ? [nodeWithoutLabel, nodeWithLabel] : []) },
+    entries,
+    "mac",
+    { t },
+  );
+
+  assert.equal(nodeWithoutLabel.attrs["aria-label"], "Show the whole edit");
+  assert.equal(nodeWithLabel.attrs["aria-label"], "Custom label");
+
+  // Updates when refreshed with a different language translation
+  const tFi = (key) => (key === "cmd.view.fit" ? "Näytä koko versio" : key);
+  applyCommandShortcuts(
+    { querySelectorAll: (sel) => (sel === "[data-cmd]" ? [nodeWithoutLabel, nodeWithLabel] : []) },
+    entries,
+    "mac",
+    { t: tFi },
+  );
+  assert.equal(nodeWithoutLabel.attrs["aria-label"], "Näytä koko versio");
+  assert.equal(nodeWithLabel.attrs["aria-label"], "Custom label");
+});
