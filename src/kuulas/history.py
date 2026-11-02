@@ -667,14 +667,23 @@ class History:
         return out
 
     def nodes(self) -> list[dict]:
-        rows = _rows(self.db.execute(
-            "select id, parent, label, author, machine, op, created_utc as created,"
-            " material_from, material_to, context from nodes where edit=? order by id",
-            (self.edit,)))
-        for r in rows:
-            r["op"] = json.loads(r["op"])
-            r["context"] = _parse_context(r.get("context"))
-        return rows
+        cur = self.db.execute(
+            "select json_group_array(json_object("
+            "'id', id, 'parent', parent, 'label', label, 'author', author, "
+            "'machine', machine, "
+            "'op', case when op is not null and json_valid(op) then json(op)"
+            " else json_object() end, "
+            "'created', created_utc, 'material_from', material_from,"
+            " 'material_to', material_to, "
+            "'context', case when context is not null and json_valid(context) "
+            "then json(context) else null end"
+            ")) from ("
+            "select id, parent, label, author, machine, op, created_utc, "
+            "material_from, material_to, context from nodes where edit=? order by id)",
+            (self.edit,),
+        )
+        raw = cur.fetchone()[0]
+        return json.loads(raw) if raw else []
 
     def restored_step(self, node: str) -> dict | None:
         """The step whose state ``node`` holds: ``node`` itself, or, while it is a
@@ -704,6 +713,8 @@ class History:
         done here, not in the UI, so paging does not run dry between sparse hits.
         """
         limit = max(0, int(limit))
+        if limit == 0:
+            return []
         where = "edit=?"
         args: list = [self.edit]
         if before is not None:
@@ -711,15 +722,25 @@ class History:
             args.append(before)
         if saved:
             where += " and id in (select node from checkpoints)"
-        rows = _rows(self.db.execute(
-            "select id, parent, label, author, machine, op, created_utc as created,"  # noqa: S608
-            " material_from, material_to, context from nodes where "
+        cur = self.db.execute(
+            "select json_group_array(json_object("  # noqa: S608
+            "'id', id, 'parent', parent, 'label', label, 'author', author, "
+            "'machine', machine, "
+            "'op', case when op is not null and json_valid(op) then json(op)"
+            " else json_object() end, "
+            "'created', created_utc, 'material_from', material_from,"
+            " 'material_to', material_to, "
+            "'context', case when context is not null and json_valid(context) "
+            "then json(context) else null end"
+            ")) from ("
+            "select id, parent, label, author, machine, op, created_utc, "
+            "material_from, material_to, context from nodes where "
             + where  # fixed fragments chosen above, never user text
-            + " order by id desc limit ?", (*args, limit)))
-        for r in rows:
-            r["op"] = json.loads(r["op"])
-            r["context"] = _parse_context(r.get("context"))
-        return rows
+            + " order by id desc limit ?)",
+            (*args, limit),
+        )
+        raw = cur.fetchone()[0]
+        return json.loads(raw) if raw else []
 
     def story(self, head: str | None = None) -> tuple[list[dict], list[dict]]:
         """What the statistics (WP70) read: the steps from the start of this

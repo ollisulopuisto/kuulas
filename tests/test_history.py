@@ -102,6 +102,56 @@ def test_history_lists_nodes_with_labels(tmp_path):
     assert nodes[1]["parent"] == nodes[0]["id"]
 
 
+def test_nodes_handles_various_contexts_and_ops(tmp_path):
+    h = History(tmp_path / "p.kuulas")
+    nodes = h.nodes()
+    assert len(nodes) == 1
+    assert nodes[0]["context"] is None
+    assert nodes[0]["op"] == {}
+
+    h.commit(
+        "step with context",
+        ops.set_master(h.state, -1.0),
+        op={"name": "test_op", "args": {"val": 42}},
+        context={"view": "timeline", "zoom": 2.0},
+    )
+    h.commit(
+        "step without context",
+        ops.set_master(h.state, -2.0),
+        op={"name": "test_op2", "args": {}},
+        context=None,
+    )
+    node_id = dbm.uuid7()
+    h.db.execute(
+        "insert into nodes(id, edit, parent, author, machine, label, op, state,"
+        " material_from, material_to, context, created_utc)"
+        " values (?,?,?,?,?,?,?,?,?,?,?,?)",
+        (
+            node_id,
+            h.edit,
+            h.head,
+            "tester",
+            "host",
+            "raw context",
+            json.dumps({"name": "raw"}),
+            h.edit_hash,
+            None,
+            None,
+            "invalid json",
+            dbm.utc_now(),
+        ),
+    )
+
+    nodes = h.nodes()
+    assert len(nodes) == 4
+    assert nodes[1]["context"] == {"view": "timeline", "zoom": 2.0}
+    assert nodes[1]["op"] == {"name": "test_op", "args": {"val": 42}}
+    assert nodes[2]["context"] is None
+    assert nodes[2]["op"] == {"name": "test_op2", "args": {}}
+    assert nodes[3]["context"] is None
+    assert nodes[3]["op"] == {"name": "raw"}
+
+
 def test_identical_states_are_stored_once(tmp_path):
     h = History(tmp_path / "p.kuulas")
     for _ in range(3):

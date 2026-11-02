@@ -1,0 +1,3 @@
+## 2026-11-02 - SQLite JSON aggregation for batch deserialization
+**Learning:** Parsing JSON fields per-row in Python inside a loop incurs repetitive python function call overhead, per-field JSON parser instantiation, and intermediate tuple/dictionary allocations. In contrast, SQLite's built-in `json_group_array(json_object(...))` constructs the entire JSON array in C, enabling a single C-accelerated `json.loads()` pass across the entire result set.
+**Action:** When returning lists of records containing serialized JSON columns (e.g. `op` and `context`), delegate row object assembly and array aggregation to SQLite JSON functions.
