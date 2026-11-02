@@ -1487,7 +1487,7 @@ const keyboard = setupKeyboard({
   },
   // The Help button shows the key help has now, F1 or the user's own.
   onRefresh(entries) {
-    applyCommandShortcuts(document, entries, detectPlatform());
+    applyCommandShortcuts(document, entries, detectPlatform(), { t });
     toolbarRail?.update();
     const button = $("help-button");
     const platform = detectPlatform();
