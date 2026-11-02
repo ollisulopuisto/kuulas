@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from kuulas import colab_transcribe, transcribe
+from kuulas import colab_transcribe, local_memory, local_models, transcribe
 from kuulas.clock import FLICKS
 from kuulas.jobs import JobCancelledError
 
@@ -14,6 +14,10 @@ from kuulas.jobs import JobCancelledError
 @pytest.fixture
 def model(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    # Production limits local Orukeet to Apple silicon; these tests exercise
+    # the SDK contract on any host, so the platform check sees a Mac.
+    monkeypatch.setattr(local_models.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(local_models.platform, "machine", lambda: "arm64")
     folder = tmp_path / "orukeet" / "model"
     folder.mkdir(parents=True)
     runtime = tmp_path / "orukeet" / "runtime"
@@ -112,3 +116,11 @@ def test_explicit_override_reaches_shared_cli(model, monkeypatch):
     with pytest.raises(transcribe.TranscribeError) as error:
         transcribe.local("speech.wav", allow_low_memory=True)
     assert error.value.key == "error.transcribe.orukeet_failed"
+
+
+def test_local_requires_an_apple_silicon_mac(model, monkeypatch):
+    monkeypatch.setattr(local_models.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(local_memory, "eligible", lambda: True)
+    with pytest.raises(transcribe.TranscribeError,
+                       match="requires an Apple-silicon Mac"):
+        transcribe.local("take.wav")
