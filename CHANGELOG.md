@@ -52,6 +52,8 @@
 
 ## [Unreleased]
 
+- **Relink WAV sources to equivalent FLAC files.** Kuulas matches supported PCM samples across the containers, even when the FLAC has a different filename; other media still uses its file hash.
+
 ## [v26.10.30.6] - 2026-10-30
 
 - **Recording health stays visible after a take.** Import notices report input overflows and recorder-inserted silence, and remain until dismissed.

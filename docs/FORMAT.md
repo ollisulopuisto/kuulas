@@ -836,6 +836,11 @@ changes the sound (a rename or a new target changes no key). Algorithm
 - Identity is `sha256` of the file bytes; the id is `m` + its first 12 hex
   characters. If two different files ever collide in those 12 characters,
   the import refuses with a clear error (the full hash is stored and checked).
+  Supported integer-PCM WAV imports also keep `extra.wav_pcm_sha256`, a
+  fingerprint of the decoded samples and format. It permits a narrowly scoped
+  WAV-to-FLAC relink or replacement when the decoded samples, rate, channels,
+  frame count and bit depth all match. The filename may differ. This does not
+  change the media id or make other format conversions equivalent.
 - `storage`:
   - `linked`: the original is read in place, checked by size and mtime, and
     by hash when the mtime changed.
@@ -848,7 +853,8 @@ changes the sound (a rename or a new target changes no key). Algorithm
   in order, the package-relative path, series-relative path, configured user
   media folders, learned root rewrites, and paths previously seen in this
   project. File size is only a prefilter; every accepted candidate must match
-  the stored SHA-256. A manual relink can teach a root rewrite for the other
+  the stored SHA-256, except for the exact WAV-to-FLAC sample-identity case
+  above. A manual relink can teach a root rewrite for the other
   missing files. Media folders and rewrites are stored in the user's
   `kuulas/media.json`, not in the project.
 - **Portable paths** (WP39): a linked row also stores its path relative to

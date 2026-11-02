@@ -2033,8 +2033,11 @@ class Session:
         except KeyError:
             raise ops.EditError("error.edit.no_media", media_id=media_id) from None
         clips = sum(1 for t in project.tracks for c in t.clips if c.media == media_id)
-        if file_sha256(chosen) == old.sha256:
-            self.store.relink_one(media_id, chosen)
+        same_content = (file_sha256(chosen) == old.sha256
+                        or self.store.same_wav_as_flac(media_id, chosen))
+        if same_content:
+            if self.store.is_linked(media_id):
+                self.store.relink_one(media_id, chosen)
             new = old
         else:
             result = self.store.import_batch([str(chosen)], False)[0]

@@ -119,6 +119,42 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def _wav_pcm_sha256(path: Path, *, expected_format: str | None = None,
+                    rate: int | None = None, channels: int | None = None,
+                    frames: int | None = None, subtype: str | None = None) -> str | None:
+    """Fingerprint supported integer WAV samples independent of WAV/FLAC headers.
+
+    This is a narrow relink identity: only PCM WAV sources and same-subtype
+    FLAC candidates qualify. Container bytes remain the primary media identity.
+    """
+    try:
+        info = sf.info(str(path))
+        if info.subtype not in PCM_SUBTYPES:
+            return None
+        if expected_format == "wav" and not info.format.startswith(("WAV", "RF64")):
+            return None
+        if expected_format == "flac" and info.format != "FLAC":
+            return None
+        if ((rate is not None and info.samplerate != rate)
+                or (channels is not None and info.channels != channels)
+                or (frames is not None and info.frames != frames)
+                or (subtype is not None and info.subtype != subtype)):
+            return None
+        digest = hashlib.sha256()
+        digest.update(f"kuulas-pcm-v1|{info.samplerate}|{info.channels}|{info.subtype}\0".encode())
+        step = CHUNK_SEC * info.samplerate
+        with sf.SoundFile(str(path)) as audio:
+            while True:
+                priority.checkpoint()
+                block = audio.read(step, dtype="int32", always_2d=True)
+                if not len(block):
+                    break
+                digest.update(np.asarray(block, dtype="<i4").tobytes())
+        return digest.hexdigest()
+    except (OSError, sf.LibsndfileError, RuntimeError):
+        return None
+
+
 def file_sha256(path: str | Path) -> str:
     """The SHA-256 (hex) a file would be identified by in the store (rule 9)."""
     return _sha256(Path(path))
@@ -250,7 +286,7 @@ def streamed(fn):
 #: reference, tags, extra, unknown columns) is never touched by them.
 _FILE_COLUMNS = ("storage", "channels", "source_rate", "source_frames", "subtype",
                  "lossless", "linked_path", "linked_size", "linked_mtime_ns",
-                 "linked_package_rel", "linked_series_rel")
+                 "linked_package_rel", "linked_series_rel", "extra")
 
 
 def _preferences_path() -> Path:
@@ -843,10 +879,25 @@ class MediaStore:
     def _link(self, path: Path, row: dict, info, job: _Job | None = None) -> None:
         step = CHUNK_SEC * self.rate
         errors: list = []
+        sample_hash = hashlib.sha256()
+        sample_hash.update(
+            f"kuulas-pcm-v1|{info.samplerate}|{info.channels}|{info.subtype}\0".encode())
+        hash_samples = (path.suffix.lower() == ".wav"
+                        and info.subtype in PCM_SUBTYPES
+                        and info.format.startswith(("WAV", "RF64")))
         with sf.SoundFile(str(path)) as f:
-            peaks, frames = _pump(lambda: _read_soft(f, step, "float32", errors))
+            def read():
+                block = _read_soft(f, step, "int32", errors)
+                if hash_samples and len(block):
+                    sample_hash.update(np.asarray(block, dtype="<i4").tobytes())
+                return block / 2.0 ** 31
+            peaks, frames = _pump(read)
         if job is not None:
             self._settle(path, job, row, frames, bool(errors))
+        if hash_samples and not errors and frames == info.frames:
+            extra = json.loads(row.get("extra") or "{}")
+            extra["wav_pcm_sha256"] = sample_hash.hexdigest()
+            row["extra"] = json.dumps(extra, ensure_ascii=False)
         st = path.stat()
         self._finish({**row, "storage": "linked", "channels": info.channels,
                       "source_frames": frames, "subtype": info.subtype, "lossless": 1,
@@ -865,8 +916,16 @@ class MediaStore:
         with sf.SoundFile(str(source)) as f, sf.SoundFile(
                 str(partial), "w", self.rate, info.channels, subtype=info.subtype,
                 format="FLAC") as out:
+            sample_hash = hashlib.sha256()
+            sample_hash.update(
+                f"kuulas-pcm-v1|{info.samplerate}|{info.channels}|{info.subtype}\0".encode())
+            hash_samples = (source.suffix.lower() == ".wav"
+                            and info.subtype in PCM_SUBTYPES
+                            and info.format.startswith(("WAV", "RF64")))
             def read():
                 block = _read_soft(f, step, "int32", errors)
+                if hash_samples and len(block):
+                    sample_hash.update(np.asarray(block, dtype="<i4").tobytes())
                 out.write(block)
                 return block / 2.0 ** 31
             peaks, frames = _pump(read)
@@ -876,6 +935,10 @@ class MediaStore:
         if not lossless:
             self._keep_original(source, media_id)
         partial.replace(self.working_file(media_id))
+        if hash_samples and not errors and frames == info.frames:
+            extra = json.loads(row.get("extra") or "{}")
+            extra["wav_pcm_sha256"] = sample_hash.hexdigest()
+            row["extra"] = json.dumps(extra, ensure_ascii=False)
         self._finish({**row, "storage": "working", "channels": info.channels,
                       "source_frames": frames, "subtype": info.subtype,
                       "lossless": int(lossless)}, peaks, job)
@@ -1005,14 +1068,57 @@ class MediaStore:
         except OSError:
             return False
         if st.st_size != meta["linked_size"]:
-            return False
+            if not self._wav_flac_match(media_id, path):
+                return False
+            if not self.read_only:
+                self._update(media_id, linked_size=st.st_size,
+                             linked_mtime_ns=st.st_mtime_ns)
+            return True
         if st.st_mtime_ns == meta["linked_mtime_ns"]:
             return True
-        if _sha256(path) != meta["sha256"]:
+        if (_sha256(path) != meta["sha256"]
+                and not self._wav_flac_match(media_id, path)):
             return False
         if not self.read_only:
-            self._update(media_id, linked_mtime_ns=st.st_mtime_ns)  # touched, not changed
+            self._update(media_id, linked_size=st.st_size,
+                         linked_mtime_ns=st.st_mtime_ns)  # touched, not changed
         return True
+
+    def _wav_flac_match(self, media_id: str, path: Path) -> bool:
+        """Whether ``path`` is the same PCM audio as this media's WAV source."""
+        meta = self.meta(media_id)
+        if Path(meta["name"]).suffix.lower() != ".wav" or path.suffix.lower() != ".flac":
+            return False
+        if not meta["lossless"] or meta["subtype"] not in PCM_SUBTYPES:
+            return False
+        extra = json.loads(meta["extra"] or "{}")
+        digest = extra.get("wav_pcm_sha256")
+        if not digest:
+            # Older projects can still use the exception when a trusted local
+            # copy survives: linked WAV before consolidation, or its FLAC after.
+            baseline = Path(meta["linked_path"]) if meta["storage"] == "linked" else \
+                self.working_file(media_id)
+            expected_format = ("flac" if meta["storage"] != "linked"
+                               or Path(meta["linked_path"]).suffix.lower() == ".flac"
+                               else "wav")
+            digest = _wav_pcm_sha256(
+                baseline, expected_format=expected_format, rate=meta["source_rate"],
+                channels=meta["channels"], frames=meta["source_frames"],
+                subtype=meta["subtype"])
+            if not digest:
+                return False
+            extra["wav_pcm_sha256"] = digest
+            if not self.read_only:
+                self._update(media_id, extra=json.dumps(extra, ensure_ascii=False))
+        candidate = _wav_pcm_sha256(
+            path, expected_format="flac", rate=meta["source_rate"],
+            channels=meta["channels"], frames=meta["source_frames"],
+            subtype=meta["subtype"])
+        return candidate == digest
+
+    def same_wav_as_flac(self, media_id: str, path: str | Path) -> bool:
+        """Check the explicit WAV→FLAC sample-identity exception for replacement."""
+        return self._wav_flac_match(media_id, Path(path))
 
     def missing(self) -> list[str]:
         """Linked media whose file is gone, moved or changed."""
@@ -1033,7 +1139,8 @@ class MediaStore:
         except OSError:
             return ""
         meta = self.meta(media_id)
-        if st.st_size != meta["linked_size"] or digest != meta["sha256"]:
+        exact = st.st_size == meta["linked_size"] and digest == meta["sha256"]
+        if not exact and not self._wav_flac_match(media_id, path):
             return ""
         where = str(path)
         self._resolved_paths[media_id] = where
@@ -1080,9 +1187,14 @@ class MediaStore:
                     continue
                 for media_id in lost:
                     matches_size = size == self.meta(media_id)["linked_size"]
-                    if media_id not in self._resolved_paths and matches_size:
+                    can_match_flac = path.suffix.lower() == ".flac" and \
+                        Path(self.meta(media_id)["name"]).suffix.lower() == ".wav"
+                    eligible = matches_size or can_match_flac
+                    if media_id not in self._resolved_paths and eligible:
                         try:
-                            if _sha256(path) == self.meta(media_id)["sha256"]:
+                            exact = (matches_size and _sha256(path)
+                                     == self.meta(media_id)["sha256"])
+                            if exact or self._wav_flac_match(media_id, path):
                                 self._accept_path(media_id, path, persist=False)
                         except OSError:
                             pass
@@ -1100,9 +1212,14 @@ class MediaStore:
                         if self._resolution_stop.is_set():
                             return
                         matches_size = size == self.meta(media_id)["linked_size"]
-                        if media_id not in self._resolved_paths and matches_size:
+                        can_match_flac = path.suffix.lower() == ".flac" and \
+                            Path(self.meta(media_id)["name"]).suffix.lower() == ".wav"
+                        eligible = matches_size or can_match_flac
+                        if media_id not in self._resolved_paths and eligible:
                             try:
-                                if _sha256(path) == self.meta(media_id)["sha256"]:
+                                exact = (matches_size and _sha256(path)
+                                         == self.meta(media_id)["sha256"])
+                                if exact or self._wav_flac_match(media_id, path):
                                     self._accept_path(media_id, path, persist=False)
                             except OSError:
                                 pass
@@ -1219,19 +1336,27 @@ class MediaStore:
         candidates += [p for folder in self._media_folders for p in folder.rglob("*")
                        if p.is_file()]
         if search is not None:
-            candidates += [p for p in Path(search).rglob("*")
-                           if p.is_file() and p.stat().st_size in by_size]
+            allow_flac = any(Path(self.meta(m)["name"]).suffix.lower() == ".wav"
+                             for m in lost)
+            candidates += [p for p in Path(search).rglob("*") if p.is_file()
+                           and (p.stat().st_size in by_size
+                                or (allow_flac and p.suffix.lower() == ".flac"))]
         for path in candidates:
             try:
                 size = path.stat().st_size
             except OSError:
                 continue
             waiting = [m for m in by_size.get(size, []) if m not in found]
+            if path.suffix.lower() == ".flac":
+                waiting += [m for m in lost if m not in found
+                            and Path(self.meta(m)["name"]).suffix.lower() == ".wav"
+                            and m not in waiting]
             if not waiting:
                 continue
-            digest = _sha256(path)
+            digest = _sha256(path) if size in by_size else None
             for media_id in waiting:
-                if self.meta(media_id)["sha256"] == digest:
+                if ((digest is not None and self.meta(media_id)["sha256"] == digest)
+                        or self._wav_flac_match(media_id, path)):
                     whole = media_id in partial
                     accept = self._adopt_full if whole else self._accept_path
                     where = accept(media_id, path)
@@ -1252,7 +1377,7 @@ class MediaStore:
                 meta = self.meta(media_id)
                 self._encode_pcm(Path(meta["linked_path"]),
                                  {"id": media_id, "sha256": meta["sha256"],
-                                  "name": meta["name"]})
+                                  "name": meta["name"], "extra": meta["extra"]})
                 with self._lock:
                     self._handles.pop(media_id, None)
                 self.budget.discard_prefix("chunks", f"{media_id}:")
