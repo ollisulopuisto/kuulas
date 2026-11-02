@@ -1,0 +1,5 @@
+feat: add drag handles to clipboard cards
+
+Added an explicit visual drag handle to both 'own' and 'foreign' clipboard entry cards in the UI.
+This addresses user requests to make the draggability of clipboard entries more apparent (related to BUGS #115).
+The handle utilizes the existing 'menu' icon and is absolutely positioned in the top-right corner of the `.clip-entry` element.

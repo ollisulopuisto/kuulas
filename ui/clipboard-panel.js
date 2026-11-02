@@ -100,7 +100,10 @@ export function createClipboardPanel({ root, actions }) {
   function ownRow(entry, state, rate, canPaste) {
     const selected = (state.clipboardSelected ?? state.clipboard[0]?.id) === entry.id;
     const title = entryTitle(entry, rate, t);
-    const dragHandle = el("div", { class: "drag-handle tab-icon", dataset: { icon: "menu", "aria-hidden": "true" } });
+    const dragHandle = el("div", {
+      class: "drag-handle tab-icon",
+      dataset: { icon: "menu", "aria-hidden": "true" },
+    });
     let name;
     if (editing === entry.id) {
       name = el("input", {
@@ -310,7 +313,10 @@ export function createClipboardPanel({ root, actions }) {
   function foreignRow(entry, state, rate, { from, scope, unshare, shelf }) {
     const id = `${scope}:${entry.id}`;
     const canPaste = Boolean(state.project);
-    const dragHandle = el("div", { class: "drag-handle tab-icon", dataset: { icon: "menu", "aria-hidden": "true" } });
+    const dragHandle = el("div", {
+      class: "drag-handle tab-icon",
+      dataset: { icon: "menu", "aria-hidden": "true" },
+    });
     // The series shelf's entries are adopted through the series (its recordings' paths).
     const via = shelf ? [shelf] : [];
     const buttons = el(
