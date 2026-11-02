@@ -3,14 +3,29 @@
 from __future__ import annotations
 
 import os
+import shutil
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from kuulas_recorder.transport import UnixTransport
 
 
-def test_listener_accepts_same_uid_connection(tmp_path: Path):
-    sock_path = tmp_path / "rec.sock"
+@pytest.fixture
+def sock_path() -> Iterator[Path]:
+    # AF_UNIX caps sun_path at 108 bytes: CI's pytest tmp_path can exceed it,
+    # so the socket lives in a short directory of its own.
+    folder = Path(tempfile.mkdtemp(prefix="kpc-"))
+    try:
+        yield folder / "rec.sock"
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_listener_accepts_same_uid_connection(sock_path: Path):
     transport = UnixTransport()
     listener = transport.listen(sock_path)
     try:
@@ -23,8 +38,7 @@ def test_listener_accepts_same_uid_connection(tmp_path: Path):
         listener.close()
 
 
-def test_listener_refuses_foreign_uid_connection(tmp_path: Path):
-    sock_path = tmp_path / "rec.sock"
+def test_listener_refuses_foreign_uid_connection(sock_path: Path):
     transport = UnixTransport()
     listener = transport.listen(sock_path)
     try:
