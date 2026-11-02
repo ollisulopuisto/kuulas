@@ -82,18 +82,19 @@ def local(path: str | Path, model: str = "small",
           cpu_threads: int | None = None, allow_low_memory: bool = False) -> list[dict]:
     """Run shared local Orukeet; legacy Whisper model sizes select the Orukeet default.
 
-    Explicit model paths are supported. Never accept the shared CLI's generic
-    Parakeet fallback when the user's converted Orukeet model is missing.
+    Never accept the shared CLI's generic Parakeet fallback when the SDK receipt
+    or one of the files it names has gone missing.
     """
     if not allow_low_memory and not local_memory.eligible():
         raise TranscribeError("error.orukeet.memory")
-    _ = cpu_threads  # MLX owns scheduling; retained for persisted jobs and callers.
-    legacy = {"", "tiny", "base", "small", "medium", "large", "large-v2", "large-v3",
-              "turbo", "orukeet"}
-    model_path = (local_models.model_path()
-                  if model in legacy else Path(model).expanduser())
-    if not model_path.is_dir():
-        raise TranscribeError("error.transcribe.orukeet_model", path=str(model_path))
+    # Retain legacy arguments for persisted jobs and callers; the SDK chooses both.
+    _ = model, cpu_threads
+    installation = local_models.status()
+    if not installation["supported"]:
+        raise TranscribeError("error.orukeet.platform")
+    if not installation["ready"]:
+        raise TranscribeError("error.transcribe.orukeet_model",
+                              path=str(local_models.installation_file()))
     command = colab_transcribe.default_command()
     # Keep the SDK and its CTC dependencies in the same isolated tool environment.
     # The shared CLI's Orukeet backend reads the SDK installation receipt from the
@@ -113,8 +114,7 @@ def local(path: str | Path, model: str = "small",
 
     source = Path(path).resolve()
     settings = {"command": command, "align": False,
-                "extra_args": ["--backend", "orukeet",
-                               "--orukeet-model", str(model_path)]}
+                "extra_args": ["--backend", "orukeet"]}
     if allow_low_memory:
         settings["extra_args"].append("--allow-low-memory")
     try:

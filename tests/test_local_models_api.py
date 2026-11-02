@@ -2,6 +2,7 @@
 
 import json
 import time
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,8 +15,8 @@ from kuulas.session import Session
 
 @pytest.fixture
 def api(tmp_path, monkeypatch):
-    monkeypatch.setenv("KUULAS_ORUKEET_FILE", str(tmp_path / "orukeet.json"))
-    monkeypatch.setattr(local_models, "config_dir", lambda: tmp_path / "config")
+    receipt = tmp_path / "cache" / "installation.json"
+    monkeypatch.setenv("ORUKEET_INSTALLATION", str(receipt))
     session = Session(tmp_path / "Empty.kuulas")
     try:
         with TestClient(create_app(session, FakeEngine())) as client:
@@ -24,26 +25,23 @@ def api(tmp_path, monkeypatch):
         session.close()
 
 
-def test_gui_can_inspect_missing_model_and_select_existing_folder(api):
+def test_gui_readiness_detects_deleted_files_from_a_valid_receipt(api):
     client, session, root = api
     before = session.history.head
     response = client.get("/api/transcribe/local-model")
     assert response.status_code == 200
-    folder = root / "converted"
-    folder.mkdir()
-    (folder / "config.json").write_text(json.dumps({"target": "EncDecRNNTBPEModel"}))
-    (folder / "model.safetensors").write_bytes(b"test weights")
-    chosen = client.post("/api/transcribe/local-model/select", json={"path": str(folder)})
-    assert chosen.status_code == 200
-    assert chosen.json()["ready"]
+    assert not response.json()["ready"]
+    model, runtime = root / "model.bin", root / "runtime"
+    model.write_bytes(b"weights")
+    runtime.mkdir()
+    receipt = Path(response.json()["receipt"])
+    receipt.parent.mkdir()
+    receipt.write_text(json.dumps({"model": str(model), "runtime": str(runtime),
+                                   "device": "cpu"}))
+    assert client.get("/api/transcribe/local-model").json()["ready"]
+    model.unlink()
+    assert not client.get("/api/transcribe/local-model").json()["ready"]
     assert session.history.head == before
-
-
-def test_bad_model_is_an_actionable_gui_error(api):
-    client, _, root = api
-    response = client.post("/api/transcribe/local-model/select", json={"path": str(root)})
-    assert response.status_code == 400
-    assert response.json()["error"]["key"] == "error.orukeet.invalid_model"
 
 
 def test_install_returns_a_progress_job_without_blocking_request(api, monkeypatch):

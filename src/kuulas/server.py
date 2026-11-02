@@ -1558,10 +1558,6 @@ def create_app(session, engine, *, language: str | None = None,
         active = active_model_install()
         return {**local_models.status(), "job": active["id"] if active else None}
 
-    @app.post("/api/transcribe/local-model/select")
-    def select_local_model(body: Annotated[dict, Body()]):
-        return local_models.select_model(body.get("path"))
-
     @app.post("/api/transcribe/local-model/install", status_code=202)
     def install_local_model():
         active = active_model_install()

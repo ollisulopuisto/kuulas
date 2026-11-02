@@ -118,7 +118,6 @@ export const correctWords = (media, start, end, w) =>
  */
 export const localModel = () => json("/api/transcribe/local-model");
 export const installLocalModel = () => post("/api/transcribe/local-model/install", {});
-export const selectLocalModel = (path) => post("/api/transcribe/local-model/select", { path });
 export const transcribe = (mediaIds, { backend = "local", model, language, force = false } = {}) =>
   post("/api/transcribe", {
     media_ids: mediaIds,
