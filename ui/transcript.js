@@ -258,8 +258,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       transcribed: transcribedMedia(getState(), words),
     });
     empty.hidden =
-      !getState().project ||
-      ((has || placeholders.length > 0) && rows.length === 0 && !note);
+      !getState().project || ((has || placeholders.length > 0) && rows.length === 0 && !note);
     empty.replaceChildren();
     if (empty.hidden) return;
     if (note) empty.append(musicNoteBlock(note));

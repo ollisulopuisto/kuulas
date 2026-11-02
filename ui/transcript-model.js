@@ -97,7 +97,9 @@ export function buildTranscriptRows(paragraphs, placeholders = []) {
       chars: placeholder.text.length,
     });
   }
-  return rows.sort((left, right) => left.start - right.start || left.kind.localeCompare(right.kind));
+  return rows.sort(
+    (left, right) => left.start - right.start || left.kind.localeCompare(right.kind),
+  );
 }
 
 /**

@@ -63,28 +63,16 @@ def test_invalid_or_stale_receipt_is_not_ready(setup, contents):
     assert not local_models.status()["ready"]
 
 
-def test_development_install_command_uses_the_shared_tool_environment(setup, monkeypatch):
+def test_install_command_uses_isolated_environment_and_pinned_sdk(setup):
     _, receipt = setup
-    monkeypatch.setattr(local_models.colab_transcribe, "default_command", lambda: [
-        "uv", "run", "--project", "/podcast/colab-transcribe", "colab-transcribe"])
     command = local_models.install_command()
-    assert command[:3] == ["uv", "run", "--frozen"]
-    extra = command.index("--extra")
-    assert command[extra + 1] == "orukeet"
-    assert "orukeet" in command
-    assert command[-4:] == ["--cache", str(receipt.parent), "--output", str(receipt)]
-
-
-def test_packaged_install_command_includes_the_pinned_sdk_and_torch(setup, monkeypatch):
-    _, receipt = setup
-    monkeypatch.setattr(local_models.colab_transcribe, "default_command", lambda: [
-        "uvx", "--from", "git+https://example.invalid/podcast", "colab-transcribe"])
-    command = local_models.install_command()
+    assert command[:3] == ["uv", "run", "--no-project"]
     with_args = [command[i + 1] for i, arg in enumerate(command[:-1]) if arg == "--with"]
     assert local_models.ORUKEET_WHEEL in with_args
     assert local_models.ORUKEET_TORCH in with_args
     assert local_models.ORUKEET_TORCHAUDIO in with_args
-    assert command[-4:] == ["--cache", str(receipt.parent), "--output", str(receipt)]
+    assert command[-8:] == ["orukeet", "install", "--device", "auto", "--cache",
+                            str(receipt.parent), "--output", str(receipt)]
 
 
 def test_install_runs_sdk_installer_and_returns_only_after_files_exist(
