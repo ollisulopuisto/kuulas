@@ -1085,11 +1085,16 @@ class MediaStore:
         return True
 
     def _wav_flac_match(self, media_id: str, path: Path) -> bool:
-        """Whether ``path`` is the same PCM audio as this media's WAV source."""
+        """Whether ``path`` matches the PCM audio stored for this WAV source."""
         meta = self.meta(media_id)
         if Path(meta["name"]).suffix.lower() != ".wav" or path.suffix.lower() != ".flac":
             return False
-        if not meta["lossless"] or meta["subtype"] not in PCM_SUBTYPES:
+        # ``lossless`` describes whether Kuulas' stored audio exactly matches
+        # the original file.  It does not affect whether a FLAC candidate is
+        # identical to the audio Kuulas actually stored.  In particular,
+        # float WAVs are normalized to PCM_24 on import; compare candidates
+        # against that canonical stored FLAC when relinking them.
+        if meta["subtype"] not in PCM_SUBTYPES:
             return False
         extra = json.loads(meta["extra"] or "{}")
         digest = extra.get("wav_pcm_sha256")
