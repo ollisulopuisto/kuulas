@@ -22,6 +22,11 @@ export function canStartClipDrag(hit) {
   return hit.edge == null && hit.point == null;
 }
 
+/** A move-mode press only seeks on release when its click intent requested a seek. */
+export function clipClickSeekFrame(seekFrame, dragging) {
+  return !dragging && Number.isFinite(seekFrame) ? seekFrame : null;
+}
+
 /**
  * The clips a drag of `pressedId` moves: the selection if it holds that clip, else the clip,
  * plus every member of an explicit group among them (as the server's `expand_clips`, WP83),

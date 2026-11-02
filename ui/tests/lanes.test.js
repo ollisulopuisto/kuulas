@@ -390,6 +390,14 @@ describe("what a click does (owner, 2026-10-18)", () => {
     });
   });
 
+  test("Cmd+Alt+click selects forward from a clip without moving the cursor", () => {
+    assert.deepEqual(pointerIntent(lane({ clip }), { mod: true, alt: true }), {
+      seek: null,
+      selection: "toggle",
+      clip,
+    });
+  });
+
   test("Alt+click on a clip leaves cursor and selection alone (direct mute)", () => {
     assert.deepEqual(pointerIntent(lane({ clip }), { alt: true }), {
       seek: null,
