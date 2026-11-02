@@ -33,6 +33,10 @@ describe("gain line", () => {
     assert.equal(gainLineVisible({ gain_db: -3 }, false), true);
     assert.equal(gainLineVisible({ gain_db: 0, envelope: [[0, 0]] }, false), true);
   });
+  test("muted and Auto-Silence clips have no gain overlay, even when selected", () => {
+    assert.equal(gainLineVisible({ gain_db: 2, muted: true }, true), false);
+    assert.equal(gainLineVisible({ gain_db: 2, auto_silence: [[100, 200]] }, true), false);
+  });
   test("gain follows the pointer keeping the grab point on the line", () => {
     const y0 = dbToY(-6, H) + 3; // grabbed 3 px below the line
     const grab = gainGrab(clip, H, y0);

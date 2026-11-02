@@ -2,6 +2,7 @@
 // it gives and the edit to send. Both edits are `set_clip` with a coalesce key, so a whole
 // drag is one undo step; the keyboard (+/-, Mod+F) and the inspector set the same fields.
 import { lineValueAt, movePoint, togglePoint } from "./envelope-edit.js";
+import { clipGainOverlayAllowed } from "./clip-silence.js";
 import { dbToY, yToDb } from "./lanes.js";
 
 /** How close (px) the pointer must be to the gain line. */
@@ -16,11 +17,15 @@ export const FADE_HANDLE_Y = 7;
 
 /** The gain line shows when it says something (not 0 dB, an envelope) or the clip is selected. */
 export function gainLineVisible(clip, selected) {
-  return (clip.gain_db ?? 0) !== 0 || (clip.envelope?.length ?? 0) > 0 || Boolean(selected);
+  return (
+    clipGainOverlayAllowed(clip) &&
+    ((clip.gain_db ?? 0) !== 0 || (clip.envelope?.length ?? 0) > 0 || Boolean(selected))
+  );
 }
 
 /** True when `rowY` (px from the lane's top) is on the clip's gain line. */
 export function gainLineHit(clip, rowHeight, rowY) {
+  if (!clipGainOverlayAllowed(clip)) return false;
   if (rowHeight < MIN_LANE_FOR_HANDLES) return false;
   return Math.abs(rowY - dbToY(clip.gain_db ?? 0, rowHeight)) <= GAIN_HIT_PX;
 }
@@ -38,6 +43,7 @@ export function gainLineHit(clip, rowHeight, rowY) {
  * line (the caller then leaves the double-click to whatever else it means).
  */
 export function envelopeToggle(clip, { timelineFrame, rowHeight, rowY, point }) {
+  if (!clipGainOverlayAllowed(clip)) return null;
   if (rowHeight < MIN_LANE_FOR_HANDLES) return null;
   const envelope = clip.envelope ?? [];
   if (point != null && envelope[point]) {
@@ -71,6 +77,7 @@ export function envelopeDragChange(clipId, points) {
 export function envelopePointZone(hit) {
   if (
     !hit?.clip ||
+    !clipGainOverlayAllowed(hit.clip) ||
     hit.row?.kind !== "track" ||
     hit.edge ||
     !Number.isInteger(hit.point) ||
@@ -88,6 +95,7 @@ export function envelopeMove(
   { timelineFrame, rowHeight, rowY, grabFrames = 0, grabY = 0 },
 ) {
   const points = clip.envelope ?? [];
+  if (!clipGainOverlayAllowed(clip)) return points;
   if (rowHeight < MIN_LANE_FOR_HANDLES || !points[index]) return points;
 
   const timeline = Math.max(
