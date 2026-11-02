@@ -1,7 +1,8 @@
 // Pro Tools style spot placement: align the earliest selected clip to a time while
 // preserving every selected clip's relative position. With no clip selection, seek.
-import { selectedClips } from "./selection.js";
+
 import { expandGroups } from "./clip-groups.js";
+import { selectedClips } from "./selection.js";
 
 export function spotPlan(state, frame) {
   const selection = expandGroups(state?.project, state?.selection ?? []);

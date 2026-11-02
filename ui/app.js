@@ -25,7 +25,6 @@ import { createClipboardDrag } from "./clipboard-drag.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { previewFraction, previewPlaying, previewStop } from "./clipboard-preview.js";
 import { createClock } from "./clock.js";
-import { spotPlan } from "./spot.js";
 import { createColabDialogs } from "./colab-dialog.js";
 import {
   colabNotice,
@@ -190,6 +189,7 @@ import { normaliseSilence } from "./silence-model.js";
 import { createSilencePanel } from "./silence-panel.js";
 import { inactiveStyleChoice } from "./silence-visuals.js";
 import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
+import { spotPlan } from "./spot.js";
 import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
 import { anchorPatch, getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";

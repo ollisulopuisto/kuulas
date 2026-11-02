@@ -99,6 +99,7 @@ def local(path: str | Path, model: str = "small",
                               path=str(local_models.installation_file()))
     engine = None
     try:
+        _check_local_cancelled(progress)
         engine = live_engine.warm_engine_factory(receipt)
         words = []
         with sf.SoundFile(source) as audio:
