@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   canStartClipDrag,
+  clipClickSeekFrame,
   clipDragChange,
   clipDragIds,
   groupBounds,
@@ -55,6 +56,17 @@ describe("the grab zone", () => {
       canStartClipDrag({ clip, edge: null, point: null, row: { kind: "bus" } }, 5),
       false,
     );
+  });
+});
+
+describe("seeking after a clip press", () => {
+  test("a selection gesture stays at the old playhead when released without a drag", () => {
+    assert.equal(clipClickSeekFrame(null, false), null);
+  });
+
+  test("a plain move-mode click seeks on release, but a real drag never does", () => {
+    assert.equal(clipClickSeekFrame(12_000, false), 12_000);
+    assert.equal(clipClickSeekFrame(12_000, true), null);
   });
 });
 
