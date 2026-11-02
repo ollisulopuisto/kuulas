@@ -189,6 +189,7 @@ import { normaliseSilence } from "./silence-model.js";
 import { createSilencePanel } from "./silence-panel.js";
 import { inactiveStyleChoice } from "./silence-visuals.js";
 import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
+import { spotPlan } from "./spot.js";
 import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
 import { anchorPatch, getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
@@ -4446,6 +4447,14 @@ const clock = createClock({
   limit: totalFrames,
   format: frameToTime,
   jump: jumpTo,
+  spot(frame) {
+    const plan = spotPlan(getState(), frame);
+    if (plan.kind === "playhead") {
+      jumpTo(plan.frame);
+      return;
+    }
+    editor.change({ op: plan.op, args: plan.args });
+  },
   notify: showNotice,
   t,
 });

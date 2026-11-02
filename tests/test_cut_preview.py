@@ -102,13 +102,13 @@ def test_session_cut_preview_overlapping_tracks(two_track_session):
     t1 = s.state.tracks[1]
     c0 = t0.clips[0]
 
-    # Select word "hello" on track 0 (s=0.1s, e=0.5s -> in frames: 4800 to 24000)
+    # Select word "hello" on track 0 (s=0.1s, e=0.5s).
     selection = [{"track": t0.id, "clip": c0.id, "index": 0}]
 
     res = s.cut_preview(selection)
 
-    expected_start = round(0.1 * RATE)
-    expected_end = round(0.5 * RATE)
+    expected_start = round(0.1 * two_track_session.state.rate)
+    expected_end = round(0.5 * two_track_session.state.rate)
 
     assert res["span"] == [expected_start, expected_end]
     # Track 1 has "sorry" at 0.2-0.4s inside the 0.1-0.5s span
