@@ -79,6 +79,27 @@ export function buildParagraphs(
   return out;
 }
 
+/** Interleave script placeholders with heard transcript paragraphs by their timeline start. */
+export function buildTranscriptRows(paragraphs, placeholders = []) {
+  const rows = paragraphs.map((paragraph, paragraphIndex) => ({
+    ...paragraph,
+    kind: "paragraph",
+    paragraphIndex,
+  }));
+  for (const placeholder of placeholders ?? []) {
+    if (typeof placeholder.text !== "string" || placeholder.text.trim() === "") continue;
+    rows.push({
+      ...placeholder,
+      id: `placeholder:${placeholder.id}`,
+      kind: "placeholder",
+      name: placeholder.narrator || placeholder.speaker || placeholder.track,
+      end: placeholder.start + placeholder.length,
+      chars: placeholder.text.length,
+    });
+  }
+  return rows.sort((left, right) => left.start - right.start || left.kind.localeCompare(right.kind));
+}
+
 /**
  * The silences to show between paragraphs: Map of paragraph index -> { start, end,
  * seconds }, for a paragraph that follows the same track's previous paragraph (a

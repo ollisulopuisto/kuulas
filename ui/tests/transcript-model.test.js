@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 import {
   alsoRemovedIndices,
   buildParagraphs,
+  buildTranscriptRows,
   collateralBand,
   correctableWordRange,
   cutRange,
@@ -135,6 +136,38 @@ describe("paragraphs", () => {
       [0, 0, 1, 2, 3],
     );
     assert.equal(paragraphOf(paragraphs, 9), -1);
+  });
+});
+
+describe("transcript rows with narration placeholders (WP43)", () => {
+  const paragraphs = [
+    { id: "p0", first: 0, last: 0, track: "a", start: 100, end: 150, name: "Anna", chars: 4 },
+    { id: "p1", first: 1, last: 1, track: "a", start: 500, end: 560, name: "Anna", chars: 5 },
+  ];
+  const placeholders = [
+    { id: "h-late", track: "narration", start: 700, length: 300, text: "Later line" },
+    { id: "h-mid", track: "narration", start: 300, length: 200, text: "Middle line" },
+  ];
+
+  test("interleaves script placeholders with heard transcript by timeline frame", () => {
+    const rows = buildTranscriptRows(paragraphs, placeholders);
+    assert.deepEqual(
+      rows.map((row) => [row.kind, row.id]),
+      [
+        ["paragraph", "p0"],
+        ["placeholder", "placeholder:h-mid"],
+        ["paragraph", "p1"],
+        ["placeholder", "placeholder:h-late"],
+      ],
+    );
+    assert.equal(rows[1].text, "Middle line");
+    assert.equal(rows[1].start, 300);
+  });
+
+  test("keeps source paragraphs and placeholders unchanged and tolerates missing lists", () => {
+    const before = structuredClone({ paragraphs, placeholders });
+    assert.equal(buildTranscriptRows(paragraphs, undefined).length, paragraphs.length);
+    assert.deepEqual({ paragraphs, placeholders }, before);
   });
 });
 

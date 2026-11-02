@@ -1928,6 +1928,8 @@
   "ui.placeholders.history.delete": "Delete narration placeholder",
   "ui.placeholders.take_done": "Recorded in place",
   "ui.placeholders.about": "about {seconds} s",
+  "ui.placeholders.transcript.badge": "To record",
+  "ui.placeholders.transcript.title": "Narration placeholder. Click to select and jump to its timeline position.",
   "ui.placeholders.hover": "Narration to record. Enter or double-click edits it.",
   "ui.placeholders.editor.title": "Narration text",
   "ui.placeholders.editor.label": "Script",
