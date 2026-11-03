@@ -355,20 +355,25 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const buttons = el("span", "tx-miss-buttons");
     buttons.append(
       offerButton("transcribe", ids, t("ui.transcript.transcribe"), "play", true),
+      offerButton("transcribe-orukeet", ids, t("ui.transcript.transcribe_orukeet"), "play", false),
       offerButton("transcribe-colab", ids, t("ui.transcript.transcribe_colab"), "export", false),
     );
     item.append(buttons);
     return item;
   }
 
-  async function transcribe(onlyIds, { force = false } = {}) {
+  async function transcribe(onlyIds, { force = false, localEngine = "whisper" } = {}) {
     const ids = onlyIds ?? transcribeTargets().map((item) => item.id);
     if (ids.length === 0) return;
     try {
-      const consent = actions.ensureLocalModel ? await actions.ensureLocalModel() : true;
+      const consent =
+        localEngine === "orukeet" && actions.ensureLocalModel
+          ? await actions.ensureLocalModel()
+          : true;
       if (!consent) return;
       await api.transcribe(ids, {
         force,
+        local_engine: localEngine,
         ...(consent.allow_low_memory === true ? { allow_low_memory: true } : {}),
       });
       await refreshJobs();
@@ -811,7 +816,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const ids = (button.dataset.ids ?? "").split(",").filter(Boolean);
     if (button.dataset.act === "transcribe") void transcribe(ids);
     else if (button.dataset.act === "transcribe-anyway") void transcribe(ids, { force: true });
-    else if (button.dataset.act === "transcribe-colab") actions.transcribeColab?.(ids);
+    else if (button.dataset.act === "transcribe-orukeet") {
+      void transcribe(ids, { localEngine: "orukeet" });
+    } else if (button.dataset.act === "transcribe-colab") actions.transcribeColab?.(ids);
     else if (button.dataset.act === "transcribe-cancel") {
       button.disabled = true;
       void api

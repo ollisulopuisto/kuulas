@@ -2796,9 +2796,6 @@ input[type="text"] {
 .tx-placeholder-row:hover {
   background: var(--surface-hover);
 }
-.tx-placeholder-row .tx-text {
-  color: var(--text-secondary);
-}
 .tx-script-text {
   color: var(--text);
   white-space: pre-wrap;
@@ -2865,6 +2862,9 @@ input[type="text"] {
   font-size: var(--text-lg);
   line-height: var(--leading-read);
   user-select: none;
+}
+.tx-placeholder-row .tx-text {
+  color: var(--text-secondary);
 }
 .tx-text .w {
   border-radius: 2px;

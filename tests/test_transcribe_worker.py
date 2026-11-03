@@ -60,6 +60,28 @@ def make(folder, backend="local", names=("a", "b"), settings=None):
         settings=settings)
 
 
+def test_local_job_selects_whisper_and_records_ctc_timing(folder):
+    job_id = make(folder)
+    job_path = bgjobs.job_file(folder, job_id)
+    job = bgjobs.read_json(job_path)
+    job["local_engine"] = "whisper"
+    job["model"] = "large-v3-turbo"
+    job_path.write_text(json.dumps(job), encoding="utf-8")
+    calls = []
+
+    def whisper(path, model="large-v3-turbo", language=None, progress=None, **kwargs):
+        calls.append((path, model))
+        progress(1.0)
+        return WORDS
+
+    assert run_job(job_path, whisper=whisper) == "completed"
+    assert len(calls) == 2
+    assert all(model == "large-v3-turbo" for _, model in calls)
+    result = colab_transcribe.read_words_json(
+        bgjobs.result_file(folder, job_id, "m0"))
+    assert result["timing"] == "ctc-v1"
+
+
 def status(folder, job_id):
     return json.loads(bgjobs.status_file(folder, job_id).read_text())
 

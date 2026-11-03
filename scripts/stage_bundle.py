@@ -34,7 +34,7 @@ EXTENSION = "kuulas"
 MIN_MACOS = "12.0"
 
 #: Dependencies of the root project that the bundle gets as local wheels instead.
-LOCAL = ("speechmix", "nhsx", "silencelearn")
+LOCAL = ("speechmix", "nhsx", "silencelearn", "wordalign")
 #: Podcast apps the bundle ships as wheels although Kuulas does not depend on them: the
 #: automixer runs as its own process (``automix.bundled_command``). Every wheel in the
 #: wheels folder joins the requirements, so building it is what ships it.
@@ -148,7 +148,13 @@ macOS.UTTypeConformsTo = {conforms}
 
 def project_version(src: Path) -> tuple[str, list[str]]:
     data = tomllib.loads((src / "pyproject.toml").read_text(encoding="utf-8"))
-    return str(data["project"]["version"]), list(data["project"]["dependencies"])
+    project = data["project"]
+    # The tester bundle ships the local transcription engines, not just the editor.
+    # Optional desktop extras remain development-only; the transcribe extra is required
+    # by the default Whisper action in the packaged app.
+    dependencies = list(project["dependencies"])
+    dependencies.extend(project.get("optional-dependencies", {}).get("transcribe", []))
+    return str(project["version"]), dependencies
 
 
 def missing_wheels(wheel_files: list[Path]) -> list[str]:

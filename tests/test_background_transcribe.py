@@ -91,7 +91,7 @@ def hold_worker(monkeypatch):
 
 def test_transcribe_writes_a_job_file_in_the_project(session, monkeypatch):
     hold_worker(monkeypatch)
-    (job_id,) = session.transcribe(ids(session), "small", "fi")
+    (job_id,) = session.transcribe(ids(session), "small", "fi", local_engine="orukeet")
     job = bgjobs.read_json(bgjobs.job_file(session.package.path, job_id))
     assert job["backend"] == "local"
     assert job["model"] == "small"
@@ -103,7 +103,7 @@ def test_transcribe_writes_a_job_file_in_the_project(session, monkeypatch):
 
 
 def test_a_finished_transcript_is_added_automatically_with_a_notice(session):
-    (job_id,) = session.transcribe(ids(session))
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
 
     notices = []
 
@@ -123,7 +123,7 @@ def test_a_finished_transcript_is_added_automatically_with_a_notice(session):
 
 
 def test_each_media_is_one_undo_step_and_local_keeps_orukeet_timing(session):
-    session.transcribe(ids(session))
+    session.transcribe(ids(session), local_engine="orukeet")
     wait(lambda: len(session.transcripts()) == 2)
     assert {m.timing for m in session.state.media} == {"orukeet"}
     session.undo()
@@ -135,7 +135,7 @@ def test_each_media_is_one_undo_step_and_local_keeps_orukeet_timing(session):
 def test_a_job_finished_while_closed_is_added_on_open(tmp_path, monkeypatch):
     first = build(tmp_path)
     hold_worker(monkeypatch)
-    (job_id,) = first.transcribe(ids(first))
+    (job_id,) = first.transcribe(ids(first), local_engine="orukeet")
     folder = first.package.path
     first.close()
     run_job(bgjobs.job_file(folder, job_id), local=fake_local)  # the worker, no editor
@@ -150,7 +150,7 @@ def test_a_job_finished_while_closed_is_added_on_open(tmp_path, monkeypatch):
 def test_a_running_job_is_picked_up_after_reopening(tmp_path, monkeypatch):
     first = build(tmp_path)
     hold_worker(monkeypatch)
-    (job_id,) = first.transcribe(ids(first))
+    (job_id,) = first.transcribe(ids(first), local_engine="orukeet")
     folder = first.package.path
     first.close()
     reopened = Session(folder)
@@ -165,7 +165,7 @@ def test_a_running_job_is_picked_up_after_reopening(tmp_path, monkeypatch):
 def test_a_transcript_changed_meanwhile_is_kept_and_the_result_too(session, monkeypatch):
     hold_worker(monkeypatch)
     first, second = ids(session)
-    (job_id,) = session.transcribe(ids(session))
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
     session.set_transcript(first, [{"w": "mine", "s": 0, "e": 5, "spk": ""}], "manual")
     run_job(bgjobs.job_file(session.package.path, job_id), local=fake_local)
     session.poll_background()
@@ -185,7 +185,7 @@ def test_a_transcript_changed_meanwhile_is_kept_and_the_result_too(session, monk
 def test_restart_after_a_conflict_replaces_the_newer_transcript(session, monkeypatch):
     holder = hold_worker(monkeypatch)
     first = ids(session)[0]
-    (job_id,) = session.transcribe([first])
+    (job_id,) = session.transcribe([first], local_engine="orukeet")
     session.set_transcript(first, [{"w": "mine", "s": 0, "e": 5, "spk": ""}], "manual")
     run_job(bgjobs.job_file(session.package.path, job_id), local=fake_local)
     session.poll_background()
@@ -196,7 +196,7 @@ def test_restart_after_a_conflict_replaces_the_newer_transcript(session, monkeyp
 
 def test_a_read_only_project_does_not_ingest(session, monkeypatch):
     hold_worker(monkeypatch)
-    (job_id,) = session.transcribe(ids(session))
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
     run_job(bgjobs.job_file(session.package.path, job_id), local=fake_local)
     monkeypatch.setattr(type(session), "read_only", property(lambda self: True))
     session.poll_background()
@@ -249,7 +249,7 @@ def test_a_result_synced_from_another_computer_is_ingested_here(session):
 
 def interrupted(session, monkeypatch):
     holder = hold_worker(monkeypatch)
-    (job_id,) = session.transcribe(ids(session))
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
     gone = subprocess.Popen([sys.executable, "-c", "pass"])
     gone.wait()
     bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
@@ -282,7 +282,7 @@ def test_cancel_stops_a_running_engine_and_stores_nothing(session, monkeypatch):
         return fake_local(path)
 
     monkeypatch.setattr("kuulas.transcribe.local", slow)
-    (job_id,) = session.transcribe(ids(session))
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
     wait(lambda: session.background_jobs()[0]["state"] == "running")
     session.cancel_background(job_id)
     wait(lambda: session.background_jobs()[0]["state"] == "cancelled")
@@ -299,7 +299,8 @@ def client(session, tmp_path):
 
 
 def test_jobs_endpoint_lists_background_jobs_and_drains_notices(session, client):
-    r = client.post("/api/transcribe", json={"media_ids": ids(session)})
+    r = client.post("/api/transcribe",
+                    json={"media_ids": ids(session), "local_engine": "orukeet"})
     (job_id,) = r.json()["jobs"]
     seen = []
     wait(lambda: seen.extend(client.get("/api/jobs/notices").json()["notices"]) or seen)
@@ -333,7 +334,7 @@ def test_memory_policy_refuses_before_worker_creation(session, monkeypatch, memo
     monkeypatch.setattr(session, "_launch_background",
                         lambda *_: pytest.fail("worker launched"))
     with pytest.raises(ops.EditError) as error:
-        session.transcribe(ids(session))
+        session.transcribe(ids(session), local_engine="orukeet")
     assert error.value.key == "error.orukeet.memory"
     assert bgjobs.job_ids(session.package.path) == []
 
@@ -342,7 +343,8 @@ def test_memory_override_is_one_job_not_restart_permission(session, monkeypatch)
     from kuulas import local_memory  # noqa: PLC0415
     monkeypatch.setattr(local_memory, "physical_memory", lambda: 8 * 1024**3)
     monkeypatch.setattr(session, "_launch_background", lambda *_: None)
-    job_id = session.transcribe(ids(session), allow_low_memory=True)[0]
+    job_id = session.transcribe(ids(session), allow_low_memory=True,
+                                local_engine="orukeet")[0]
     job = bgjobs.read_json(bgjobs.job_file(session.package.path, job_id))
     assert job["allow_low_memory"] is True
     status = bgjobs.read_json(bgjobs.status_file(session.package.path, job_id))

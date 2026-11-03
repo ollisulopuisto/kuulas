@@ -118,7 +118,8 @@ def create_job(folder: Path | str, *, backend: str, items: list[dict],
                previous: dict, names: list[str], model: str | None,
                language: str | None, settings: dict | None,
                cpu_threads: int | None = None, forced: bool = False,
-               allow_low_memory: bool = False) -> str:
+               allow_low_memory: bool = False,
+               local_engine: str | None = None) -> str:
     """Write the job file and an initial ``queued`` status; returns the id. Nothing
     runs yet: ``launch_worker`` does that."""
     job_id = secrets.token_hex(8)
@@ -129,6 +130,7 @@ def create_job(folder: Path | str, *, backend: str, items: list[dict],
                   for i in items],
         "names": names, "model": model, "language": language,
         "settings": settings, "cpu_threads": cpu_threads,
+        "local_engine": local_engine,
         "previous": previous, "forced": forced,
         "allow_low_memory": bool(allow_low_memory), "host": _hostname(),
         "created": now_iso()})
