@@ -75,3 +75,21 @@ def test_live_websocket_allows_loopback_origin_and_no_origin(tmp_path: Path):
     with client.websocket_connect("/api/live") as ws:
         msg = ws.receive_json()
         assert msg["type"] == "hello"
+
+
+def test_responses_include_security_headers(tmp_path: Path):
+    client = _client(tmp_path)
+    for path in ("/", "/api/state"):
+        res = client.get(path)
+        assert res.headers.get("x-frame-options") == "DENY"
+        assert res.headers.get("x-content-type-options") == "nosniff"
+        assert res.headers.get("content-security-policy") == "frame-ancestors 'none'"
+
+
+def test_error_responses_include_security_headers(tmp_path: Path):
+    client = _client(tmp_path)
+    res = client.get("/api/state", headers={"Origin": "https://evil.example"})
+    assert res.status_code == 403
+    assert res.headers.get("x-frame-options") == "DENY"
+    assert res.headers.get("x-content-type-options") == "nosniff"
+    assert res.headers.get("content-security-policy") == "frame-ancestors 'none'"
