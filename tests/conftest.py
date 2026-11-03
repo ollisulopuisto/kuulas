@@ -2,12 +2,35 @@
 
 import getpass
 import os
+import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
 from kuulas import messages
+
+_SCRIPTS_DIR = str(Path(__file__).resolve().parents[1] / "scripts")
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+from run_changed_pytests import shard_items  # noqa: E402
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--kuulas-shard",
+        default=None,
+        help="Run one deterministic shard of the collected test suite (N/M)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    shard = config.getoption("--kuulas-shard")
+    if shard is None:
+        return
+    selected, deselected = shard_items(items, shard)
+    items[:] = selected
+    config.hook.pytest_deselected(items=deselected)
 
 
 def _writable(path: Path) -> bool:

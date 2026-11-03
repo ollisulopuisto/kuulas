@@ -1,6 +1,6 @@
 # Kuulas test build for Mac
 
-You need an Apple-silicon Mac (M1 or newer) with macOS 12 or later. Nothing else:
+You need an Apple-silicon Mac (M1 or newer) with macOS 13 or later. Nothing else:
 no Python, no ffmpeg, no installer.
 
 ## Install

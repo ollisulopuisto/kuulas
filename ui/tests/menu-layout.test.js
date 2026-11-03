@@ -209,6 +209,8 @@ describe("Text", () => {
     assert.deepEqual(subIds("text", "menu.transcribe.local"), [
       "app.transcribe",
       "app.transcribe_all",
+      "app.transcribe_orukeet",
+      "app.transcribe_all_orukeet",
       "app.orukeet_setup",
       "app.transcribe_restart",
     ]);

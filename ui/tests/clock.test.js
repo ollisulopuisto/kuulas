@@ -35,9 +35,10 @@ class FakeElement {
   }
 }
 
-function harness() {
+function harness({ withSpot = false } = {}) {
   const previousDocument = globalThis.document;
   const jumps = [];
+  const spots = [];
   const notices = [];
   let state = { project: {}, playhead: 0 };
   const el = new FakeElement();
@@ -58,6 +59,7 @@ function harness() {
       jumps.push(frame);
       state = { ...state, playhead: frame };
     },
+    ...(withSpot ? { spot: (frame) => spots.push(frame) } : {}),
     notify: (...args) => notices.push(args),
     t: (key) => key,
   });
@@ -66,6 +68,7 @@ function harness() {
     clock,
     el,
     jumps,
+    spots,
     notices,
     openByDoubleClick() {
       el.fire("dblclick", { preventDefault() {} });
@@ -124,6 +127,23 @@ describe("playhead clock time entry", () => {
       key(input, "Enter");
       assert.deepEqual(h.jumps, [Math.round(3723.5 * 48_000)]);
       assert.equal(h.el.textContent, "1:02:03");
+    } finally {
+      h.restoreDocument();
+    }
+  });
+
+  test("Enter sends the resolved time to spot placement", () => {
+    const h = harness({ withSpot: true });
+    try {
+      const input = h.openByDoubleClick();
+      input.fire("paste", {
+        preventDefault() {},
+        clipboardData: { getData: () => "1:02:03.500" },
+      });
+
+      key(input, "Enter");
+      assert.deepEqual(h.spots, [Math.round(3723.5 * 48_000)]);
+      assert.deepEqual(h.jumps, []);
     } finally {
       h.restoreDocument();
     }

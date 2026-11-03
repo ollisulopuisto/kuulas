@@ -93,7 +93,9 @@ describe("the commands the app registers", () => {
       duckMicrophones: () => calls.push(["duckMicrophones"]),
       duckMusic: () => calls.push(["duckMusic"]),
       transcribeTrack: () => calls.push(["transcribeTrack"]),
+      transcribeOrukeet: () => calls.push(["transcribeOrukeet"]),
       transcribeAll: (backend = "local") => calls.push(["transcribeAll", backend]),
+      transcribeAllOrukeet: () => calls.push(["transcribeAllOrukeet"]),
     };
     registerAppCommands(registry, { actions, app });
     return { registry, calls };
@@ -114,6 +116,8 @@ describe("the commands the app registers", () => {
       "app.duck_music",
       "app.transcribe",
       "app.transcribe_all",
+      "app.transcribe_orukeet",
+      "app.transcribe_all_orukeet",
       "app.transcribe_all_colab",
     ];
     for (const id of ids) {
@@ -130,11 +134,17 @@ describe("the commands the app registers", () => {
         "duckMusic",
         "transcribeTrack",
         "transcribeAll",
+        "transcribeOrukeet",
+        "transcribeAllOrukeet",
         "transcribeAll",
       ],
     );
-    assert.deepEqual(calls.slice(-2), [
+    assert.deepEqual(calls.slice(-2), [["transcribeAllOrukeet"], ["transcribeAll", "colab"]]);
+    assert.deepEqual(calls.slice(-5), [
+      ["transcribeTrack"],
       ["transcribeAll", "local"],
+      ["transcribeOrukeet"],
+      ["transcribeAllOrukeet"],
       ["transcribeAll", "colab"],
     ]);
   });

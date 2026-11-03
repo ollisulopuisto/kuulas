@@ -21,7 +21,8 @@ from pathlib import Path
 
 #: Imported to prove the compiled libraries and their bundled dylibs load.
 LIBRARIES = ("numpy", "scipy", "numba", "pedalboard", "soundfile", "soxr", "lxml",
-             "sounddevice", "speechmix", "nhsx", "silencelearn", "fastapi", "uvicorn")
+             "sounddevice", "speechmix", "nhsx", "silencelearn", "wordalign",
+             "fastapi", "uvicorn")
 
 TIMEOUT = 20
 
@@ -38,11 +39,14 @@ def check_build() -> str:
 
 
 def check_libraries() -> str:
-    for name in LIBRARIES:
+    libraries = LIBRARIES
+    if _in_bundle():
+        libraries += ("faster_whisper", "torch", "torchaudio")
+    for name in libraries:
         importlib.import_module(name)
     import soundfile  # noqa: PLC0415
 
-    return f"{len(LIBRARIES)} imported, libsndfile {soundfile.__libsndfile_version__}"
+    return f"{len(libraries)} imported, libsndfile {soundfile.__libsndfile_version__}"
 
 
 def check_ffmpeg() -> str:

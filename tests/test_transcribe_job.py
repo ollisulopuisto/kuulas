@@ -31,7 +31,9 @@ def wait_job(client, job_id):
     raise AssertionError("transcription job did not finish")
 
 
-def test_local_transcription_job_commits_words_once(tmp_path, monkeypatch):
+def test_local_transcription_defaults_to_whisper_and_commits_words_once(
+    tmp_path, monkeypatch
+):
     session = Session(tmp_path / "Speech.kuulas")
     source = wav(tmp_path / "speech.wav")
     session.import_media([source])
@@ -43,7 +45,7 @@ def test_local_transcription_job_commits_words_once(tmp_path, monkeypatch):
         progress(1.0)
         return [{"w": "hello", "s": 0, "e": 100, "spk": ""}]
 
-    monkeypatch.setattr("kuulas.transcribe.local", fake_local)
+    monkeypatch.setattr("kuulas.local_whisper.local", fake_local)
     try:
         app = create_app(session, Engine(), language="en", ui_dir=tmp_path)
         with TestClient(app) as client:
@@ -52,7 +54,7 @@ def test_local_transcription_job_commits_words_once(tmp_path, monkeypatch):
             job = wait_job(client, response.json()["jobs"][0])
             assert job["state"] == "completed"
             assert session.transcripts()[media_id][0]["w"] == "hello"
-            assert calls[0][1:3] == ("small", None)
+            assert calls[0][1:3] == ("large-v3-turbo", None)
     finally:
         session.close()
 
@@ -68,6 +70,47 @@ def test_transcription_rejects_unknown_media(tmp_path):
         session.close()
 
 
+def test_local_orukeet_can_be_selected_explicitly(tmp_path, monkeypatch):
+    session = Session(tmp_path / "Speech.kuulas")
+    session.import_media([wav(tmp_path / "speech.wav")])
+    media_id = session.state.media[0].id
+    calls = []
+
+    def fake_local(path, model=None, language=None, progress=None, **kwargs):
+        calls.append((path, model, language))
+        progress(1.0)
+        return [{"w": "fast", "s": 0, "e": 100, "spk": ""}]
+
+    monkeypatch.setattr("kuulas.transcribe.local", fake_local)
+    try:
+        app = create_app(session, Engine(), language="en", ui_dir=tmp_path)
+        with TestClient(app) as client:
+            response = client.post("/api/transcribe", json={
+                "media_ids": [media_id], "local_engine": "orukeet",
+            })
+            assert response.status_code == 202, response.text
+            job = wait_job(client, response.json()["jobs"][0])
+            assert job["state"] == "completed", job
+            assert session.transcripts()[media_id][0]["w"] == "fast"
+            assert calls[0][1] == "small"
+    finally:
+        session.close()
+
+
+def test_transcription_rejects_unknown_local_engine(tmp_path):
+    session = Session(tmp_path / "Speech.kuulas")
+    session.import_media([wav(tmp_path / "speech.wav")])
+    try:
+        app = create_app(session, Engine(), language="en", ui_dir=tmp_path)
+        with TestClient(app) as client:
+            response = client.post("/api/transcribe", json={
+                "media_ids": [session.state.media[0].id], "local_engine": "colab",
+            })
+        assert response.status_code == 400
+    finally:
+        session.close()
+
+
 def test_transcription_does_not_replace_words_added_while_job_runs(tmp_path, monkeypatch):
     session = Session(tmp_path / "Speech.kuulas")
     session.import_media([wav(tmp_path / "speech.wav")])
@@ -79,7 +122,7 @@ def test_transcription_does_not_replace_words_added_while_job_runs(tmp_path, mon
         assert finish.wait(2)
         return [{"w": "stale", "s": 0, "e": 100, "spk": ""}]
 
-    monkeypatch.setattr("kuulas.transcribe.local", slow_local)
+    monkeypatch.setattr("kuulas.local_whisper.local", slow_local)
     try:
         app = create_app(session, Engine(), language="en", ui_dir=tmp_path)
         with TestClient(app) as client:

@@ -3,6 +3,8 @@ name: ci
 on:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -22,7 +24,9 @@ jobs:
     name: Check changed paths
     runs-on: ubuntu-latest
     outputs:
-      python: ${{ steps.filter.outputs.python || steps.manual.outputs.python }}
+      python: ${{ steps.filter.outputs.python == 'true' || steps.filter.outputs.python_deleted_tests == 'true' || steps.manual.outputs.python == 'true' }}
+      python_tests: ${{ steps.filter.outputs.python_tests }}
+      python_test_files: ${{ steps.filter.outputs.python_tests_files }}
       ui: ${{ steps.filter.outputs.ui || steps.manual.outputs.ui }}
       lint: ${{ steps.filter.outputs.lint || steps.manual.outputs.lint }}
     steps:
@@ -31,9 +35,12 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@v4
         with:
+          predicate-quantifier: some-with-excludes
+          list-files: json
           filters: |
             python:
               - '**/*.py'
+              - '!tests/test_*.py'
               - 'src/**'
               - 'tests/**'
               - 'src/kuulas/locales/**'
@@ -43,6 +50,10 @@ jobs:
               - 'docs/KEYS.md'
               - 'docs/design/**'
               - '.github/workflows/**'
+            python_tests:
+              - added|modified: 'tests/test_*.py'
+            python_deleted_tests:
+              - deleted: 'tests/test_*.py'
             lint:
               - '**/*.py'
               - 'pyproject.toml'
@@ -56,9 +67,9 @@ jobs:
               - 'docs/design/**'
               - 'scripts/**/*.mjs'
               - '.github/workflows/**'
-      - name: Always run for a manual full-suite request
+      - name: Always run the full suites on demand or weekly
         id: manual
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
         run: |
           echo 'python=true' >> "$GITHUB_OUTPUT"
           echo 'ui=true' >> "$GITHUB_OUTPUT"
@@ -67,7 +78,7 @@ jobs:
   python-tests:
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    name: Python tests (${{ matrix.os }})
+    name: Python tests (${{ matrix.os }}, shard ${{ matrix.shard }}/2)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -76,6 +87,7 @@ jobs:
         # (CRLF checkout) and it is red on main too. Add windows-latest back to turn it on;
         # the Windows-only steps below are kept and skip themselves.
         os: [macos-latest, ubuntu-latest]
+        shard: [1, 2]
     defaults:
       run:
         working-directory: kuulas
@@ -105,9 +117,9 @@ jobs:
       - name: Prepare pytest report directory
         run: uv run python -c "from pathlib import Path; Path('test-results').mkdir(exist_ok=True)"
       - name: Python tests (Windows editor coverage; omit platform-only integration)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && needs.changes.outputs.python == 'true'
         run: >
-          uv run pytest -q -vv --full-trace -o faulthandler_timeout=10 --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml
+          uv run pytest -q -vv --full-trace -o faulthandler_timeout=10 --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml --kuulas-shard=${{ matrix.shard }}/2
           --ignore-glob=tests/test_recorder_*.py
           --ignore-glob=tests/test_record_*.py
           --ignore=tests/test_analysis_worker.py
@@ -135,12 +147,43 @@ jobs:
           --deselect=tests/test_source_map_api.py::test_session_source_map_lock_duration_measurement
           --deselect=tests/test_worker_launch.py::test_the_worker_runs_when_the_executable_is_the_bundles_launcher
       - name: Python tests
-        if: runner.os != 'Windows'
-        run: uv run pytest -q --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml
+        if: runner.os != 'Windows' && needs.changes.outputs.python == 'true'
+        run: uv run pytest -q --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml --kuulas-shard=${{ matrix.shard }}/2
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: pytest-report-${{ matrix.os }}
+          name: pytest-report-${{ matrix.os }}-${{ matrix.shard }}
+          path: kuulas/test-results/pytest.xml
+          if-no-files-found: warn
+
+  python-changed-tests:
+    needs: changes
+    if: needs.changes.outputs.python != 'true' && needs.changes.outputs.python_tests == 'true'
+    name: Changed Python test modules
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kuulas
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: kuulas
+      - uses: actions/checkout@v7
+        with:
+          repository: ollisulopuisto/podcast
+          path: podcast
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync
+      - name: Prepare pytest report directory
+        run: uv run python -c "from pathlib import Path; Path('test-results').mkdir(exist_ok=True)"
+      - name: Run changed Python test modules
+        env:
+          KUULAS_CHANGED_PYTEST_FILES: ${{ needs.changes.outputs.python_test_files }}
+        run: uv run python scripts/run_changed_pytests.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: pytest-report-changed-modules
           path: kuulas/test-results/pytest.xml
           if-no-files-found: warn
 

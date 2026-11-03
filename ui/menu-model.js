@@ -137,6 +137,8 @@ const MARKERS = submenu("menu.markers", [
 const TRANSCRIBE_LOCAL = submenu("menu.transcribe.local", [
   item("app.transcribe"),
   item("app.transcribe_all"),
+  item("app.transcribe_orukeet"),
+  item("app.transcribe_all_orukeet"),
   SEP,
   item("app.orukeet_setup"),
   item("app.transcribe_restart"),

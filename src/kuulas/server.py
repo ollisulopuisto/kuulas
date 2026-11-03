@@ -323,6 +323,7 @@ class TranscribeBody(BaseModel):
     model: str | None = None
     language: str | None = None
     backend: str = "local"
+    local_engine: str = "whisper"
     force: bool = False  # transcribe even recordings used only on music tracks
 
 
@@ -1613,6 +1614,8 @@ def create_app(session, engine, *, language: str | None = None,
             raise BadRequestError("error.server.bad_request", detail="media_ids")
         if body.backend not in {"local", "colab"}:
             raise BadRequestError("error.server.bad_request", detail="backend")
+        if body.local_engine not in {"whisper", "orukeet"}:
+            raise BadRequestError("error.server.bad_request", detail="local_engine")
         if body.backend == "colab" and not colab_signin.signed_in():
             # The sign-in is interactive; a detached worker could only hang on it.
             raise colab_transcribe.ColabError("error.colab.not_signed_in")
@@ -1625,7 +1628,8 @@ def create_app(session, engine, *, language: str | None = None,
         try:
             job_ids = session.transcribe(body.media_ids, body.model, body.language,
                                          body.backend, force=body.force,
-                                         allow_low_memory=body.allow_low_memory)
+                                         allow_low_memory=body.allow_low_memory,
+                                         local_engine=body.local_engine)
         except MediaError as exc:
             return answer(exc, 400)
         return JSONResponse({"jobs": job_ids}, status_code=202)

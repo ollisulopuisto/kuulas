@@ -189,6 +189,7 @@ import { normaliseSilence } from "./silence-model.js";
 import { createSilencePanel } from "./silence-panel.js";
 import { inactiveStyleChoice } from "./silence-visuals.js";
 import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
+import { spotPlan } from "./spot.js";
 import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
 import { anchorPatch, getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
@@ -1688,8 +1689,10 @@ const keyboard = setupKeyboard({
     openGateUnderClips: () => openGateUnderClips(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
+    transcribeOrukeet: () => void transcribeTrack("local", "orukeet"),
     // Transcribe every recording on any track (music-only ones stay untouched).
     transcribeAll: (backend = "local") => void transcribeAll(backend),
+    transcribeAllOrukeet: () => void transcribeAll("local", "orukeet"),
     restartTranscriptions: () => void restartTranscriptions(),
     openColabSettings: () => void colabDialogsFor().openSettings(),
     openOrukeetSetup: () => void orukeetDialogFor().open().catch(showError),
@@ -2808,7 +2811,7 @@ async function duckMicrophones() {
  * Text > Transcribe > On this computer / On Colab: the focused track's recordings, else every
  * speech track's. Colab uploads the audio to Google, so it asks first (transcribeOnColab).
  */
-async function transcribeTrack(backend = "local") {
+async function transcribeTrack(backend = "local", localEngine = "whisper") {
   const state = getState();
   const track = state.project?.tracks.find((item) => item.id === state.focusTrack);
   const asked = track ? [...new Set(track.clips.map((clip) => clip.media))] : undefined;
@@ -2819,12 +2822,12 @@ async function transcribeTrack(backend = "local") {
     return;
   }
   if (backend === "colab") await transcribeOnColab(ids ?? transcript.targetIds());
-  else await transcript.transcribe(ids);
+  else await transcript.transcribe(ids, { localEngine });
 }
 
 /** Text > Transcribe > All on this computer: every recording used on any track, except
  * recordings whose only clips are on music tracks (they are not transcribed). */
-async function transcribeAll(backend = "local") {
+async function transcribeAll(backend = "local", localEngine = "whisper") {
   const state = getState();
   const project = state.project;
   if (!project) return;
@@ -2836,7 +2839,7 @@ async function transcribeAll(backend = "local") {
     return;
   }
   if (backend === "colab") await transcribeOnColab(ids);
-  else await transcript.transcribe(ids);
+  else await transcript.transcribe(ids, { localEngine });
 }
 
 // Transcription is a background job in a separate process (WP79): it goes on when this window
@@ -4446,6 +4449,14 @@ const clock = createClock({
   limit: totalFrames,
   format: frameToTime,
   jump: jumpTo,
+  spot(frame) {
+    const plan = spotPlan(getState(), frame);
+    if (plan.kind === "playhead") {
+      jumpTo(plan.frame);
+      return;
+    }
+    editor.change({ op: plan.op, args: plan.args });
+  },
   notify: showNotice,
   t,
 });
@@ -4623,6 +4634,7 @@ function render(state, patch, previous = null) {
     const value = formatNumber(state.waveformGain, { digits: state.waveformGain < 10 ? 1 : 0 });
     button.textContent = `×${value}`;
     button.title = t("ui.view.waveform_reset", { value });
+    button.setAttribute("aria-label", button.title);
   }
   if (touched("followMode", "followPaused")) {
     $("follow").textContent = t(
@@ -4799,6 +4811,7 @@ function updateFollowChip(state) {
   const time = frameToTime(playheadNow(state), state.project?.rate);
   arrow.textContent = side === "left" ? `◀ ${time}` : `${time} ▶`;
   arrow.title = t("ui.view.follow_arrow", { time });
+  arrow.setAttribute("aria-label", arrow.title);
 }
 // Right-click on a toolbar button removes it; adding uses the visible plus picker.
 // Layout changes are explicit user actions and are remembered per user.

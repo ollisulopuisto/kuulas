@@ -1,5 +1,7 @@
 # kuulas implementation plan
 
+**Release v26.11.3.1:** Colab large-audio uploads use chunked transfer; local Orukeet uses its native word timings; WAV sources can relink to sample-equivalent FLAC files. Also: clip moves snap to session markers, Cmd+Alt selection leaves the playhead in place, selected clips can be spotted at a typed time, Backspace deletes clips, silent clips hide gain overlays, transcript narration placeholders, faster Automix planning and partitioned Python CI.
+
 **Release v26.11.1.6:** Record becomes Stop during a take; marker flags drag along the ruler and the Markers tab can set the in point while recording. Also: grouped clip labels move every group member at the leading edge; current track headers have a track-color tint; stale Colab sessions retry once with a fresh session; pressing 0 fits a growing recording. Includes v26.11.1.4's faster-whisper Colab path, grouped Inspector files and inline bus renaming.
 
 **Release v26.11.1.5:** stale Colab sessions reported as “not found” retry once with a fresh session; grouped clip labels move every group member at the leading edge; the current track header has a track-color tint; pressing 0 fits a growing recording. Includes v26.11.1.4's faster-whisper Colab path, grouped Inspector files and inline bus renaming.

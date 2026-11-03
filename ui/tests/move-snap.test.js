@@ -67,9 +67,21 @@ describe("what to snap to", () => {
       { id: "b", clips: [{ id: "b1", start: 120, length: 30 }] },
     ],
   };
-  test("every other clip's edges, the playhead and the marks; the moved clips are left out", () => {
-    const t = moveTargets(project, ["a2"], { playhead: 77, inPoint: 200, outPoint: 260 });
-    assert.deepEqual(t, [0, 77, 100, 120, 150, 200, 260]);
+  test("every other clip's edges, the playhead, in/out marks and session markers", () => {
+    const withMarkers = {
+      ...project,
+      markers: [
+        { id: "point", kind: "marker", start: 180 },
+        { id: "chapter", kind: "chapter", start: 240 },
+        { id: "region", kind: "region", start: 210, end: 270 },
+      ],
+    };
+    const t = moveTargets(withMarkers, ["a2"], {
+      playhead: 77,
+      inPoint: 200,
+      outPoint: 260,
+    });
+    assert.deepEqual(t, [0, 77, 100, 120, 150, 180, 200, 210, 240, 260, 270]);
   });
   test("missing marks are skipped and duplicates merged", () => {
     const t = moveTargets(project, [], { playhead: 100, inPoint: null, outPoint: undefined });

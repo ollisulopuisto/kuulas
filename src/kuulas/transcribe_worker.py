@@ -2,7 +2,7 @@
 
 Started by the editor in its own session (``bgjobs.launch_worker``), so it keeps
 going when the window, the app or the project is closed. It reads the job file,
-runs the engine (Orukeet here, or ``colab-transcribe`` through the WP78
+runs the engine (local Whisper or Orukeet, or ``colab-transcribe`` through the WP78
 runner), keeps ``<id>.status.json`` current and writes one
 ``<id>.<media>.words.json`` per media. It never opens the project database or
 takes its lock: the editor ingests the results (``Session``).
@@ -36,6 +36,7 @@ from . import (
     colab_signin,
     colab_transcribe,
     local_transcription_queue,
+    local_whisper,
     transcribe,
 )
 from .clock import FLICKS
@@ -159,7 +160,8 @@ def _stop_if_cancelled(cancel: threading.Event) -> None:
 
 
 def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Event,
-                 local: Callable | None, colab: Callable | None) -> None:
+                 local: Callable | None, whisper: Callable | None,
+                 colab: Callable | None) -> None:
     """Run the chosen engine over the job's media and write the result files."""
     job_id, items = str(job["id"]), job["items"]
     language = job.get("language") or ""
@@ -194,7 +196,12 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
             _write_result(folder, job_id, item["id"], found["results"][item["id"]],
                           language)
         return
-    engine = local or transcribe.local
+    # Existing queued jobs predate the engine selector and were Orukeet jobs.
+    # New Session jobs persist the explicit local_engine value.
+    use_whisper = job.get("local_engine", "orukeet") == "whisper"
+    engine = ((whisper or local_whisper.local) if use_whisper
+              else (local or transcribe.local))
+    model = job.get("model") or (local_whisper.DEFAULT_MODEL if use_whisper else "small")
     for index, item in enumerate(items):
         def share(fraction, index=index, name=item["name"]):
             status.update(progress=max(status.data["progress"], min(
@@ -203,20 +210,21 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
 
         memory_options = ({"allow_low_memory": True}
                           if job.get("allow_low_memory") is True else {})
-        words = engine(item["path"], model=job.get("model") or "small",
+        words = engine(item["path"], model=model,
                        language=job.get("language"), progress=_Progress(cancel, share),
                        cpu_threads=job.get("cpu_threads"), **memory_options)
         _stop_if_cancelled(cancel)
-        # The local engine is Orukeet; preserve its timing identity on import.
-        _write_result(folder, job_id, item["id"], {"words": words, "timing": "orukeet"},
+        timing = "ctc-v1" if use_whisper else "orukeet"
+        _write_result(folder, job_id, item["id"], {"words": words, "timing": timing},
                       language)
 
 
 def run_job(job_path: Path | str, *, local: Callable | None = None,
+            whisper: Callable | None = None,
             colab: Callable | None = None, status_interval: float = STATUS_INTERVAL_S,
             cancel: threading.Event | None = None, keep_awake=None) -> str:
     """Run the job to its end and return the final state (``completed``, ``failed``
-    or ``cancelled``). ``local`` and ``colab`` replace the engines (tests)."""
+    or ``cancelled``). Engine arguments replace their backends (tests)."""
     job_path = Path(job_path)
     job = bgjobs.read_json(job_path)
     if job is None:
@@ -246,9 +254,9 @@ def run_job(job_path: Path | str, *, local: Callable | None = None,
             status.update(force=True, message=str(t("job.transcribe.waiting_local")))
             with local_transcription_queue.slot(cancel):
                 status.update(force=True, state="running", message="")
-                _run_engines(job, folder, status, cancel, local, colab)
+                _run_engines(job, folder, status, cancel, local, whisper, colab)
         else:
-            _run_engines(job, folder, status, cancel, local, colab)
+            _run_engines(job, folder, status, cancel, local, whisper, colab)
     except JobCancelledError:
         final, fields = "cancelled", {}
     except Exception as exc:

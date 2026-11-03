@@ -3,6 +3,11 @@
 **Learning:** Origin and Host header validation protects against unauthorized cross-origin state driving, but does not stop a foreign site from framing the application's UI for clickjacking attacks unless anti-framing headers (`X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'`) are sent on all HTTP responses.
 **Prevention:** Apply defensive headers (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Content-Security-Policy: frame-ancestors 'none'`) across all outgoing HTTP responses directly in the server's HTTP middleware layer.
 
+## 2026-11-02 - Unvalidated destination folder in project copy export
+**Vulnerability:** The project copy exporter accepted user-provided destination directory paths without standard path traversal checks, absolute path requirements, or length/NUL-byte bounds before attempting directory creation.
+**Learning:** Functions accepting filesystem target paths from API endpoints must consistently enforce path sanitization rules (non-empty string <= 4096 characters, no NUL bytes, absolute path, no `..` traversal components, and verified `os.path.realpath`) prior to performing directory operations.
+**Prevention:** Centralize or consistently apply the standard path validation invariant to all export and filesystem destination handlers.
+
 ## 2026-11-01 - Missing peer UID verification on recorder Unix domain socket
 **Vulnerability:** The audio recorder supervisor listens on a Unix domain socket to manage recording sessions and control background audio capture. Although directory permissions restrict access, processes on multi-user systems or shared temporary directories could attempt connecting to the socket without peer identity verification.
 **Learning:** Unix domain socket file permissions protect filesystem access at open time, but defense-in-depth requires checking the connected peer's socket credentials directly (e.g. `SO_PEERCRED` on Linux, `LOCAL_PEERCRED` on macOS) to guarantee caller authenticity.

@@ -3093,9 +3093,10 @@ class Session:
 
     def transcribe(self, media_ids: list[str], model: str | None = None,
                    language: str | None = None, backend: str = "local",
-                   force: bool = False, allow_low_memory: bool = False) -> list[str]:
-        """Start ONE background job for the chosen recordings (``local``:
-        Orukeet here; ``colab``: the WP78 tool). The job is a file in the
+                   force: bool = False, allow_low_memory: bool = False,
+                   local_engine: str = "whisper") -> list[str]:
+        """Start one background transcription job (local Whisper or Orukeet; or Colab).
+        The job is a file in the
         project and a separate worker process (``kuulas.transcribe_worker``) that
         goes on when the window or the app is closed; the finished words are
         added by ``poll_background`` (here, or at the next open) as one undo step
@@ -3103,8 +3104,14 @@ class Session:
         Recordings used only on music tracks are refused (``error.transcribe.music_only``)
         unless ``force``: music is not transcribed nor uploaded to Colab by default.
         Returns the job id in a list."""
-        if backend != "colab" and not allow_low_memory and not local_memory.eligible():
-            raise ops.EditError("error.orukeet.memory")
+        if backend not in {"local", "colab"}:
+            raise ops.EditError("error.server.bad_request", detail="backend")
+        if local_engine not in {"whisper", "orukeet"}:
+            raise ops.EditError("error.server.bad_request", detail="local_engine")
+        if backend == "local" and not allow_low_memory and not local_memory.eligible():
+            key = ("error.whisper.memory" if local_engine == "whisper"
+                   else "error.orukeet.memory")
+            raise ops.EditError(key)
         ids = list(dict.fromkeys(media_ids))
         items, previous, names = [], {}, []
         with self.lock:
@@ -3130,10 +3137,12 @@ class Session:
         colab = backend == "colab"
         job_id = bgjobs.create_job(
             self.package.path, backend="colab" if colab else "local", items=items,
-            previous=previous, names=names, model=model if colab else (model or "small"),
+            previous=previous, names=names, model=model if colab else (model or (
+                "large-v3-turbo" if local_engine == "whisper" else "small")),
             language=language, cpu_threads=max(1, os.cpu_count() or 1),
             settings=colab_module.resolve_settings(colab_module.load_settings())
-            if colab else None, forced=force, allow_low_memory=allow_low_memory)
+            if colab else None, forced=force, allow_low_memory=allow_low_memory,
+            local_engine=local_engine if not colab else None)
         self._launch_background(job_id)
         return [job_id]
 

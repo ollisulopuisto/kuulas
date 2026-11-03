@@ -1,6 +1,6 @@
 [project]
 name = "kuulas"
-version = "26.11.1.7"
+version = "26.11.3.2"
 description = "Multitrack spoken-word DAW: transcript editing, buses, the speechmix pipeline"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -25,6 +25,8 @@ dependencies = [
     "certifi>=2026.10.23",
     "sounddevice>=0.5.2",
     "soundfile>=0.14.0",
+    # Podcast's shared CTC aligner for Whisper word-start correction.
+    "wordalign",
     # Windows has no system IANA database for zoneinfo; provide one in the app environment.
     "tzdata>=2025.1; sys_platform == 'win32'",
     # Streaming resampler, for an output device that cannot run the project
@@ -33,8 +35,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Compatibility extra: Orukeet runs through the shared CLI in its own MLX environment.
-transcribe = []
+# Local Whisper inference plus Podcast's isolated CTC word-alignment process.
+transcribe = ["faster-whisper==1.2.1", "torch==2.8.0", "torchaudio==2.8.0"]
 # The native window (WP15): system web view, native file dialogs and menu.
 # Not in the base dependencies: Linux needs system WebKit packages for it.
 desktop = ["pywebview>=5"]
@@ -50,6 +52,7 @@ kuulas-worker = "kuulas.transcribe_worker:main"
 speechmix = { path = "../podcast/packages/speechmix", editable = true }
 nhsx = { path = "../podcast/packages/nhsx", editable = true }
 silencelearn = { path = "../podcast/packages/silencelearn", editable = true }
+wordalign = { path = "../podcast/packages/wordalign", editable = true }
 
 [dependency-groups]
 dev = ["ruff==0.15.8", "pytest>=9.0.2", "httpx>=0.28.1"]

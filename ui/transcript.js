@@ -25,6 +25,7 @@ import { transcriptFollowStep, transcriptPlaybackStep } from "./transcript-follo
 import {
   alsoRemovedIndices,
   buildParagraphs,
+  buildTranscriptRows,
   collateralBand,
   correctableWordRange,
   dragSelection,
@@ -128,6 +129,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   // -- derived from the words (rebuilt only when they change) -----------------------------
   let words = [];
   let paragraphs = [];
+  let displayRows = [];
+  let displayIndexByParagraph = new Map();
   let pauses = new Map(); // paragraph index -> the silence before it
   let heights = [];
   let offsets = [0];
@@ -188,8 +191,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   function layout() {
     const size = sizes();
-    heights = paragraphs.map((p) =>
-      paraState(p) === "hidden" ? 0 : (measured.get(p.id) ?? estimateHeight(p, size)),
+    heights = displayRows.map((row) =>
+      paraState(row) === "hidden" ? 0 : (measured.get(row.id) ?? estimateHeight(row, size)),
     );
     offsets = offsetsOf(heights);
   }
@@ -205,6 +208,12 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       pauseSeconds: pauseSecondsOf(state.pauseBreak),
     });
     pauses = pauseMarkers(words, paragraphs, rate());
+    displayRows = buildTranscriptRows(paragraphs, state.project?.placeholders ?? []);
+    displayIndexByParagraph = new Map(
+      displayRows
+        .filter((row) => row.kind === "paragraph")
+        .map((row, index) => [row.paragraphIndex, index]),
+    );
     measured.clear();
     listWidth = list.clientWidth || root.clientWidth;
     layout();
@@ -233,7 +242,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   /** The offer: one row per recording without a transcript (transcript-offer.js). */
   function renderEmptyState() {
     const has = words.length > 0;
-    list.hidden = !has;
+    const placeholders = getState().project?.placeholders ?? [];
+    list.hidden = !has && placeholders.length === 0;
     const targets = transcribeTargets();
     const { rows, all } = offerRows({
       media: targets,
@@ -247,12 +257,14 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       selection: getState().selection,
       transcribed: transcribedMedia(getState(), words),
     });
-    empty.hidden = !getState().project || (has && rows.length === 0 && !note);
+    empty.hidden =
+      !getState().project || ((has || placeholders.length > 0) && rows.length === 0 && !note);
     empty.replaceChildren();
     if (empty.hidden) return;
     if (note) empty.append(musicNoteBlock(note));
     if (note && rows.length === 0) return;
     if (rows.length === 0) {
+      if (placeholders.length > 0) return;
       empty.append(el("strong", "", t("ui.transcript.empty")));
       return;
     }
@@ -343,20 +355,25 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const buttons = el("span", "tx-miss-buttons");
     buttons.append(
       offerButton("transcribe", ids, t("ui.transcript.transcribe"), "play", true),
+      offerButton("transcribe-orukeet", ids, t("ui.transcript.transcribe_orukeet"), "play", false),
       offerButton("transcribe-colab", ids, t("ui.transcript.transcribe_colab"), "export", false),
     );
     item.append(buttons);
     return item;
   }
 
-  async function transcribe(onlyIds, { force = false } = {}) {
+  async function transcribe(onlyIds, { force = false, localEngine = "whisper" } = {}) {
     const ids = onlyIds ?? transcribeTargets().map((item) => item.id);
     if (ids.length === 0) return;
     try {
-      const consent = actions.ensureLocalModel ? await actions.ensureLocalModel() : true;
+      const consent =
+        localEngine === "orukeet" && actions.ensureLocalModel
+          ? await actions.ensureLocalModel()
+          : true;
       if (!consent) return;
       await api.transcribe(ids, {
         force,
+        local_engine: localEngine,
         ...(consent.allow_low_memory === true ? { allow_low_memory: true } : {}),
       });
       await refreshJobs();
@@ -387,7 +404,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   function firstVisible() {
     const at = viewTop();
     let lo = 0;
-    let hi = paragraphs.length - 1;
+    let hi = displayRows.length - 1;
     let found = 0;
     while (lo <= hi) {
       const mid = (lo + hi) >> 1;
@@ -436,14 +453,15 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   }
 
   function buildParagraph(index) {
-    const p = paragraphs[index];
+    const p = displayRows[index];
     const node = el("div", "tx-para");
     node.dataset.p = String(index);
+    if (p.kind === "placeholder") return buildPlaceholderRow(p, node);
     const focus = paraState(p);
     if (focus !== "normal") node.classList.add(`focus-${focus}`);
     const hue = trackHue(p.track);
     node.style.setProperty("--track-colour", `var(--track-${hue}-edge)`);
-    const pause = pauses.get(index);
+    const pause = pauses.get(p.paragraphIndex);
     if (pause) node.append(pauseMarker(pause));
     const speaker = el("div", "tx-speaker");
     speaker.append(el("b", "", p.name), el("span", "", frameToTime(p.start, rate())));
@@ -454,6 +472,26 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       wordNodes.set(i, span);
       text.append(span);
     }
+    node.append(speaker, text);
+    return node;
+  }
+
+  function buildPlaceholderRow(placeholder, node) {
+    node.classList.add("tx-placeholder-row");
+    node.dataset.placeholder = placeholder.id.slice("placeholder:".length);
+    node.setAttribute("role", "button");
+    node.tabIndex = 0;
+    node.title = t("ui.placeholders.transcript.title");
+    const hue = trackHue(placeholder.track);
+    node.style.setProperty("--track-colour", `var(--track-${hue}-edge)`);
+    const speaker = el("div", "tx-speaker");
+    speaker.append(
+      el("b", "", nameOfTrack(placeholder.track)),
+      el("span", "", frameToTime(placeholder.start, rate())),
+    );
+    const text = el("p", "tx-text tx-script");
+    text.append(el("span", "tx-to-record", t("ui.placeholders.transcript.badge")));
+    text.append(el("em", "tx-script-text", placeholder.text));
     node.append(speaker, text);
     return node;
   }
@@ -474,7 +512,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   /** Draw the paragraphs near the viewport; keep the ones already drawn. */
   function renderWindow() {
-    if (paragraphs.length === 0) {
+    if (displayRows.length === 0) {
       top.style.height = "0px";
       bottom.style.height = "0px";
       return;
@@ -484,8 +522,10 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const { from, to } = visibleRange(offsets, viewTop(), root.clientHeight, MARGIN_PX);
     for (const [index, node] of nodes) {
       if (index >= from && index < to) continue;
-      const p = paragraphs[index];
-      for (let i = p.first; i <= p.last; i++) wordNodes.delete(i);
+      const row = displayRows[index];
+      if (row.kind === "paragraph") {
+        for (let i = row.first; i <= row.last; i++) wordNodes.delete(i);
+      }
       node.remove();
       nodes.delete(index);
     }
@@ -500,22 +540,22 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       after = node;
     }
     top.style.height = `${offsets[from]}px`;
-    bottom.style.height = `${offsets[paragraphs.length] - offsets[to]}px`;
+    bottom.style.height = `${offsets[displayRows.length] - offsets[to]}px`;
     // Real heights replace the estimates; what changed above the first visible paragraph
     // would shift the text under the reader's eyes, so scroll by that much.
     let changed = false;
     for (const [index, node] of nodes) {
-      if (paraState(paragraphs[index]) === "hidden") continue;
+      if (paraState(displayRows[index]) === "hidden") continue;
       const real = node.offsetHeight + paragraphGap();
       if (Math.abs(real - heights[index]) > 1) {
-        measured.set(paragraphs[index].id, real);
+        measured.set(displayRows[index].id, real);
         changed = true;
       }
     }
     if (changed) {
       layout();
       top.style.height = `${offsets[from]}px`;
-      bottom.style.height = `${offsets[paragraphs.length] - offsets[to]}px`;
+      bottom.style.height = `${offsets[displayRows.length] - offsets[to]}px`;
       const shift = offsets[anchor] - anchorTop;
       if (shift !== 0) scrollTo(root.scrollTop + shift);
     }
@@ -589,8 +629,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   /** Scroll so word `i` is in view; `place` puts it a third of the way down. */
   function reveal(i, { place = false } = {}) {
-    if (i < 0 || paragraphs.length === 0) return;
-    const p = paragraphOf(paragraphs, i);
+    if (i < 0 || displayRows.length === 0) return;
+    const paragraph = paragraphOf(paragraphs, i);
+    const p = displayIndexByParagraph.get(paragraph) ?? -1;
     if (p < 0) return;
     let rect = wordRect(i);
     const header = list.offsetTop;
@@ -696,11 +737,36 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     renderPop();
   });
   list.addEventListener("click", (event) => {
+    const placeholder = event.target.closest?.("[data-placeholder]");
+    if (placeholder && list.contains(placeholder)) {
+      const selected = (getState().project?.placeholders ?? []).find(
+        (item) => item.id === placeholder.dataset.placeholder,
+      );
+      if (selected) {
+        setState({ placeholderSelected: selected.id });
+        setPaused(false);
+        actions.jump(selected.start);
+      }
+      return;
+    }
     const marker = event.target.closest?.(".tx-pause");
     if (!marker || !list.contains(marker)) return;
     // The app has no range selection of its own; the in/out marks are the range.
     setState({ inPoint: Number(marker.dataset.start), outPoint: Number(marker.dataset.end) });
     actions.jump(Number(marker.dataset.start));
+  });
+  list.addEventListener("keydown", (event) => {
+    const row = event.target.closest?.("[data-placeholder]");
+    if (!row || !list.contains(row) || !["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    const selected = (getState().project?.placeholders ?? []).find(
+      (item) => item.id === row.dataset.placeholder,
+    );
+    if (selected) {
+      setState({ placeholderSelected: selected.id });
+      setPaused(false);
+      actions.jump(selected.start);
+    }
   });
   list.addEventListener("dblclick", (event) => {
     const i = wordAt(event);
@@ -750,7 +816,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const ids = (button.dataset.ids ?? "").split(",").filter(Boolean);
     if (button.dataset.act === "transcribe") void transcribe(ids);
     else if (button.dataset.act === "transcribe-anyway") void transcribe(ids, { force: true });
-    else if (button.dataset.act === "transcribe-colab") actions.transcribeColab?.(ids);
+    else if (button.dataset.act === "transcribe-orukeet") {
+      void transcribe(ids, { localEngine: "orukeet" });
+    } else if (button.dataset.act === "transcribe-colab") actions.transcribeColab?.(ids);
     else if (button.dataset.act === "transcribe-cancel") {
       button.disabled = true;
       void api
@@ -839,8 +907,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       x = box.left - frame.left + root.scrollLeft;
       y = box.top - frame.top + root.scrollTop;
     } else {
-      const p = paragraphOf(paragraphs, picked[0]);
-      y = list.offsetTop + (offsets[p] ?? 0);
+      const paragraph = paragraphOf(paragraphs, picked[0]);
+      const display = displayIndexByParagraph.get(paragraph) ?? 0;
+      y = list.offsetTop + (offsets[display] ?? 0);
     }
     const height = pop.offsetHeight;
     const above = y - height - 8;
@@ -1259,7 +1328,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       if (playback.paused !== paused) setPaused(playback.paused);
       if (touched("head", "serverMutedKey")) void loadWords();
       if (touched("focusMode", "focusHideOthers")) refocus(state);
-      const key = `${state.wordsHead}|${state.words?.length}|${state.project?.rate}|${state.project?.tracks?.map((x) => x.id + x.speaker + x.name).join()}|${JSON.stringify(state.people ?? {})}|${state.pauseBreak}`;
+      const key = `${state.wordsHead}|${state.words?.length}|${state.project?.rate}|${state.project?.tracks?.map((x) => x.id + x.speaker + x.name).join()}|${JSON.stringify(state.people ?? {})}|${JSON.stringify(state.project?.placeholders ?? [])}|${state.pauseBreak}`;
       if (state.words !== words || key !== lastKey) {
         lastKey = key;
         rebuild();
