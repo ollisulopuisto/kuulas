@@ -1,3 +1,11 @@
+## [v26.11.4.2] - 2026-11-04
+
+- **Align recordings by sound.** New windowed correlator feeds the align-by-sound workflow (WP16).
+- **Recorder socket verifies the peer UID.** Domain-socket connections check the connecting process (Sentinel hardening).
+- **Local Orukeet repairs.** SDK setup from the GUI, runtime install for local jobs, and a PyAV-compatible Podcast runner.
+- **Performance.** Faster History JSON deserialization in SQLite and a benchmarked track-membership check.
+- **Accessibility.** Command buttons derive their aria-labels.
+
 ## [v26.11.3.2] - 2026-11-03
 
 - **Whisper is the default local transcription option.** Uses large-v3-turbo with word timings refined by Podcast’s alignment package. Orukeet remains available as the faster local alternative; Colab continues through the Podcast remote pipeline.
