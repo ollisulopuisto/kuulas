@@ -1,9 +1,9 @@
 """The macOS build checks out package sources without case-colliding agent notes."""
 
 import re
+import shutil
 import subprocess
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -18,8 +18,9 @@ def test_podcast_checkout_excludes_notes_and_preserves_build_sources(tmp_path):
     repo.mkdir()
 
     def git(*args):
-        return subprocess.run(["git", "-C", str(repo), *args], check=True,
-                              capture_output=True, text=True).stdout
+        return subprocess.run(  # noqa: S603 - fixed fixture-only Git commands, no shell
+            [shutil.which("git"), "-C", str(repo), *args], check=True,
+            capture_output=True, text=True).stdout
 
     git("init")
     for name in ("packages/wordalign/src/wordalign.py", "apps/automixer/main.py",
