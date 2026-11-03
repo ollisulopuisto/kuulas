@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import secrets
 import shutil
 import sqlite3
@@ -189,10 +190,25 @@ def make(store, freeze: Callable[[Path], tuple[Project, dict]], project_name: st
     checkpoint it has just written)."""
     if media not in MODES:
         raise SendCopyError("error.send_copy.bad_media", media=str(media))
-    if not isinstance(folder, str) or not folder.strip():
+    # Security: validate destination folder to prevent path traversal
+    if (not isinstance(folder, str) or not folder.strip() or "\0" in folder
+            or len(folder) > 4096):
         raise SendCopyError("error.send_copy.no_folder")
-    parent = Path(folder).expanduser()
-    parent.mkdir(parents=True, exist_ok=True)
+    raw_parent = Path(folder)
+    if not raw_parent.is_absolute() or ".." in raw_parent.parts:
+        raise SendCopyError("error.send_copy.no_folder")
+    try:
+        norm_parent = os.path.normpath(folder)
+        if not os.path.isabs(norm_parent):
+            raise SendCopyError("error.send_copy.no_folder")
+        parent = Path(norm_parent)
+        parent.mkdir(parents=True, exist_ok=True)
+        real_parent = os.path.realpath(norm_parent)
+        if not os.path.isdir(real_parent) or ".." in Path(real_parent).parts:
+            raise SendCopyError("error.send_copy.no_folder")
+    except (OSError, RuntimeError):
+        raise SendCopyError("error.send_copy.no_folder") from None
+    parent = Path(real_parent)
     stem = safe_filename(f"{project_name} copy")
     name = unique_name(stem, [p.stem for p in parent.glob("*.kuulas")])
     final = parent / f"{name}.kuulas"
