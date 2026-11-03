@@ -3109,8 +3109,9 @@ class Session:
         if local_engine not in {"whisper", "orukeet"}:
             raise ops.EditError("error.server.bad_request", detail="local_engine")
         if backend == "local" and not allow_low_memory and not local_memory.eligible():
-            raise ops.EditError("error.whisper.memory" if local_engine == "whisper"
-                                else "error.orukeet.memory")
+            key = ("error.whisper.memory" if local_engine == "whisper"
+                   else "error.orukeet.memory")
+            raise ops.EditError(key)
         ids = list(dict.fromkeys(media_ids))
         items, previous, names = [], {}, []
         with self.lock:

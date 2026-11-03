@@ -267,9 +267,11 @@ def test_a_transcript_changed_meanwhile_is_kept(session, client, tool, monkeypat
 
 
 def test_unknown_backend_and_media_are_refused(session, client, tool):
-    r = client.post("/api/transcribe", json={"media_ids": ids(session), "backend": "x"})
+    r = client.post("/api/transcribe",
+                    json={"media_ids": ids(session), "backend": "x"})
     assert r.status_code == 400
-    r = client.post("/api/transcribe", json={"media_ids": ["nope"], "backend": "colab"})
+    r = client.post("/api/transcribe",
+                    json={"media_ids": ["nope"], "backend": "colab"})
     assert r.status_code == 404
 
 
@@ -282,7 +284,8 @@ def test_local_transcription_stores_orukeet_timing(session, client, tool,
         return [{"w": "local", "s": 0, "e": 100, "spk": ""}]
 
     monkeypatch.setattr("kuulas.transcribe.local", fake_local)
-    r = client.post("/api/transcribe", json={"media_ids": [first]})
+    r = client.post("/api/transcribe",
+                    json={"media_ids": [first], "local_engine": "orukeet"})
     wait_job(client, r.json()["jobs"][0])
     by_id = {m.id: m for m in session.state.media}
     assert by_id[first].timing == "orukeet"
