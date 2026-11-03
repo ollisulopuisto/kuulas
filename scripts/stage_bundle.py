@@ -31,7 +31,7 @@ FORMAL_NAME = "Kuulas"
 UTI = "fi.sulopuisto.kuulas.project"
 UTI_CONFORMS_TO = ("com.apple.package", "public.composite-content")
 EXTENSION = "kuulas"
-MIN_MACOS = "12.0"
+MIN_MACOS = "13.0"
 
 #: Dependencies of the root project that the bundle gets as local wheels instead.
 LOCAL = ("speechmix", "nhsx", "silencelearn", "wordalign")
@@ -124,7 +124,7 @@ requirement_installer_args = ["--find-links={wheels_dir}"]
 
 [tool.briefcase.app.{APP_NAME}.macOS]
 universal_build = false
-# numba and llvmlite publish arm64 wheels for macOS 12 and later only (see uv.lock);
+# Whisper VAD uses onnxruntime; its Python 3.13 macOS wheels require macOS 13.
 # Briefcase installs the wheels for the minimum version it is told.
 min_os_version = "{MIN_MACOS}"
 

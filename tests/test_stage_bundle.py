@@ -87,8 +87,8 @@ def test_identifiers_equal_the_wp72_launcher_apps(tmp_path):
     assert tuple(exported["UTTypeConformsTo"]) == stage_bundle.UTI_CONFORMS_TO
 
 
-def test_minimum_macos_is_what_numba_wheels_need(tmp_path):
-    assert config(tmp_path)["app"]["kuulas"]["macOS"]["min_os_version"] == "12.0"
+def test_minimum_macos_supports_whisper_onnxruntime_wheels(tmp_path):
+    assert config(tmp_path)["app"]["kuulas"]["macOS"]["min_os_version"] == "13.0"
 
 
 def test_the_microphone_reason_is_declared(tmp_path):
