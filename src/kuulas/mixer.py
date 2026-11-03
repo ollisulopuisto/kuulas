@@ -17,6 +17,7 @@ sits; a stereo signal is balanced.
 from __future__ import annotations
 
 from bisect import bisect_left
+from dataclasses import dataclass
 from typing import Protocol
 
 import numpy as np
@@ -112,6 +113,55 @@ def _mute_ramps(track: Track, rate: int) -> dict[str, tuple[int, int]]:
         if r_in or r_out:
             out[c.id] = (r_in, r_out)
     return out
+
+
+@dataclass(frozen=True)
+class TrackStemPlan:
+    """Clip and mute-ramp index for a block-rendered track stem."""
+
+    track_id: str
+    first: int
+    frames: int
+    block_frames: int
+    blocks: tuple[tuple[Clip, ...], ...]
+    mute_ramps: dict[str, tuple[int, int]]
+
+    def clips_for(self, first: int, count: int) -> tuple[Clip, ...]:
+        offset = first - self.first
+        if offset < 0 or offset >= self.frames or offset % self.block_frames:
+            raise ValueError("stem plan used outside its block grid")
+        if count != min(self.block_frames, self.frames - offset):
+            raise ValueError("stem plan block size does not match")
+        return self.blocks[offset // self.block_frames]
+
+
+def prepare_track_stem(track: Track, *, first: int, frames: int,
+                       block_frames: int, rate: int) -> TrackStemPlan:
+    """Index audible clips and derive mute ramps once for a block stem export.
+
+    Export blocks arrive on a fixed grid. Keeping only intersecting clips in each
+    block avoids rescanning a long, edited track for every ten seconds rendered.
+    """
+    if frames < 0 or block_frames <= 0:
+        raise ValueError("invalid stem plan range")
+    count = (frames + block_frames - 1) // block_frames
+    blocks: list[list[Clip]] = [[] for _ in range(count)]
+    end = first + frames
+    for clip in track.clips:
+        if clip.muted:
+            continue
+        lo = max(first, clip.start)
+        hi = min(end, clip.end)
+        if hi <= lo:
+            continue
+        first_block = (lo - first) // block_frames
+        last_block = (hi - 1 - first) // block_frames
+        for index in range(first_block, last_block + 1):
+            blocks[index].append(clip)
+    return TrackStemPlan(
+        track.id, first, frames, block_frames,
+        tuple(tuple(block) for block in blocks), _mute_ramps(track, rate),
+    )
 
 
 def _clip_signal(clip: Clip, store: Store, first: int, count: int, rate: int,
@@ -242,7 +292,8 @@ def mix(project: Project, store: Store, first: int, count: int,
 
 def track_stem(track: Track, store: Store, first: int, count: int, channels: int,
                *, as_heard: bool, rate: int, track_gain: bool = False,
-               bus_db: float = 0.0, track_automation: bool = False) -> np.ndarray:
+               bus_db: float = 0.0, track_automation: bool = False,
+               plan: TrackStemPlan | None = None) -> np.ndarray:
     """One track on its own, for stem export: ``(channels, count)`` float32.
 
     The edit is applied (cuts, crossfades, clip gain, envelopes, fades; muted
@@ -256,8 +307,15 @@ def track_stem(track: Track, store: Store, first: int, count: int, channels: int
     never applied. Solo and mute are the caller's business.
     """
     buf = np.zeros((channels, count), dtype=np.float64)
-    ramps = _mute_ramps(track, rate)
-    for clip in track.clips:
+    if plan is not None:
+        if plan.track_id != track.id:
+            raise ValueError("stem plan belongs to another track")
+        clips = plan.clips_for(first, count)
+        ramps = plan.mute_ramps
+    else:
+        clips = track.clips
+        ramps = _mute_ramps(track, rate)
+    for clip in clips:
         if clip.muted:
             continue
         signal = _clip_signal(clip, store, first, count, rate, ramps.get(clip.id, (0, 0)))

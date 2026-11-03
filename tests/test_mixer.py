@@ -266,3 +266,50 @@ def test_mix_of_a_gated_track_equals_the_old_clip_piece_mix():
     new = ops.set_gate(new, "t", ranges)
     np.testing.assert_allclose(mixer.mix(new, store, 0, 2000),
                                mixer.mix(old, store, 0, 2000), atol=1e-6)
+
+
+def test_prepared_stem_plan_indexes_clips_by_block_and_matches_full_scan(monkeypatch):
+    p, store = setup(seconds=4)
+    p = ops.trim_clip(p, "c", end=500)
+    p = ops.add_clip(p, "t", "m", start=1500, offset=1500, length=500, clip_id="d")
+    p = ops.add_clip(p, "t", "m", start=3100, offset=3100, length=500, clip_id="e")
+    track = p.track("t")
+    expected_outputs = [
+        mixer.track_stem(track, store, first, 1000, 1, as_heard=False, rate=RATE)
+        for first in range(0, 4000, 1000)
+    ]
+    calls = 0
+    original = mixer._mute_ramps
+
+    def counted(track_, rate):
+        nonlocal calls
+        calls += 1
+        return original(track_, rate)
+
+    monkeypatch.setattr(mixer, "_mute_ramps", counted)
+    plan = mixer.prepare_track_stem(track, first=0, frames=4000, block_frames=1000,
+                                    rate=RATE)
+    assert [[clip.id for clip in block] for block in plan.blocks] == [
+        ["c"], ["d"], [], ["e"],
+    ]
+
+    for first, expected in zip(range(0, 4000, 1000), expected_outputs, strict=True):
+        actual = mixer.track_stem(track, store, first, 1000, 1,
+                                  as_heard=False, rate=RATE, plan=plan)
+        np.testing.assert_array_equal(actual, expected)
+    assert calls == 1
+
+
+def test_prepared_stem_plan_keeps_mute_ramps_and_gates_identical():
+    p, store = setup(seconds=4)
+    p = ops.mute_ranges(p, "t", [(1200, 1800)])
+    p = ops.set_gate(p, "t", [(2700, 3100)])
+    track = p.track("t")
+    plan = mixer.prepare_track_stem(track, first=0, frames=4000, block_frames=1000,
+                                    rate=RATE)
+    for first in range(0, 4000, 1000):
+        expected = mixer.track_stem(track, store, first, 1000, 1,
+                                    as_heard=False, rate=RATE)
+        actual = mixer.track_stem(track, store, first, 1000, 1,
+                                  as_heard=False, rate=RATE, plan=plan)
+        np.testing.assert_array_equal(actual, expected)
