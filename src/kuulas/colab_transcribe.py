@@ -54,11 +54,19 @@ from .processes import kill_process_group
 
 log = logging.getLogger("kuulas.colab_transcribe")
 
+_REMOTE_SOURCE = (
+    "git+https://github.com/ollisulopuisto/podcast@e16038285ba97a397eeb96b2466caa6617872b4e"
+    "#subdirectory=colab-transcribe"
+)
+_STALE_REMOTE_SOURCE = (
+    "git+https://github.com/ollisulopuisto/podcast@a919af385f6c7af12d8bd67cf9330ec06d07493f"
+    "#subdirectory=colab-transcribe"
+)
 _REMOTE_COMMAND = [
     "uvx", "--python", "3.13",
     "--overrides", str(Path(__file__).with_name("transcription-overrides.txt")),
     "--from",
-    "git+https://github.com/ollisulopuisto/podcast@a919af385f6c7af12d8bd67cf9330ec06d07493f#subdirectory=colab-transcribe",
+    _REMOTE_SOURCE,
     "colab-transcribe"]
 DEFAULT_MODEL = "whisper"
 #: The log kept for the UI, and the part of it an error carries.
@@ -143,8 +151,15 @@ def resolve_settings(stored: dict | None) -> dict[str, Any]:
     model = model.strip() if isinstance(model, str) else None
     if model == "turbo":
         model = "whisper"
+    if _words(command):
+        command = [
+            _REMOTE_SOURCE if token == _STALE_REMOTE_SOURCE else token
+            for token in command
+        ]
+    else:
+        command = default_command()
     return {
-        "command": list(command) if _words(command) else default_command(),
+        "command": command,
         "cwd": cwd.strip() if isinstance(cwd, str) and cwd.strip() else None,
         "extra_args": list(extra) if isinstance(extra, list)
         and all(isinstance(x, str) for x in extra) else [],
