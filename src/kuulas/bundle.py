@@ -78,7 +78,8 @@ def recorder_args(args: list[str]) -> list[str] | None:
 #: Worker processes the editor starts as ``<sys.executable> -m <module> ...``, and
 #: the log file each keeps (a bundle has no terminal).
 WORKERS = {"kuulas.transcribe_worker": "kuulas-worker.log",
-           "kuulas.analysis_worker": "kuulas-analysis.log"}
+           "kuulas.analysis_worker": "kuulas-analysis.log",
+           "kuulas.whisper_align_worker": "kuulas-whisper-align.log"}
 
 
 def worker_module(args: list[str]) -> str | None:
@@ -202,6 +203,10 @@ def main() -> int:
         if resources is not None:
             os.environ.update(environment(resources, dict(os.environ), home))
             _open_log(home, WORKERS[module])
+        if module == "kuulas.whisper_align_worker":
+            from .whisper_align_worker import main as align_main  # noqa: PLC0415
+
+            return align_main(worker)
         if module == "kuulas.analysis_worker":
             return _run_analysis_worker(worker)
         return _run_worker(worker)

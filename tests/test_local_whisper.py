@@ -76,3 +76,17 @@ def test_whisper_fails_when_word_alignment_is_unavailable(monkeypatch, tmp_path)
     with pytest.raises(local_whisper.WhisperError, match="alignment"):
         local_whisper.local(audio)
 
+
+
+def test_alignment_worker_is_routed_by_app_launcher(monkeypatch):
+    import sys  # noqa: PLC0415
+
+    from kuulas import bundle, whisper_align_worker  # noqa: PLC0415
+
+    args = ["audio.wav", "raw.json", "out.json"]
+    seen = []
+    monkeypatch.setattr(sys, "argv",
+                        ["Kuulas", "-m", "kuulas.whisper_align_worker", *args])
+    monkeypatch.setattr(whisper_align_worker, "main", lambda argv: seen.append(argv) or 0)
+    assert bundle.main() == 0
+    assert seen == [args]

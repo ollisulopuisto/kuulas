@@ -18,22 +18,7 @@ from .jobs import JobCancelledError
 from .messages import KuulasError
 
 DEFAULT_MODEL = "large-v3-turbo"
-ALIGNMENT_SCRIPT = r'''
-import json, soundfile as sf, soxr, sys
-from wordalign import align_raw, make_aligner, refined
-audio_path, raw_path, out_path = sys.argv[1:]
-samples, rate = sf.read(audio_path, dtype="float32", always_2d=True)
-mono = samples.mean(axis=1)
-audio = soxr.resample(mono, rate, 16000, quality="HQ") if rate != 16000 else mono
-raw = json.load(open(raw_path, encoding="utf-8"))
-errors = []
-rows = align_raw(raw, audio, make_aligner(), errors=errors)
-aligned = sum(row["ctc_start"] is not None for row in rows)
-if rows and not aligned:
-    raise RuntimeError("No Whisper words could be aligned: " + "; ".join(errors))
-json.dump({"words": refined(rows), "rejected": len(rows) - aligned},
-          open(out_path, "w", encoding="utf-8"), ensure_ascii=False)
-'''
+
 
 
 class WhisperError(KuulasError, RuntimeError):
@@ -60,8 +45,8 @@ def _align_words(path: Path, raw: dict, progress=None) -> tuple[list[dict], int]
         raw_path, output_path = root / "raw.json", root / "aligned.json"
         raw_path.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
         result = subprocess.run(  # noqa: S603 - fixed interpreter and script, no shell
-            [sys.executable, "-c", ALIGNMENT_SCRIPT, str(path), str(raw_path),
-             str(output_path)],
+            [sys.executable, "-m", "kuulas.whisper_align_worker",
+             str(path), str(raw_path), str(output_path)],
             capture_output=True,
             text=True,
             check=False,
