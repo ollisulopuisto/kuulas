@@ -260,8 +260,24 @@ def test_default_command_uses_the_public_tool_without_a_sibling_checkout(tmp_pat
         "uvx", "--python", "3.13",
         "--overrides", str(Path(ct.__file__).with_name("transcription-overrides.txt")),
         "--from",
-        "git+https://github.com/ollisulopuisto/podcast@a919af385f6c7af12d8bd67cf9330ec06d07493f#subdirectory=colab-transcribe",
+        "git+https://github.com/ollisulopuisto/podcast@e16038285ba97a397eeb96b2466caa6617872b4e#subdirectory=colab-transcribe",
         "colab-transcribe"]
+
+
+def test_stored_default_command_upgrades_the_large_upload_revision(tmp_path):
+    old = [
+        "uvx", "--python", "3.13",
+        "--overrides",
+        "/Applications/Kuulas.app/Contents/Resources/app/kuulas/"
+        "transcription-overrides.txt",
+        "--from",
+        "git+https://github.com/ollisulopuisto/podcast@a919af385f6c7af12d8bd67cf9330ec06d07493f#subdirectory=colab-transcribe",
+        "colab-transcribe",
+    ]
+
+    expected = list(old)
+    expected[expected.index("--from") + 1] = ct.default_command(tmp_path)[6]
+    assert ct.resolve_settings({"command": old})["command"] == expected
 
 
 # -- the strict reader -------------------------------------------------------------------
