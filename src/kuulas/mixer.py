@@ -129,9 +129,9 @@ class TrackStemPlan:
     def clips_for(self, first: int, count: int) -> tuple[Clip, ...]:
         offset = first - self.first
         if offset < 0 or offset >= self.frames or offset % self.block_frames:
-            raise ValueError("stem plan used outside its block grid")
+            raise ValueError("error.mixer.stem_plan_grid")
         if count != min(self.block_frames, self.frames - offset):
-            raise ValueError("stem plan block size does not match")
+            raise ValueError("error.mixer.stem_plan_block_size")
         return self.blocks[offset // self.block_frames]
 
 
@@ -143,7 +143,7 @@ def prepare_track_stem(track: Track, *, first: int, frames: int,
     block avoids rescanning a long, edited track for every ten seconds rendered.
     """
     if frames < 0 or block_frames <= 0:
-        raise ValueError("invalid stem plan range")
+        raise ValueError("error.mixer.stem_plan_range")
     count = (frames + block_frames - 1) // block_frames
     blocks: list[list[Clip]] = [[] for _ in range(count)]
     end = first + frames
@@ -309,7 +309,7 @@ def track_stem(track: Track, store: Store, first: int, count: int, channels: int
     buf = np.zeros((channels, count), dtype=np.float64)
     if plan is not None:
         if plan.track_id != track.id:
-            raise ValueError("stem plan belongs to another track")
+            raise ValueError("error.mixer.stem_plan_track")
         clips = plan.clips_for(first, count)
         ramps = plan.mute_ramps
     else:
