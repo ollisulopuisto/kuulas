@@ -1,3 +1,8 @@
+## 2026-11-02 - Missing clickjacking and MIME-sniffing protection headers
+**Vulnerability:** The local HTTP server serving the web UI and project API endpoints omitted defensive framing and MIME headers, allowing third-party web origins to frame the application in an `<iframe>` or sniff content types.
+**Learning:** Origin and Host header validation protects against unauthorized cross-origin state driving, but does not stop a foreign site from framing the application's UI for clickjacking attacks unless anti-framing headers (`X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'`) are sent on all HTTP responses.
+**Prevention:** Apply defensive headers (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Content-Security-Policy: frame-ancestors 'none'`) across all outgoing HTTP responses directly in the server's HTTP middleware layer.
+
 ## 2026-11-02 - Unvalidated destination folder in project copy export
 **Vulnerability:** The project copy exporter accepted user-provided destination directory paths without standard path traversal checks, absolute path requirements, or length/NUL-byte bounds before attempting directory creation.
 **Learning:** Functions accepting filesystem target paths from API endpoints must consistently enforce path sanitization rules (non-empty string <= 4096 characters, no NUL bytes, absolute path, no `..` traversal components, and verified `os.path.realpath`) prior to performing directory operations.

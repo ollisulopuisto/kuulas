@@ -512,23 +512,30 @@ def create_app(session, engine, *, language: str | None = None,
     # -- plumbing ----------------------------------------------------------
 
     @app.middleware("http")
-    async def per_request(request: Request, call_next):
+    async def per_request(request: Request, call_next) -> Response:
+        def secure(res: Response) -> Response:
+            # Defensive headers: prevent clickjacking / MIME-sniffing
+            res.headers["X-Frame-Options"] = "DENY"
+            res.headers["X-Content-Type-Options"] = "nosniff"
+            res.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
+            return res
+
         # Validate Host header against local loopback interfaces and test server
         host = (request.url.hostname or "").lower()
         if host and host not in {"127.0.0.1", "localhost", "::1", "testserver"}:
-            return JSONResponse(
+            return secure(JSONResponse(
                 error_body("error.server.bad_request", detail="Invalid Host header"),
                 status_code=400,
-            )
+            ))
         # A page on another site (or a sandboxed one, Origin "null") must not drive the
         # server: browsers send Origin on cross-site requests. Calls without Origin (the
         # app's own same-origin reads, curl, `kuulas ctl`, tests) pass.
         origin = request.headers.get("origin")
         if origin is not None and not _local_origin(origin):
-            return JSONResponse(
+            return secure(JSONResponse(
                 error_body("error.server.bad_request", detail="Invalid Origin header"),
                 status_code=403,
-            )
+            ))
 
         messages.set_language(request_language(request.headers.get("accept-language"),
                                                default_language))
@@ -536,12 +543,13 @@ def create_app(session, engine, *, language: str | None = None,
             app.state.last_input = time.monotonic()
             priority.GATE.note_input()
         try:
-            return await call_next(request)
+            response = await call_next(request)
+            return secure(response)
         except Exception as e:
             log.exception(t("log.server.request_failed", method=request.method,
                             path=request.url.path))
-            return JSONResponse(error_body("error.server.internal", error=str(e)),
-                                status_code=500)
+            return secure(JSONResponse(error_body("error.server.internal", error=str(e)),
+                                       status_code=500))
 
     def answer(error: KuulasError, status: int) -> JSONResponse:
         return JSONResponse(error_body(error.key, **error.params), status_code=status)
