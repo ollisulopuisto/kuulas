@@ -18,6 +18,11 @@ you need to recheck that boundary without changing those files. The complete
 CI workflow also has a manual `workflow_dispatch` trigger for a full two-OS
 recheck.
 
+The DMG workflow checks out Podcast’s `packages` and `apps` with Git sparse
+checkout. This excludes case-colliding agent-note directories that make a full
+checkout appear dirty on macOS, while preserving the package sources and root
+project metadata.
+
 ## Hotfix build without waiting for full CI
 
 The `dmg` workflow is deliberately independent of CI. In Actions, select
