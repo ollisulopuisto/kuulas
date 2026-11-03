@@ -1689,8 +1689,10 @@ const keyboard = setupKeyboard({
     openGateUnderClips: () => openGateUnderClips(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
+    transcribeOrukeet: () => void transcribeTrack("local", "orukeet"),
     // Transcribe every recording on any track (music-only ones stay untouched).
     transcribeAll: (backend = "local") => void transcribeAll(backend),
+    transcribeAllOrukeet: () => void transcribeAll("local", "orukeet"),
     restartTranscriptions: () => void restartTranscriptions(),
     openColabSettings: () => void colabDialogsFor().openSettings(),
     openOrukeetSetup: () => void orukeetDialogFor().open().catch(showError),
@@ -2809,7 +2811,7 @@ async function duckMicrophones() {
  * Text > Transcribe > On this computer / On Colab: the focused track's recordings, else every
  * speech track's. Colab uploads the audio to Google, so it asks first (transcribeOnColab).
  */
-async function transcribeTrack(backend = "local") {
+async function transcribeTrack(backend = "local", localEngine = "whisper") {
   const state = getState();
   const track = state.project?.tracks.find((item) => item.id === state.focusTrack);
   const asked = track ? [...new Set(track.clips.map((clip) => clip.media))] : undefined;
@@ -2820,12 +2822,12 @@ async function transcribeTrack(backend = "local") {
     return;
   }
   if (backend === "colab") await transcribeOnColab(ids ?? transcript.targetIds());
-  else await transcript.transcribe(ids);
+  else await transcript.transcribe(ids, { localEngine });
 }
 
 /** Text > Transcribe > All on this computer: every recording used on any track, except
  * recordings whose only clips are on music tracks (they are not transcribed). */
-async function transcribeAll(backend = "local") {
+async function transcribeAll(backend = "local", localEngine = "whisper") {
   const state = getState();
   const project = state.project;
   if (!project) return;
@@ -2837,7 +2839,7 @@ async function transcribeAll(backend = "local") {
     return;
   }
   if (backend === "colab") await transcribeOnColab(ids);
-  else await transcript.transcribe(ids);
+  else await transcript.transcribe(ids, { localEngine });
 }
 
 // Transcription is a background job in a separate process (WP79): it goes on when this window

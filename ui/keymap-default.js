@@ -1748,6 +1748,18 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.transcribe_all",
   },
   {
+    id: "app.transcribe_orukeet",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.transcribe_orukeet",
+  },
+  {
+    id: "app.transcribe_all_orukeet",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.transcribe_all_orukeet",
+  },
+  {
     id: "app.transcribe_all_colab",
     keys: { mac: null, other: null },
     context: "global",

@@ -24,7 +24,8 @@ def wheels(tmp_path: Path) -> Path:
     folder = tmp_path / "wheels"
     folder.mkdir()
     for name in ("speechmix-1-py3-none-any.whl", "nhsx-1-py3-none-any.whl",
-                 "silencelearn-1-py3-none-any.whl", "automixer-1-py3-none-any.whl",
+                 "silencelearn-1-py3-none-any.whl", "wordalign-1-py3-none-any.whl",
+                 "automixer-1-py3-none-any.whl",
                  "proxy_tools-0.1.0-py3-none-any.whl"):
         (folder / name).write_text("", encoding="utf-8")
     return folder
@@ -129,6 +130,14 @@ def test_every_podcast_path_dependency_is_shipped_as_a_wheel():
         assert name in stage_bundle.LOCAL, name
         assert f" {name}" in loop, name
         assert name in selftest.LIBRARIES, name
+
+
+def test_the_bundled_app_includes_the_local_transcription_extra():
+    project = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
+    extras = project["project"]["optional-dependencies"]["transcribe"]
+    _, bundled_deps = stage_bundle.project_version(REPO)
+    for requirement in extras:
+        assert requirement in bundled_deps
 
 
 def test_the_automixer_app_is_built_staged_and_selftested():
