@@ -478,6 +478,8 @@
   "ui.inspector.state.off": "Off",
   "ui.track.solo": "Solo track",
   "ui.track.solo.short": "S",
+  "ui.track.controls.show": "Show track controls",
+  "ui.track.controls.pin": "Pin track controls open",
   "ui.track.bus": "Track bus",
   "ui.track.no_bus": "No bus",
   "ui.track.gain": "Track gain",

@@ -474,6 +474,8 @@
   "ui.inspector.state.off": "Pois",
   "ui.track.solo": "Soita vain tämä raita",
   "ui.track.solo.short": "S",
+  "ui.track.controls.show": "Näytä raitasäätimet",
+  "ui.track.controls.pin": "Pidä raitasäätimet auki",
   "ui.track.bus": "Raidan väylä",
   "ui.track.no_bus": "Ei väylää",
   "ui.track.gain": "Raidan taso",

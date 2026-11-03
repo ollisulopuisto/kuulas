@@ -1,5 +1,7 @@
 # kuulas implementation plan
 
+**Release v26.11.1.8:** stable 160 px track identity headers; gain, pan, and routing live in a floating mixer overlay, with hover/focus reveal, explicit pinning and keyboard entry. Opening the mixer does not resize the timeline.
+
 **Release v26.11.1.6:** Record becomes Stop during a take; marker flags drag along the ruler and the Markers tab can set the in point while recording. Also: grouped clip labels move every group member at the leading edge; current track headers have a track-color tint; stale Colab sessions retry once with a fresh session; pressing 0 fits a growing recording. Includes v26.11.1.4's faster-whisper Colab path, grouped Inspector files and inline bus renaming.
 
 **Release v26.11.1.5:** stale Colab sessions reported as “not found” retry once with a fresh session; grouped clip labels move every group member at the leading edge; the current track header has a track-color tint; pressing 0 fits a growing recording. Includes v26.11.1.4's faster-whisper Colab path, grouped Inspector files and inline bus renaming.
@@ -705,9 +707,8 @@ Layout (one screen, no page scroll):
 
 ```
 ┌ toolbar: transport · time · project name ─────────────────────────────┐
-├ track headers ┬ timeline canvas (ruler, lanes, clips, playhead) ──────┤
-│ name M S bus  │                                                        │
-│ gain pan      │                                                        │
+├ narrow track identity ┬ timeline canvas (ruler, lanes, clips, playhead) ┤
+│ color name M S ···    │ controls open in a floating mixer overlay      │
 ├───────────────┴───────────────────────────┬────────────────────────────┤
 │ transcript panel (WP7)                    │ inspector / history (WP8)  │
 └───────────────────────────────────────────┴────────────────────────────┘

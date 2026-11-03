@@ -1,3 +1,7 @@
+## [v26.11.1.8] - 2026-11-03
+
+- **Track headers give the timeline more room.** Track identity, color, and M/S stay in a fixed narrow column; gain, pan, routing, and role controls open in a floating overlay that does not move the timeline. Hover and keyboard focus reveal it, the disclosure button pins it open, and Tab enters its controls.
+
 ## [v26.11.1.7] - 2026-11-01
 
 - **Live transcript while recording.** The newest seconds of a take are transcribed in the background as it grows, and the record view's search finds words during the take ("did I say this already"). When the take stops, its words become the media's transcript with no cold re-run.
