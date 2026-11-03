@@ -6,6 +6,8 @@ import json
 import sys
 from pathlib import Path
 
+from .messages import KuulasError
+
 
 def main(args: list[str] | None = None) -> int:
     import soundfile as sf  # noqa: PLC0415 - only in the alignment process
@@ -21,7 +23,8 @@ def main(args: list[str] | None = None) -> int:
     rows = align_raw(raw, audio, make_aligner(), errors=errors)
     aligned = sum(row["ctc_start"] is not None for row in rows)
     if rows and not aligned:
-        raise RuntimeError("No Whisper words could be aligned: " + "; ".join(errors))
+        raise KuulasError("error.transcribe.whisper_alignment",
+                          error="No Whisper words could be aligned: " + "; ".join(errors))
     Path(out_path).write_text(
         json.dumps({"words": refined(rows), "rejected": len(rows) - aligned},
                    ensure_ascii=False), encoding="utf-8")
