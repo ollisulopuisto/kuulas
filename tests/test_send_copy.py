@@ -292,3 +292,19 @@ def test_api_send_bad_choice_is_400(client, cut, tmp_path):
     answer = client.post("/api/send-copy", json={"folder": str(tmp_path), "media": "x"})
     assert answer.status_code == 400
     assert answer.json()["error"]["key"] == "error.send_copy.bad_media"
+
+
+def test_api_send_bad_or_traversal_folder_is_400(client, cut, tmp_path):
+    # Traversal, relative, or malicious paths must be rejected
+    bad_folders = [
+        "",
+        "   ",
+        str(tmp_path / "sub" / ".." / "evil"),
+        "relative/path",
+        f"{tmp_path}\0/evil",
+        "a" * 4097,
+    ]
+    for bad in bad_folders:
+        answer = client.post("/api/send-copy", json={"folder": bad, "media": "none"})
+        assert answer.status_code == 400
+        assert answer.json()["error"]["key"] == "error.send_copy.no_folder"
