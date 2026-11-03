@@ -4603,6 +4603,7 @@ function render(state, patch, previous = null) {
     chip.hidden = label === null;
     if (label !== null) chip.textContent = t("ui.speed.chip", { speed: label });
     chip.title = t(fastLabel === null ? "ui.speed.chip_title" : "ui.speed.fast_chip_title");
+    chip.setAttribute("aria-label", chip.title);
     chip.classList.toggle("draggable", fastLabel !== null);
     const slider = $("fast-speed");
     if (Number(slider.value) !== state.fast.fast) slider.value = String(state.fast.fast);
