@@ -1,3 +1,13 @@
+## [v26.11.3.1] - 2026-11-03
+
+- **Colab uploads handle large recordings.** Audio transfer uses chunked uploads to avoid the runtime proxy's size limit.
+- **Local Orukeet uses native word timings.** It no longer routes local jobs through the Colab command or adds a separate alignment pass.
+- **WAV relinking recognizes equivalent FLAC audio.** Matching compares decoded samples across supported PCM subtypes, including normalized float WAV sources.
+- **Editing and navigation improvements.** Move clips with snapping to session markers; Cmd+Alt clip selection keeps the playhead parked; spot selected clips at an entered time; Backspace deletes selected clips.
+- **Silent clips are clearer.** Gain overlays are hidden on muted and auto-silenced audio.
+- **Automix starts sooner.** The options dialog appears immediately, and stem export planning is faster.
+- **Other updates:** transcript narration placeholders, accessible waveform controls, and partitioned Python CI test jobs.
+
 ## [v26.11.1.7] - 2026-11-01
 
 - **Live transcript while recording.** The newest seconds of a take are transcribed in the background as it grows, and the record view's search finds words during the take ("did I say this already"). When the take stops, its words become the media's transcript with no cold re-run.
@@ -50,10 +60,6 @@
 - **Review block levelling before applying it.** The result shows its measured level, deviation and proposed gain, plus how many blocks, tracks and speakers the checked rows will affect. Unchecking rows updates the impact summary.
 - **CI uses Node 24.** Update the changed-path filter action and test runtime to versions compatible with GitHub's removal of the Node 20 runner.
 - **Short-project shuttle tests account for the final partial grain.** A pitch-preserving shuttle may output one minimum-length grain before stopping at the exact project end.
-
-## [Unreleased]
-
-- **Relink WAV sources to equivalent FLAC files.** Kuulas matches supported PCM samples across the containers, even when the FLAC has a different filename; other media still uses its file hash.
 
 ## [v26.10.30.6] - 2026-10-30
 

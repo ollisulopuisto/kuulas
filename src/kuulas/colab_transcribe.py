@@ -55,7 +55,7 @@ from .processes import kill_process_group
 log = logging.getLogger("kuulas.colab_transcribe")
 
 _REMOTE_SOURCE = (
-    "git+https://github.com/ollisulopuisto/podcast@e16038285ba97a397eeb96b2466caa6617872b4e"
+    "git+https://github.com/ollisulopuisto/podcast@45c5c2b927a2f4fb8c3c40108f7379bf185c0bab"
     "#subdirectory=colab-transcribe"
 )
 _STALE_REMOTE_SOURCE = (
