@@ -1,3 +1,9 @@
+## [v26.11.3.2] - 2026-11-03
+
+- **Whisper is the default local transcription option.** Uses large-v3-turbo with word timings refined by Podcast’s alignment package. Orukeet remains available as the faster local alternative; Colab continues through the Podcast remote pipeline.
+- **Local Whisper is included in the app bundle.** Its alignment runs in a separate worker supported by the macOS launcher.
+- **Live recording waveforms render more efficiently.** Waveform columns reuse their allocated storage.
+
 ## [v26.11.3.1] - 2026-11-03
 
 - **Colab uploads handle large recordings.** Audio transfer uses chunked uploads to avoid the runtime proxy's size limit.
