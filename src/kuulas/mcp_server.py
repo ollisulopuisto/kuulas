@@ -16,6 +16,7 @@ from typing import Any, TextIO
 
 from . import command_catalog, ctl_discovery
 from .ctl import call_server
+from .messages import KuulasError, t
 from .session import Session
 
 MCP_PROTOCOL_VERSION = "2024-11-05"
@@ -23,12 +24,13 @@ SERVER_NAME = "kuulas"
 SERVER_VERSION = "1.0.0"
 
 
-class McpError(Exception):
-    def __init__(self, code: int, message: str, data: Any = None):
-        super().__init__(message)
+class McpRpcError(KuulasError):
+    """An MCP error whose message is translated via KuulasError."""
+
+    def __init__(self, key: str, /, code: int = -32000, **params: Any) -> None:
+        super().__init__(key, **params)
         self.code = code
-        self.message = message
-        self.data = data
+        self.message = t(key, **params)
 
 
 class McpServer:
@@ -99,10 +101,7 @@ class McpServer:
 
     def execute_edit(self, op: str, args: dict[str, Any]) -> dict[str, Any]:
         if not self.allow_edits:
-            raise McpError(
-                -32000,
-                "Edits are disabled. Start server with --allow-edits.",
-            )
+            raise McpRpcError("error.mcp.edits_disabled", code=-32000)
         live = self._get_live_info()
         if live:
             payload = {"op": op, "args": args}
@@ -114,10 +113,7 @@ class McpServer:
 
     def execute_command(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
         if not self.allow_edits:
-            raise McpError(
-                -32000,
-                "Commands are disabled. Start server with --allow-edits.",
-            )
+            raise McpRpcError("error.mcp.commands_disabled", code=-32000)
         live = self._get_live_info()
         if live:
             payload = {"name": name, "args": args}
@@ -129,7 +125,7 @@ class McpServer:
 
     def undo(self) -> dict[str, Any]:
         if not self.allow_edits:
-            raise McpError(-32000, "Undo is disabled in read-only mode.")
+            raise McpRpcError("error.mcp.undo_disabled", code=-32000)
         live = self._get_live_info()
         if live:
             return call_server(live["port"], live["token"], "/api/undo", method="POST")
@@ -139,7 +135,7 @@ class McpServer:
 
     def redo(self) -> dict[str, Any]:
         if not self.allow_edits:
-            raise McpError(-32000, "Redo is disabled in read-only mode.")
+            raise McpRpcError("error.mcp.redo_disabled", code=-32000)
         live = self._get_live_info()
         if live:
             return call_server(live["port"], live["token"], "/api/redo", method="POST")
@@ -320,7 +316,7 @@ class McpServer:
         try:
             content = self._call_tool(tool_name, args)
             raw = json.dumps(content, indent=2, ensure_ascii=False)
-        except McpError as e:
+        except McpRpcError as e:
             return {
                 "jsonrpc": "2.0",
                 "id": msg_id,
@@ -385,7 +381,7 @@ class McpServer:
             return self.undo()
         if name == "redo":
             return self.redo()
-        raise McpError(-32601, f"Unknown tool: {name}")
+        raise McpRpcError("error.mcp.unknown_tool", code=-32601, name=name)
 
     def _read_resource(self, uri: str) -> Any:
         if uri == "kuulas://project/state":
@@ -394,7 +390,7 @@ class McpServer:
             return self.get_words()
         if uri == "kuulas://project/commands":
             return self.list_commands()
-        raise ValueError(f"Unknown resource URI: {uri}")
+        raise McpRpcError("error.mcp.unknown_resource", code=-32602, uri=uri)
 
     def _get_prompt(self, name: str) -> dict[str, Any]:
         if name == "review_transcript":
@@ -435,7 +431,7 @@ class McpServer:
                     }
                 ],
             }
-        raise McpError(-32602, f"Unknown prompt: {name}")
+        raise McpRpcError("error.mcp.unknown_prompt", code=-32602, name=name)
 
 
 def serve_stdio(
