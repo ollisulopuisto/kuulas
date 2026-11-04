@@ -83,7 +83,32 @@ It prints the address (a local one, `127.0.0.1`). Then:
 | `POST /api/undo`, `POST /api/redo` | one step back or forward |
 
 The server answers only to programs on the same machine. A web page on another site is
-refused (the `Origin` check); a script, `curl` or a test, which send no `Origin`, are not.
+refused (the `Origin` check). Originless API writes also require the instance token, which
+Kuulas keeps in its private control discovery file. Use `kuulas ctl` instead of reading that
+file yourself:
+
+```sh
+uv run kuulas ctl Episode.kuulas state
+uv run kuulas ctl Episode.kuulas words
+uv run kuulas ctl Episode.kuulas transport '{"action":"stop"}'
+uv run kuulas ctl Episode.kuulas split_clip '{"clip_id":"c1","at":96000}'
+```
+
+`ctl` works only while that project is open in Kuulas (or `kuulas open`). It prints JSON to
+stdout and returns a non-zero exit status if the project is not running or the request fails.
+
+### MCP server: for an LLM client
+
+Kuulas can expose the active project through an MCP stdio server. Point an MCP client at
+`uv run kuulas mcp /absolute/path/to/Episode.kuulas`. It provides project state, heard words,
+transcript search, the command catalogue, resources, and prompts. If Kuulas already has the
+project open, requests use that live instance; otherwise the MCP process opens a headless
+session.
+
+MCP is read-only by default. To permit edits, explicitly add `--allow-edits` to the MCP
+command. The client can then call catalogue edits and commands, undo, and redo. Every change
+uses Kuulas's existing command paths and history, so edits remain undoable. Treat that option
+as write access to the project.
 
 ## A worked example: remove the filler words
 
@@ -120,6 +145,5 @@ cannot stop working without a test failing.
 
 ## Not built yet
 
-`kuulas ctl` (driving a window that is already open), `kuulas run <script>`, and an MCP server
-that wraps the catalogue (list commands, call a command, read the transcript and the project),
-read-only by default. The catalogue is the part they would all stand on.
+`kuulas run <script>` is not built. Headless Python sessions, `kuulas ctl`, and the MCP server
+cover direct scripting, control of an open project, and LLM-client integration respectively.

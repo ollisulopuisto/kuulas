@@ -174,6 +174,35 @@ def test_unknown_op_is_400(client):
     assert r.json()["error"]["key"] == "error.edit.unknown"
 
 
+def test_ctl_token_is_required_for_originless_api_mutations(session, engine, tmp_path):
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    token = "secret-ctl-token"  # noqa: S105
+    app = create_app(session, engine, language="en", ui_dir=ui, ctl_token=token)
+    with TestClient(app) as c:
+        # CLI/MCP clients have no Origin header, so they must prove possession
+        # of the discovery token before invoking editor actions.
+        refused = c.post("/api/transport", json={"action": "stop"})
+        assert refused.status_code == 403
+        wrong = c.post("/api/transport", json={"action": "stop"},
+                        headers={"X-Kuulas-Token": "not-the-token"})
+        assert wrong.status_code == 403
+
+        accepted = c.post("/api/transport", json={"action": "stop"},
+                          headers={"X-Kuulas-Token": token})
+        assert accepted.status_code == 200
+        bearer = c.post("/api/transport", json={"action": "stop"},
+                        headers={"Authorization": f"Bearer {token}"})
+        assert bearer.status_code == 200
+        # Read-only requests remain available without credentials.
+        assert c.get("/api/state").status_code == 200
+
+        # Browser UI calls are authorized by the local-origin check.
+        browser = c.post("/api/transport", json={"action": "stop"},
+                         headers={"Origin": "http://127.0.0.1"})
+        assert browser.status_code == 200
+
+
 def test_malformed_request_is_400_in_the_error_shape(client):
     r = client.post("/api/edit", json={"args": {}})
     assert r.status_code == 400

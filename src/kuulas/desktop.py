@@ -26,7 +26,7 @@ from typing import Any
 
 import uvicorn
 
-from . import live_engine, memory, offload
+from . import ctl_discovery, live_engine, memory, offload
 from .bgjobs import jobs_dir
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
@@ -211,6 +211,13 @@ def menu_model() -> list[dict[str, Any]]:
 # -- the server behind a window -------------------------------------
 
 
+def _wait_for_server_start(server: uvicorn.Server, thread: threading.Thread) -> None:
+    while not server.started and thread.is_alive():
+        threading.Event().wait(0.02)
+    if not server.started:
+        raise KuulasError("error.desktop.server_start_failed")
+
+
 class RunningProject:
     """A project served on a free localhost port in a background thread: the
     same Session, Engine and app as ``kuulas open``. ``stop`` shuts it down and
@@ -234,14 +241,31 @@ class RunningProject:
             self._session, live_engine_factory=live_engine.factory_or_none())
         self._sock = bind_local(0)
         self.url = f"http://{HOST}:{self._sock.getsockname()[1]}/"
-        self._server = uvicorn.Server(uvicorn_config(
-            create_app(self._session, self._engine, recorder=self._recorder), self._sock))
-        self._thread = threading.Thread(
-            target=self._server.run, kwargs={"sockets": [self._sock]},
-            name="kuulas-server", daemon=True)
-        self._thread.start()
-        while not self._server.started and self._thread.is_alive():
-            threading.Event().wait(0.02)
+        self._token = ctl_discovery.new_token()
+        self._server = None
+        self._thread = None
+        try:
+            self._server = uvicorn.Server(uvicorn_config(
+                create_app(self._session, self._engine, recorder=self._recorder,
+                           ctl_token=self._token), self._sock))
+            self._thread = threading.Thread(
+                target=self._server.run, kwargs={"sockets": [self._sock]},
+                name="kuulas-server", daemon=True)
+            self._thread.start()
+            _wait_for_server_start(self._server, self._thread)
+            ctl_discovery.write(
+                folder, self._sock.getsockname()[1], self._token, os.getpid())
+        except Exception:
+            ctl_discovery.remove_if_token(folder, self._token)
+            if self._server is not None:
+                self._server.should_exit = True
+            if self._thread is not None:
+                self._thread.join(timeout=10)
+            self._sock.close()
+            self._recorder.close()
+            self._engine.close()
+            self._session.close()
+            raise
 
     @property
     def session(self):
@@ -278,6 +302,7 @@ class RunningProject:
 
     def stop(self) -> None:
         summary = self.summary()
+        ctl_discovery.remove_if_token(self.folder, self._token)
         # The page may be gone already (pywebview does not always fire pagehide, and
         # a playing cursor is saved only every 5 s): write the engine's playhead.
         try:

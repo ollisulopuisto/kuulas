@@ -110,6 +110,18 @@ def remove(project_folder: str | os.PathLike[str]) -> None:
     discovery_path(project_folder).unlink(missing_ok=True)
 
 
+def remove_if_token(project_folder: str | os.PathLike[str], token: str) -> bool:
+    """Remove discovery only when it still belongs to the caller.
+
+    A delayed shutdown must not erase a newer server's discovery record.
+    """
+    info = read(project_folder)
+    if info is None or not check_token(info, token):
+        return False
+    discovery_path(project_folder).unlink(missing_ok=True)
+    return True
+
+
 def check_token(info: dict[str, Any], given: Any) -> bool:
     """Compare ``given`` with ``info["token"]`` using a timing-safe comparison."""
     token = info.get("token")

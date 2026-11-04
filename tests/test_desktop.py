@@ -152,7 +152,10 @@ def test_closing_the_window_saves_where_the_engine_was(tmp_path):
     running = desktop.RunningProject(str(folder))
     try:
         body = {"view": {"playhead": 5, "zoom": 2}}
-        sent = httpx.put(running.url + "api/view-memory", json=body, timeout=10)
+        sent = httpx.put(
+            running.url + "api/view-memory", json=body, timeout=10,
+            headers={"X-Kuulas-Token": running._token},
+        )
         assert sent.status_code == 200
         running._engine.status = lambda: {"position": 123456}
     finally:

@@ -17,6 +17,7 @@ from kuulas.ctl_discovery import (
     new_token,
     read,
     remove,
+    remove_if_token,
     write,
 )
 
@@ -137,3 +138,10 @@ class TestRemove:
     def test_missing_file_is_ignored(self, tmp_path: Path):
         remove(tmp_path)
         assert not discovery_path(tmp_path).exists()
+
+    def test_remove_if_token_leaves_a_replaced_discovery_file(self, tmp_path: Path):
+        write(tmp_path, 9000, "new-owner", 1234)
+        assert remove_if_token(tmp_path, "old-owner") is False
+        assert read(tmp_path)["token"] == "new-owner"  # noqa: S105
+        assert remove_if_token(tmp_path, "new-owner") is True
+        assert read(tmp_path) is None

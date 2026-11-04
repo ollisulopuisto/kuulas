@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hmac
 import html
 import json
 import logging
@@ -482,7 +483,8 @@ def create_app(session, engine, *, language: str | None = None,
                ui_dir: str | Path = UI_DIR, tick: float = LIVE_TICK_S,
                meter_every: float = LIVE_METER_S, recorder=None,
                profiler: profiler_module.Profiler | None = None,
-               correct_every: float = LIVE_CORRECT_S) -> FastAPI:
+               correct_every: float = LIVE_CORRECT_S,
+               ctl_token: str | None = None) -> FastAPI:
     """``session``, ``engine`` and ``recorder`` (a ``RecordSession``, or None: recording
     answers "unavailable") are borrowed: the caller closes them."""
     default_language = language or messages.default_language()
@@ -536,6 +538,22 @@ def create_app(session, engine, *, language: str | None = None,
                 error_body("error.server.bad_request", detail="Invalid Origin header"),
                 status_code=403,
             ))
+
+        # Originless API writes are used by the local CLI/MCP client. When a
+        # discovery token is configured, require it for every such mutation;
+        # checking only a supplied token would leave the token optional.
+        if (ctl_token and origin is None and request.url.path.startswith("/api/")
+                and request.method not in {"GET", "HEAD", "OPTIONS"}):
+            supplied = request.headers.get("x-kuulas-token", "")
+            authorization = request.headers.get("authorization", "")
+            if not supplied and authorization.lower().startswith("bearer "):
+                supplied = authorization[7:].strip()
+            if not hmac.compare_digest(ctl_token, supplied):
+                return secure(JSONResponse(
+                    error_body(
+                        "error.server.bad_request", detail="Invalid control token"),
+                    status_code=403,
+                ))
 
         messages.set_language(request_language(request.headers.get("accept-language"),
                                                default_language))
