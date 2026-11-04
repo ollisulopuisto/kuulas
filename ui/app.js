@@ -231,7 +231,7 @@ import { installTooltips } from "./tooltip.js";
 import { createTrackHeaders } from "./tracks.js";
 import { withoutMusic } from "./transcribable.js";
 import { createTranscript } from "./transcript.js";
-import { transcriptionBackendForMemory } from "./transcription-route.js";
+import { dispatchTranscription } from "./transcription-route.js";
 import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
 import { createTransport } from "./transport.js";
 import { noteUse, readUse, writeUse } from "./use-hints.js";
@@ -2829,26 +2829,30 @@ async function transcribeTrack(backend = "local", localEngine = "whisper") {
     showNotice(t("ui.transcript.music_skipped"), "error");
     return;
   }
-  if (backend === "colab") await transcribeOnColab(ids ?? transcript.targetIds());
-  else await transcript.transcribe(ids, { localEngine });
+  await transcribeLocalOrColab(ids ?? transcript.targetIds(), { backend, localEngine });
 }
 
 /** Send local-engine requests to Colab when this Mac cannot safely run them. */
-async function transcribeLocalOrColab(ids, { force = false, localEngine = "whisper" } = {}) {
-  const localStatus = await api.localModel();
-  if (transcriptionBackendForMemory(localStatus) === "colab") {
-    showNotice(t("ui.transcript.low_memory_colab"), "warn");
-    await transcribeOnColab(ids);
-    return;
-  }
-
-  const consent =
-    localEngine === "orukeet" ? await orukeetDialogFor().ensure() : true;
-  if (!consent) return;
-  await api.transcribe(ids, {
-    force,
-    local_engine: localEngine,
-    ...(consent.allow_low_memory === true ? { allow_low_memory: true } : {}),
+async function transcribeLocalOrColab(
+  ids,
+  { backend = "local", force = false, localEngine = "whisper" } = {},
+) {
+  await dispatchTranscription({
+    ids,
+    backend,
+    getLocalStatus: () => api.localModel(),
+    onLowMemory: () => showNotice(t("ui.transcript.low_memory_colab"), "warn"),
+    transcribeColab: (targetIds) => transcribeOnColab(targetIds),
+    transcribeLocal: async (targetIds) => {
+      const consent =
+        localEngine === "orukeet" ? await orukeetDialogFor().ensure() : true;
+      if (!consent) return;
+      await api.transcribe(targetIds, {
+        force,
+        local_engine: localEngine,
+        ...(consent.allow_low_memory === true ? { allow_low_memory: true } : {}),
+      });
+    },
   });
 }
 
@@ -2865,8 +2869,7 @@ async function transcribeAll(backend = "local", localEngine = "whisper") {
     showNotice(t("ui.transcript.nothing_to_transcribe"), "error");
     return;
   }
-  if (backend === "colab") await transcribeOnColab(ids);
-  else await transcript.transcribe(ids, { localEngine });
+  await transcribeLocalOrColab(ids, { backend, localEngine });
 }
 
 // Transcription is a background job in a separate process (WP79): it goes on when this window
