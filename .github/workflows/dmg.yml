@@ -1,11 +1,11 @@
 name: dmg
 
-# Builds the unsigned tester .dmg of Kuulas (WP73) on a GitHub-hosted Apple-silicon Mac.
+# Builds the Developer ID signed tester .dmg of Kuulas (WP73) on a GitHub-hosted Apple-silicon Mac.
 #   - by hand: Actions > dmg > Run workflow (the .dmg is a downloadable artifact, 30 days);
 #   - on a version tag (v26.10.19.23 ...): the same build, attached to a GitHub Release
 #     (the repository is public: anyone can download the release).
-# Not signed or notarised (needs an Apple Developer account); testers open it with
-# right-click > Open the first time (docs/TESTERS.md).
+# Signed with the repository's Developer ID certificate. Not notarised until Apple
+# notarization credentials are configured; Gatekeeper may still require right-click > Open.
 
 on:
   workflow_dispatch:
@@ -34,6 +34,27 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.6"
+      - name: Import Developer ID certificate
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$BUILD_CERTIFICATE_BASE64"
+          test -n "$P12_PASSWORD"
+          test -n "$KEYCHAIN_PASSWORD"
+          KEYCHAIN_PATH="$RUNNER_TEMP/kuulas-signing.keychain-db"
+          CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+          printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 -D -o "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -T /usr/bin/codesign -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          rm -f "$CERTIFICATE_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -F 'Developer ID Application: Olli Sulopuisto (LWSR8T5392)'
       # ffmpeg comes from a third-party host that was down for hours on 2026-10-21 (521) and
       # failed the build. fetch_ffmpeg.sh keeps a copy of the last good download in this
       # cache folder and uses it when the download fails; a fresh download is saved below.
@@ -48,9 +69,13 @@ jobs:
         env:
           PODCAST_SRC: ${{ github.workspace }}/podcast
           KUULAS_FFMPEG_CACHE: ${{ runner.temp }}/ffmpeg-cache
+          APPLE_SIGNING_IDENTITY: "Developer ID Application: Olli Sulopuisto (LWSR8T5392)"
         run: |
           rm -f "$KUULAS_FFMPEG_CACHE/.fresh"
           scripts/build_dmg.sh --out "$RUNNER_TEMP/dist"
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/kuulas-signing.keychain-db" || true
       - name: Was ffmpeg freshly downloaded?
         id: ffmpeg
         if: always()
