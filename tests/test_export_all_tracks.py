@@ -324,7 +324,7 @@ def test_bridge_opens_the_current_projects_transcription_jobs_folder(session, tm
     jobs = session.package.path / "jobs"
     jobs.mkdir()
     assert bridge.open_transcription_jobs() is True
-    assert ran == [["open", str(jobs)]]
+    assert ran == [desktop.open_folder_command(jobs)]
 
 
 def test_bridge_does_not_open_transcription_jobs_without_a_project_or_jobs_folder(
