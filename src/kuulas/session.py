@@ -1987,11 +1987,16 @@ class Session:
             or len(folder) > 4096
         ):
             raise MediaError("error.locate.no_folder", folder=str(folder or "")[:200])
+        raw_folder = Path(folder)
+        if not raw_folder.is_absolute() or ".." in raw_folder.parts:
+            raise MediaError("error.locate.no_folder", folder=folder[:200])
         try:
-            norm = os.path.normpath(os.path.expanduser(folder))
+            norm = os.path.normpath(folder)
             if not os.path.isabs(norm) or not os.path.isdir(norm):
                 raise MediaError("error.locate.no_folder", folder=str(folder)[:200])
             real = os.path.realpath(norm)
+            if not os.path.isdir(real) or ".." in Path(real).parts:
+                raise MediaError("error.locate.no_folder", folder=str(folder)[:200])
         except (OSError, RuntimeError):
             raise MediaError("error.locate.no_folder", folder=str(folder)[:200]) from None
         before = self.media_status()
@@ -2023,9 +2028,17 @@ class Session:
         bad = not isinstance(path, str) or not path.strip() or "\0" in path
         if bad or len(path) > 4096:
             raise MediaError("error.media.not_a_file", name=str(path or "")[:200])
-        chosen = Path(path).expanduser()
-        if not chosen.is_file():
-            raise MediaError("error.media.not_a_file", name=str(chosen)[:200])
+        raw_path = Path(path)
+        if not raw_path.is_absolute() or ".." in raw_path.parts:
+            raise MediaError("error.media.not_a_file", name=path[:200])
+        try:
+            norm_path = os.path.normpath(path)
+            real_path = os.path.realpath(norm_path)
+            if not os.path.isfile(real_path) or ".." in Path(real_path).parts:
+                raise MediaError("error.media.not_a_file", name=path[:200])
+        except (OSError, RuntimeError):
+            raise MediaError("error.media.not_a_file", name=path[:200]) from None
+        chosen = Path(real_path)
         with self.lock:
             project = self.history.state
         try:

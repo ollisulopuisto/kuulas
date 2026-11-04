@@ -1,3 +1,8 @@
+## 2026-11-04 - Incomplete path traversal validation in media resolution handlers
+**Vulnerability:** File location and replacement endpoints accepted paths containing relative segments or `..` directory traversal components before checking file presence and performing media relinking operations.
+**Learning:** Checking filesystem item existence via `Path.is_file()` or `os.path.isdir()` without prior syntactic rejection of `..` traversal components or verifying resolved realpaths allows callers to refer to files outside intended boundaries or probe filesystem structure.
+**Prevention:** Always enforce standard path sanitization invariants (bounded non-empty string, no NUL bytes, absolute path without `..` components, and validated `os.path.realpath` without escaping traversal) across all media resolution and filesystem query functions.
+
 ## 2026-11-02 - Missing clickjacking and MIME-sniffing protection headers
 **Vulnerability:** The local HTTP server serving the web UI and project API endpoints omitted defensive framing and MIME headers, allowing third-party web origins to frame the application in an `<iframe>` or sniff content types.
 **Learning:** Origin and Host header validation protects against unauthorized cross-origin state driving, but does not stop a foreign site from framing the application's UI for clickjacking attacks unless anti-framing headers (`X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'`) are sent on all HTTP responses.

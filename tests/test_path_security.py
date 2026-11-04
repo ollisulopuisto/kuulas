@@ -244,3 +244,34 @@ def test_clipboard_browse_rejects_relative_and_traversal(tmp_path):
         clipboard_browse.project_folder(str(tmp_path / ".." / "Show.kuulas"))
 
 
+def test_locate_media_rejects_relative_and_traversal(tmp_path):
+    session = Session(tmp_path / "Show.kuulas")
+    folder = tmp_path / "recordings"
+    folder.mkdir()
+    try:
+        from kuulas.media import MediaError  # noqa: PLC0415
+
+        with pytest.raises(MediaError):
+            session.locate_media("relative/recordings")
+        with pytest.raises(MediaError):
+            session.locate_media(str(folder / ".." / "recordings"))
+    finally:
+        session.close()
+
+
+def test_check_replace_media_rejects_relative_and_traversal(tmp_path):
+    session = Session(tmp_path / "Show.kuulas")
+    folder = tmp_path / "recordings"
+    folder.mkdir()
+    target_file = folder / "take.wav"
+    target_file.write_bytes(b"RIFF....WAVE")
+    try:
+        from kuulas.media import MediaError  # noqa: PLC0415
+
+        with pytest.raises(MediaError):
+            session.check_replace_media("m1", "relative/take.wav")
+        traversal = folder / ".." / "recordings" / "take.wav"
+        with pytest.raises(MediaError):
+            session.check_replace_media("m1", str(traversal))
+    finally:
+        session.close()
