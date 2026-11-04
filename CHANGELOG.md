@@ -1,3 +1,8 @@
+## [v26.11.4.3] - 2026-11-04
+
+- **Transcription respects memory limits.** Bulk and focused-track jobs route directly to Colab when local memory is low or cannot be checked.
+- **Find transcription logs in Finder.** The transcription job view can open its log folder.
+
 ## [v26.11.4.2] - 2026-11-04
 
 - **Align recordings by sound.** New windowed correlator feeds the align-by-sound workflow (WP16).
