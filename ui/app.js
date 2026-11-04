@@ -3220,6 +3220,7 @@ function updateSeriesChip(state) {
   if (chip === null) return;
   el.textContent = chip.text;
   el.title = chip.title;
+  el.setAttribute("aria-label", el.title);
   el.classList.toggle("warn", chip.differs);
 }
 async function openSeries() {
@@ -4509,6 +4510,7 @@ function updateScopeChip(state) {
   if (el.hidden) return;
   el.classList.toggle("warn", chip.kind === "none");
   el.title = t("ui.scope.chip_title");
+  el.setAttribute("aria-label", el.title);
   if (chip.kind === "clips") {
     // The clips were selected after the marks: they are what Backspace, X and copy touch.
     el.textContent = t("ui.scope.chip_clips", { count: chip.count });
