@@ -1,3 +1,7 @@
+## 2026-11-06 - Direct SQLite aggregate ordering vs subqueries for JSON grouping
+**Learning:** In SQLite 3.44+, aggregate functions support direct ordering (`json_group_array(json_object(...) ORDER BY id)`). Eliminating an intermediate subquery (`FROM (SELECT ... ORDER BY id)`) removes ephemeral co-routine overhead and materialization, accelerating history query times by ~5–10% across medium to large histories (e.g. 1.53 ms vs 1.63 ms at 200 nodes; 9.49 ms vs 10.46 ms at 1,000 nodes).
+**Action:** When aggregating records in SQLite with specific sort orders, use aggregate-level `ORDER BY` directly within the aggregate function instead of wrapping in an ordered subquery unless limit/offset pagination requires it.
+
 ## 2026-11-05 - TypedArray indexed iteration vs forEach in live waveform rendering
 **Learning:** In live waveform rendering called multiple times per second (`liveWaveformColumns`), iterating a Float32Array of viewport pixel columns via `.forEach((peak, index) => ...)` incurs per-element closure invocation overhead and prevents engine vectorization. Replacing `.forEach()` with an indexed `for` loop (`for (let i = 0; i < len; i += 1)`) cuts execution time by ~48% (from ~63 µs down to ~32 µs for 1,920 columns, ~1.8x–2.0x faster) without allocating callback frame state.
 **Action:** In rendering loops processing TypedArray peak buffers for canvas visualization, use indexed `for` loops rather than array iterator methods (`.forEach`, `.map`).

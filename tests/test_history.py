@@ -152,6 +152,19 @@ def test_nodes_handles_various_contexts_and_ops(tmp_path):
     assert nodes[3]["op"] == {"name": "raw"}
 
 
+def test_nodes_preserves_ordering_and_handles_missing_edit(tmp_path):
+    h = History(tmp_path / "p.kuulas")
+    for i in range(1, 15):
+        edit(h, -float(i))
+    nodes = h.nodes()
+    assert len(nodes) == 15
+    ids = [n["id"] for n in nodes]
+    assert sorted(ids) == ids
+    h_other = History(tmp_path / "p.kuulas")
+    h_other.edit = "non-existent"
+    assert h_other.nodes() == []
+
+
 def test_identical_states_are_stored_once(tmp_path):
     h = History(tmp_path / "p.kuulas")
     for _ in range(3):

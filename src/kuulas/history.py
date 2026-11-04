@@ -677,9 +677,7 @@ class History:
             " 'material_to', material_to, "
             "'context', case when context is not null and json_valid(context) "
             "then json(context) else null end"
-            ")) from ("
-            "select id, parent, label, author, machine, op, created_utc, "
-            "material_from, material_to, context from nodes where edit=? order by id)",
+            ") order by id) from nodes where edit=?",
             (self.edit,),
         )
         raw = cur.fetchone()[0]
