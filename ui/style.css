@@ -5296,6 +5296,10 @@ legend.form-heading {
   height: var(--control-h-sm);
   font-size: var(--text-sm);
 }
+.tx-heading .tx-open-jobs {
+  flex: none;
+  white-space: nowrap;
+}
 .tx-heading .tx-find .button {
   flex: none;
   width: var(--control-h-sm);

@@ -286,6 +286,16 @@ def test_reveal_command_per_platform(platform, command, tmp_path):
     assert platform != "win32" or got[-1].startswith("/select,")
 
 
+@pytest.mark.parametrize(("platform", "command"), [
+    ("darwin", ["open"]),
+    ("win32", ["explorer"]),
+    ("linux", ["xdg-open"]),
+])
+def test_open_folder_command_per_platform(platform, command, tmp_path):
+    got = desktop.open_folder_command(tmp_path, platform)
+    assert got == [*command, str(tmp_path)]
+
+
 def test_bridge_reveals_only_the_last_export_folder(session, tmp_path):
     ran = []
     bridge = desktop.Bridge(object(), tmp_path / "recents")
@@ -299,6 +309,54 @@ def test_bridge_reveals_only_the_last_export_folder(session, tmp_path):
     result = wait(session, session.export_tracks()[0])["result"]
     assert bridge.reveal_export() is True
     assert str(result["path"]) in ran[0][-1]
+
+
+def test_bridge_opens_the_current_projects_transcription_jobs_folder(session, tmp_path):
+    ran = []
+    bridge = desktop.Bridge(object(), tmp_path / "recents")
+    bridge._runner = ran.append
+
+    class Running:
+        _session = session
+        folder = str(session.package.path)
+
+    bridge._project = Running()
+    jobs = session.package.path / "jobs"
+    jobs.mkdir()
+    assert bridge.open_transcription_jobs() is True
+    assert ran == [desktop.open_folder_command(jobs)]
+
+
+def test_bridge_does_not_open_transcription_jobs_without_a_project_or_jobs_folder(
+    tmp_path,
+):
+    bridge = desktop.Bridge(object(), tmp_path / "recents")
+    ran = []
+    bridge._runner = ran.append
+    assert bridge.open_transcription_jobs() is False
+
+    class Running:
+        folder = str(tmp_path / "Episode.kuulas")
+
+    bridge._project = Running()
+    assert bridge.open_transcription_jobs() is False
+    assert ran == []
+
+
+def test_bridge_reports_when_opening_transcription_jobs_fails(session, tmp_path):
+    bridge = desktop.Bridge(object(), tmp_path / "recents")
+
+    class Running:
+        folder = str(session.package.path)
+
+    bridge._project = Running()
+    (session.package.path / "jobs").mkdir()
+
+    def unavailable(_command):
+        raise OSError("Finder unavailable")
+
+    bridge._runner = unavailable
+    assert bridge.open_transcription_jobs() is False
 
 
 # -- the native folder chooser and the remembered folder -------------------------

@@ -27,6 +27,7 @@ from typing import Any
 import uvicorn
 
 from . import live_engine, memory, offload
+from .bgjobs import jobs_dir
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
 from .new_project import SUFFIX, folder_name, project_path
@@ -332,6 +333,17 @@ def reveal_command(folder: str | Path, platform: str | None = None) -> list[str]
     return ["xdg-open", path]
 
 
+def open_folder_command(folder: str | Path, platform: str | None = None) -> list[str]:
+    """Open a directory in Finder / Explorer / the default file manager."""
+    platform = platform or sys.platform
+    path = str(folder)
+    if platform == "darwin":
+        return ["open", path]
+    if platform.startswith("win"):
+        return ["explorer", path]
+    return ["xdg-open", path]
+
+
 def clipboard_command(platform: str | None = None) -> list[str]:
     """The program that reads the system clipboard's new text from stdin. A list."""
     platform = platform or sys.platform
@@ -456,6 +468,20 @@ class Bridge:
             return False
         try:
             self._runner(reveal_command(folder))
+        except OSError:
+            return False
+        return True
+
+    def open_transcription_jobs(self) -> bool:
+        """Open this project's transcription job files in the system file manager."""
+        folder = self.project_folder
+        if not folder:
+            return False
+        jobs = jobs_dir(folder)
+        if not jobs.is_dir():
+            return False
+        try:
+            self._runner(open_folder_command(jobs))
         except OSError:
             return False
         return True

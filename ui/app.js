@@ -1,5 +1,3 @@
-import { createPartVersionsDialog } from "./part-versions-dialog.js";
-import { partRange } from "./part-versions-model.js";
 // The editor's entry point: wires the store, the API, the live channel, the
 // canvases and the keyboard together. The decisions live in small pure modules
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
@@ -149,6 +147,8 @@ import { nhsxResult } from "./nhsx-import.js";
 import { chipText, createNoticeHold, toastStaysOpen } from "./notice-hold.js";
 import { createOrukeetDialog } from "./orukeet-dialog.js";
 import { createOverview } from "./overview.js";
+import { createPartVersionsDialog } from "./part-versions-dialog.js";
+import { partRange } from "./part-versions-model.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { normalisePlayBefore, PLAY_BEFORE_KEY } from "./play-before.js";
@@ -232,6 +232,7 @@ import { createTrackHeaders } from "./tracks.js";
 import { withoutMusic } from "./transcribable.js";
 import { createTranscript } from "./transcript.js";
 import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
+import { dispatchTranscription } from "./transcription-route.js";
 import { createTransport } from "./transport.js";
 import { noteUse, readUse, writeUse } from "./use-hints.js";
 import * as View from "./view.js";
@@ -1454,8 +1455,15 @@ const transcript = createTranscript({
     applyResponse: apply,
     run: (id) => keyboard.registry.run(id, null, getState()),
     contextMenu: (event) => showPanelMenu("transcript", event),
-    transcribeColab: (ids) => void transcribeOnColab(ids),
-    ensureLocalModel: () => orukeetDialogFor().ensure(),
+    transcribeColab: (ids) => transcribeOnColab(ids),
+    transcribeLocal: (ids, options) => transcribeLocalOrColab(ids, options),
+    openTranscriptionJobs:
+      typeof globalThis.pywebview?.api?.open_transcription_jobs === "function"
+        ? async () => {
+            const opened = await globalThis.pywebview.api.open_transcription_jobs();
+            if (!opened) showNotice(t("ui.transcript.job_files_unavailable"), "warn");
+          }
+        : null,
     // The tracks a range edit acts on (all, the painted lanes, or the selected ones); null
     // with a notice when "selected tracks" is on and none is selected, as for X.
     scopeTracks: () => {
@@ -2809,7 +2817,7 @@ async function duckMicrophones() {
 
 /**
  * Text > Transcribe > On this computer / On Colab: the focused track's recordings, else every
- * speech track's. Colab uploads the audio to Google, so it asks first (transcribeOnColab).
+ * speech track's. Low-memory local requests route to Colab, which asks before uploading.
  */
 async function transcribeTrack(backend = "local", localEngine = "whisper") {
   const state = getState();
@@ -2821,8 +2829,30 @@ async function transcribeTrack(backend = "local", localEngine = "whisper") {
     showNotice(t("ui.transcript.music_skipped"), "error");
     return;
   }
-  if (backend === "colab") await transcribeOnColab(ids ?? transcript.targetIds());
-  else await transcript.transcribe(ids, { localEngine });
+  await transcribeLocalOrColab(ids ?? transcript.targetIds(), { backend, localEngine });
+}
+
+/** Send local-engine requests to Colab when this Mac cannot safely run them. */
+async function transcribeLocalOrColab(
+  ids,
+  { backend = "local", force = false, localEngine = "whisper" } = {},
+) {
+  await dispatchTranscription({
+    ids,
+    backend,
+    getLocalStatus: () => api.localModel(),
+    onLowMemory: () => showNotice(t("ui.transcript.low_memory_colab"), "warn"),
+    transcribeColab: (targetIds) => transcribeOnColab(targetIds),
+    transcribeLocal: async (targetIds) => {
+      const consent = localEngine === "orukeet" ? await orukeetDialogFor().ensure() : true;
+      if (!consent) return;
+      await api.transcribe(targetIds, {
+        force,
+        local_engine: localEngine,
+        ...(consent.allow_low_memory === true ? { allow_low_memory: true } : {}),
+      });
+    },
+  });
 }
 
 /** Text > Transcribe > All on this computer: every recording used on any track, except
@@ -2838,8 +2868,7 @@ async function transcribeAll(backend = "local", localEngine = "whisper") {
     showNotice(t("ui.transcript.nothing_to_transcribe"), "error");
     return;
   }
-  if (backend === "colab") await transcribeOnColab(ids);
-  else await transcript.transcribe(ids, { localEngine });
+  await transcribeLocalOrColab(ids, { backend, localEngine });
 }
 
 // Transcription is a background job in a separate process (WP79): it goes on when this window

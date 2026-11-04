@@ -122,6 +122,16 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   const headingRow = el("div", "tx-heading");
   const heading = root.querySelector("h2");
   if (heading) headingRow.append(heading);
+  const openJobs = actions.openTranscriptionJobs
+    ? setIcon(el("button", "button tx-open-jobs", t("ui.transcript.job_files")), "folder")
+    : null;
+  if (openJobs) {
+    openJobs.type = "button";
+    openJobs.title = t("ui.transcript.job_files_title");
+    openJobs.setAttribute("aria-label", openJobs.title);
+    openJobs.dataset.act = "open-transcription-jobs";
+    headingRow.append(openJobs);
+  }
   headingRow.append(findBar);
   root.append(headingRow, removed, follow, empty, list, pop);
   list.setAttribute("role", "document");
@@ -366,16 +376,19 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const ids = onlyIds ?? transcribeTargets().map((item) => item.id);
     if (ids.length === 0) return;
     try {
-      const consent =
-        localEngine === "orukeet" && actions.ensureLocalModel
-          ? await actions.ensureLocalModel()
-          : true;
-      if (!consent) return;
-      await api.transcribe(ids, {
-        force,
-        local_engine: localEngine,
-        ...(consent.allow_low_memory === true ? { allow_low_memory: true } : {}),
-      });
+      if (actions.transcribeLocal) await actions.transcribeLocal(ids, { force, localEngine });
+      else {
+        const consent =
+          localEngine === "orukeet" && actions.ensureLocalModel
+            ? await actions.ensureLocalModel()
+            : true;
+        if (!consent) return;
+        await api.transcribe(ids, {
+          force,
+          local_engine: localEngine,
+          ...(consent.allow_low_memory === true ? { allow_low_memory: true } : {}),
+        });
+      }
       await refreshJobs();
     } catch (error) {
       actions.showError(error);
@@ -1269,6 +1282,11 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     if (act === "next") stepFind(1);
     else if (act === "prev") stepFind(-1);
     else if (act === "close") closeFind();
+  });
+  headingRow.addEventListener("click", (event) => {
+    if (event.target.closest?.('[data-act="open-transcription-jobs"]')) {
+      void actions.openTranscriptionJobs?.();
+    }
   });
 
   // -- loading the words ---------------------------------------------------------------------------------
