@@ -1,11 +1,11 @@
-// The waveform gain chip, speed chip and follow arrow buttons are interactive controls
-// whose visual contents are terse (e.g. "×2.5", "1.5×", "◀ 0:12.345"). They must provide
-// accessible names (aria-label) so screen reader users understand what action clicking them takes.
+// Interactive chip and status buttons (waveform-gain, speed-chip, follow-arrow,
+// series-chip, scope-chip, rec-chip) have terse visual text and must provide accessible names
+// (aria-label matching title) so screen reader users understand what action clicking them takes.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-test("waveform-gain, speed-chip and follow-arrow buttons in app.js set aria-label matching their title", () => {
+test("waveform-gain, speed-chip, follow-arrow, series-chip, and scope-chip in app.js set aria-label matching their title", () => {
   const code = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 
   // In the waveformGain touched branch:
@@ -30,5 +30,28 @@ test("waveform-gain, speed-chip and follow-arrow buttons in app.js set aria-labe
     code,
     /arrow\.setAttribute\("aria-label",\s*arrow\.title\)/,
     "follow-arrow sets aria-label matching its title",
+  );
+
+  // In updateSeriesChip:
+  assert.match(
+    code,
+    /function updateSeriesChip[\s\S]*?el\.setAttribute\("aria-label",\s*el\.title\)/,
+    "series-chip sets aria-label matching el.title",
+  );
+
+  // In updateScopeChip:
+  assert.match(
+    code,
+    /function updateScopeChip[\s\S]*?el\.setAttribute\("aria-label",\s*el\.title\)/,
+    "scope-chip sets aria-label matching el.title",
+  );
+});
+
+test("rec-chip in record-view.js sets aria-label matching its title", () => {
+  const code = readFileSync(new URL("../record-view.js", import.meta.url), "utf8");
+  assert.match(
+    code,
+    /function renderChip[\s\S]*?chip\.setAttribute\("aria-label",\s*chip\.title\)/,
+    "rec-chip sets aria-label matching chip.title",
   );
 });

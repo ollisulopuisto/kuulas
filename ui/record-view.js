@@ -1046,6 +1046,7 @@ export function createRecordView({
       time: formatElapsed(shownPosition(), rate()),
     });
     chip.title = t("ui.record.indicator_title");
+    chip.setAttribute("aria-label", chip.title);
     renderSlim();
   }
   chip?.addEventListener("click", () => show());
