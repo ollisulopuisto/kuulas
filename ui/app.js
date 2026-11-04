@@ -1,5 +1,3 @@
-import { createPartVersionsDialog } from "./part-versions-dialog.js";
-import { partRange } from "./part-versions-model.js";
 // The editor's entry point: wires the store, the API, the live channel, the
 // canvases and the keyboard together. The decisions live in small pure modules
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
@@ -149,6 +147,8 @@ import { nhsxResult } from "./nhsx-import.js";
 import { chipText, createNoticeHold, toastStaysOpen } from "./notice-hold.js";
 import { createOrukeetDialog } from "./orukeet-dialog.js";
 import { createOverview } from "./overview.js";
+import { createPartVersionsDialog } from "./part-versions-dialog.js";
+import { partRange } from "./part-versions-model.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { normalisePlayBefore, PLAY_BEFORE_KEY } from "./play-before.js";
@@ -2844,8 +2844,7 @@ async function transcribeLocalOrColab(
     onLowMemory: () => showNotice(t("ui.transcript.low_memory_colab"), "warn"),
     transcribeColab: (targetIds) => transcribeOnColab(targetIds),
     transcribeLocal: async (targetIds) => {
-      const consent =
-        localEngine === "orukeet" ? await orukeetDialogFor().ensure() : true;
+      const consent = localEngine === "orukeet" ? await orukeetDialogFor().ensure() : true;
       if (!consent) return;
       await api.transcribe(targetIds, {
         force,

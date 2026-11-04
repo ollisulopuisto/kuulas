@@ -47,5 +47,8 @@ test("bulk transcription goes through the guarded local-or-Colab dispatcher", ()
   const start = appSource.indexOf("async function transcribeAll(");
   const end = appSource.indexOf("// Transcription is a background job", start);
   assert.notEqual(start, -1);
-  assert.match(appSource.slice(start, end), /transcribeLocalOrColab\(ids, \{ backend, localEngine \}\)/);
+  assert.match(
+    appSource.slice(start, end),
+    /transcribeLocalOrColab\(ids, \{ backend, localEngine \}\)/,
+  );
 });
