@@ -231,6 +231,7 @@ import { installTooltips } from "./tooltip.js";
 import { createTrackHeaders } from "./tracks.js";
 import { withoutMusic } from "./transcribable.js";
 import { createTranscript } from "./transcript.js";
+import { transcriptionBackendForMemory } from "./transcription-route.js";
 import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
 import { createTransport } from "./transport.js";
 import { noteUse, readUse, writeUse } from "./use-hints.js";
@@ -1454,8 +1455,15 @@ const transcript = createTranscript({
     applyResponse: apply,
     run: (id) => keyboard.registry.run(id, null, getState()),
     contextMenu: (event) => showPanelMenu("transcript", event),
-    transcribeColab: (ids) => void transcribeOnColab(ids),
-    ensureLocalModel: () => orukeetDialogFor().ensure(),
+    transcribeColab: (ids) => transcribeOnColab(ids),
+    transcribeLocal: (ids, options) => transcribeLocalOrColab(ids, options),
+    openTranscriptionJobs:
+      typeof globalThis.pywebview?.api?.open_transcription_jobs === "function"
+        ? async () => {
+            const opened = await globalThis.pywebview.api.open_transcription_jobs();
+            if (!opened) showNotice(t("ui.transcript.job_files_unavailable"), "warn");
+          }
+        : null,
     // The tracks a range edit acts on (all, the painted lanes, or the selected ones); null
     // with a notice when "selected tracks" is on and none is selected, as for X.
     scopeTracks: () => {
@@ -2809,7 +2817,7 @@ async function duckMicrophones() {
 
 /**
  * Text > Transcribe > On this computer / On Colab: the focused track's recordings, else every
- * speech track's. Colab uploads the audio to Google, so it asks first (transcribeOnColab).
+ * speech track's. Low-memory local requests route to Colab, which asks before uploading.
  */
 async function transcribeTrack(backend = "local", localEngine = "whisper") {
   const state = getState();
@@ -2823,6 +2831,25 @@ async function transcribeTrack(backend = "local", localEngine = "whisper") {
   }
   if (backend === "colab") await transcribeOnColab(ids ?? transcript.targetIds());
   else await transcript.transcribe(ids, { localEngine });
+}
+
+/** Send local-engine requests to Colab when this Mac cannot safely run them. */
+async function transcribeLocalOrColab(ids, { force = false, localEngine = "whisper" } = {}) {
+  const localStatus = await api.localModel();
+  if (transcriptionBackendForMemory(localStatus) === "colab") {
+    showNotice(t("ui.transcript.low_memory_colab"), "warn");
+    await transcribeOnColab(ids);
+    return;
+  }
+
+  const consent =
+    localEngine === "orukeet" ? await orukeetDialogFor().ensure() : true;
+  if (!consent) return;
+  await api.transcribe(ids, {
+    force,
+    local_engine: localEngine,
+    ...(consent.allow_low_memory === true ? { allow_low_memory: true } : {}),
+  });
 }
 
 /** Text > Transcribe > All on this computer: every recording used on any track, except
