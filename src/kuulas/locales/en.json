@@ -3541,5 +3541,9 @@
   "ui.whatsnew.title": "Kuulas: What's new?",
   "ui.whatsnew.title_in": "Kuulas: What's new? — {version}",
   "ui.whatsnew.version_date": "v{version} — {date}",
-  "ui.whatsnew.close": "Close"
+  "ui.whatsnew.close": "Close",
+  "error.agent.edits_disabled": "Kuulas MCP is read-only. Relaunch with --allow-edits to enable changes.",
+  "error.agent.confirm_required": "This operation changes the project. Call it again with confirm=true to proceed.",
+  "error.agent.empty_media": "Choose at least one media item to transcribe.",
+  "error.agent.unknown_command": "Unknown Kuulas command: {name}. Read the command list to see available commands."
 }
