@@ -29,6 +29,14 @@ TOOL_NAMES = (
 )
 
 
+class AgentPermissionError(messages.KuulasError, PermissionError):
+    """A translated permission failure exposed through the MCP API."""
+
+
+class AgentValueError(messages.KuulasError, ValueError):
+    """A translated invalid-argument failure exposed through the MCP API."""
+
+
 class AgentTools:
     """Small testable façade over a project session.
 
@@ -43,12 +51,12 @@ class AgentTools:
 
     def _require_write(self, confirm: bool) -> None:
         if not self.allow_edits:
-            raise PermissionError(messages.t("error.agent.edits_disabled"))
+            raise AgentPermissionError("error.agent.edits_disabled")
         if self.session.read_only:
             host = (self.session.package.locked_by or {}).get("host", "?")
-            raise PermissionError(messages.t("error.history.read_only", host=host))
+            raise AgentPermissionError("error.history.read_only", host=host)
         if not confirm:
-            raise PermissionError(messages.t("error.agent.confirm_required"))
+            raise AgentPermissionError("error.agent.confirm_required")
 
     def project_summary(self) -> dict[str, Any]:
         project = self.session.state
@@ -89,9 +97,9 @@ class AgentTools:
                          confirm: bool = False) -> dict[str, Any]:
         self._require_write(confirm)
         if not media_ids:
-            raise ValueError(messages.t("error.agent.empty_media"))
+            raise AgentValueError("error.agent.empty_media")
         if backend == "colab" and not colab_signin.signed_in():
-            raise PermissionError(messages.t("error.colab.not_signed_in"))
+            raise AgentPermissionError("error.colab.not_signed_in")
         job_ids = self.session.transcribe(
             media_ids, model=model, language=language, backend=backend,
             force=force, allow_low_memory=allow_low_memory,
@@ -106,7 +114,7 @@ class AgentTools:
         entry = next((item for item in command_catalog.catalog()
                       if item["name"] == name), None)
         if entry is None:
-            raise ValueError(messages.t("error.agent.unknown_command", name=name))
+            raise AgentValueError("error.agent.unknown_command", name=name)
         if entry["via"] == "/api/edit":
             self.session.edit(name, args)
         else:
