@@ -108,18 +108,65 @@ Two things it shows that are easy to get wrong:
 `tests/test_example_remove_fillers.py` runs it on a small synthetic project, so the example
 cannot stop working without a test failing.
 
+## Remote control: `kuulas ctl`
+
+Drive an open window or running server from the command line:
+
+```
+kuulas ctl Episode.kuulas state
+kuulas ctl Episode.kuulas words
+kuulas ctl Episode.kuulas split_clip '{"clip_id": "c1", "at": 96000}'
+kuulas ctl Episode.kuulas undo
+```
+
+`kuulas ctl` reads `ctl.json` inside the project folder to discover the port and token of
+the running instance. The window updates immediately, so changes made via `ctl` are visible
+to the person editing in real-time.
+
+## Model Context Protocol (MCP) Server: `kuulas mcp`
+
+Kuulas ships a built-in MCP server for LLM agents (Claude Desktop, Cursor, Claude Code, etc.):
+
+```
+kuulas mcp Episode.kuulas
+```
+
+By default, the MCP server runs in **safe read-only mode**, exposing project inspections,
+heard words, transcript search, and command catalog definitions.
+
+To allow mutations (edits, session commands, undo, redo), pass `--allow-edits`:
+
+```
+kuulas mcp Episode.kuulas --allow-edits
+```
+
+### Configuration for Claude Desktop or Cursor
+
+Add to your MCP configuration file (e.g. `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "kuulas": {
+      "command": "uv",
+      "args": ["run", "kuulas", "mcp", "/path/to/Episode.kuulas", "--allow-edits"]
+    }
+  }
+}
+```
+
+The MCP server automatically detects if the project is currently open in a Kuulas window
+via `ctl.json`:
+- If open, commands and edits are routed through the running server, reflecting live in the UI.
+- If not open in a window, it operates in headless mode with direct SQLite persistence.
+
 ## For an agent
 
-1. Read the catalogue to see what exists.
-2. Read the state and the words, then make the changes with edits and commands. Keep to the
-   catalogue's argument names and types.
+1. Read the catalogue (`list_commands`) to see what exists.
+2. Read the state and the words (`get_project_state`, `get_heard_words`, `search_transcript`),
+   then make changes with `execute_edit` or `execute_command`. Keep to the catalogue's
+   argument names and types.
 3. Recorded material is never to be lost (PLAN.md ground rule 17): a script must not delete a
    recording or an imported file, and undoing an edit never touches the files.
 4. Say what you did. The person opens the session, sees the steps in History, and undoes or
    adjusts what they do not want.
-
-## Not built yet
-
-`kuulas ctl` (driving a window that is already open), `kuulas run <script>`, and an MCP server
-that wraps the catalogue (list commands, call a command, read the transcript and the project),
-read-only by default. The catalogue is the part they would all stand on.

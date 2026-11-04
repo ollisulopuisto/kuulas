@@ -482,7 +482,8 @@ def create_app(session, engine, *, language: str | None = None,
                ui_dir: str | Path = UI_DIR, tick: float = LIVE_TICK_S,
                meter_every: float = LIVE_METER_S, recorder=None,
                profiler: profiler_module.Profiler | None = None,
-               correct_every: float = LIVE_CORRECT_S) -> FastAPI:
+               correct_every: float = LIVE_CORRECT_S,
+               ctl_token: str | None = None) -> FastAPI:
     """``session``, ``engine`` and ``recorder`` (a ``RecordSession``, or None: recording
     answers "unavailable") are borrowed: the caller closes them."""
     default_language = language or messages.default_language()
@@ -536,6 +537,21 @@ def create_app(session, engine, *, language: str | None = None,
                 error_body("error.server.bad_request", detail="Invalid Origin header"),
                 status_code=403,
             ))
+
+        # Token validation: if ctl_token is registered and request supplies
+        # X-Kuulas-Token or Bearer token, verify it timing-safely.
+        if ctl_token is not None:
+            provided_token = request.headers.get("x-kuulas-token")
+            auth = request.headers.get("authorization", "")
+            if not provided_token and auth.startswith("Bearer "):
+                provided_token = auth[7:]
+            if provided_token is not None:
+                import hmac  # noqa: PLC0415
+                if not hmac.compare_digest(ctl_token, provided_token):
+                    return secure(JSONResponse(
+                        error_body("error.server.bad_request", detail="Invalid token"),
+                        status_code=403,
+                    ))
 
         messages.set_language(request_language(request.headers.get("accept-language"),
                                                default_language))

@@ -3258,12 +3258,12 @@ Status: open (owner requests 2026-10-18, from using the app on a real session). 
 - **Zoom to a dragged range:** a drag on the ruler zooms to that range on release (a band shows
   while dragging; a plain click still moves the playhead). Esc cancels. Also reachable as
   "Zoom to range" in the palette. (F fits the selection already; the overview box drags the view.)
-- **Remote control for testing and debugging:** `kuulas ctl <project> <command> [json args]` sends
+- **Remote control for testing and debugging (built):** `kuulas ctl <project> <command> [json args]` sends
   an editor command to the already running window, and the window updates live. The server already
-  has the command API; add a discovery file in the project folder (port and a per-run token in a
-  user-only file, never printed), a CLI that reads it and posts the command, and make the UI
-  refresh when the head moves from outside (the history head id changes: reload state).
-  Localhost only. Useful for debugging, scripted demos and agents; low priority, so last.
+  has the command API; discovery file `ctl.json` in the project folder (port and a per-run token in a
+  user-only file, never printed), a CLI (`kuulas ctl`) that reads it and posts the command, and the UI
+  refreshes when the head moves from outside.
+  Localhost only. Useful for debugging, scripted demos and agents.
 - **Tests first:** the scale factors (peak and percentile, silent track, clipping), ruler drag
   range maths (reversed drag, tiny drag ignored), discovery file permissions and token check,
   a command from the CLI changes the open session and bumps the head.
@@ -3272,7 +3272,7 @@ Status: open (owner requests 2026-10-18, from using the app on a real session). 
 
 ### WP53 — Scriptability and machine access (late; owner, 2026-10-18)
 
-Status: steps 1 and 2 built 2026-10-26: `GET /api/commands` (`src/kuulas/command_catalog.py`), the catalogue of every edit and session command, with a test that fails when one is missing; `docs/SCRIPTING.md` and the tested example `scripts/examples/remove_fillers.py` (`tests/test_example_remove_fillers.py`). The rest (`kuulas ctl`, `kuulas run`, an MCP server) is open, late in the roadmap. The owner does not need it to control the GUI: an agent changes the session, and the person opens it and adjusts. Owner: kuulas must be fully legible to programs (an MCP server
+Status: steps 1, 2, and 3 built: `GET /api/commands` (`src/kuulas/command_catalog.py`), the catalogue of every edit and session command; `docs/SCRIPTING.md` and `scripts/examples/remove_fillers.py`; remote control `kuulas ctl` (`src/kuulas/ctl.py`); and the Model Context Protocol (MCP) server `kuulas mcp` (`src/kuulas/mcp_server.py`) with read-only safety modes and live window discovery. Owner: kuulas must be fully legible to programs (an MCP server
 or some later tool), and scriptable like Reaper: for example a script that removes all "um"s from
 the transcript, with **no LLM involved**, just a set of commands run in order. No scripting
 language yet; the requirement is that the app makes it possible to build one later.
@@ -3291,9 +3291,9 @@ Rules that keep it possible (apply to all work from now on):
 - **A tested example as the spec:** `scripts/examples/remove_fillers.py` opens a project, finds the
   filler words in the transcript (the words list, `transcript_find`) and removes them with the
   word-delete command; its test runs it on a fixture project.
-- **Later:** `kuulas ctl` (WP52) drives a window that is already open; a `kuulas run <script>`; an MCP
+- **Built:** `kuulas ctl` (WP52) drives a window that is already open; `kuulas mcp`
   server wrapping the same catalogue (list commands, call a command, read the transcript and the
-  project), read-only by default.
+  project), read-only by default (`--allow-edits` to mutate). `kuulas run <script>` later.
 
 ---
 

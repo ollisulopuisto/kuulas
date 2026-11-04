@@ -26,7 +26,7 @@ from typing import Any
 
 import uvicorn
 
-from . import live_engine, memory, offload
+from . import ctl_discovery, live_engine, memory, offload
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
 from .new_project import SUFFIX, folder_name, project_path
@@ -232,9 +232,13 @@ class RunningProject:
         self._recorder = RecordSession(
             self._session, live_engine_factory=live_engine.factory_or_none())
         self._sock = bind_local(0)
-        self.url = f"http://{HOST}:{self._sock.getsockname()[1]}/"
+        port_num = self._sock.getsockname()[1]
+        self.url = f"http://{HOST}:{port_num}/"
+        self._token = ctl_discovery.new_token()
+        ctl_discovery.write(folder, port_num, self._token, os.getpid())
         self._server = uvicorn.Server(uvicorn_config(
-            create_app(self._session, self._engine, recorder=self._recorder), self._sock))
+            create_app(self._session, self._engine, recorder=self._recorder,
+                       ctl_token=self._token), self._sock))
         self._thread = threading.Thread(
             target=self._server.run, kwargs={"sockets": [self._sock]},
             name="kuulas-server", daemon=True)
@@ -285,6 +289,7 @@ class RunningProject:
             log.warning(t("log.desktop.position_unknown", error=str(e)))
             position = None
         self._session.flush_view(playhead=position)
+        ctl_discovery.remove(self.folder)
         self._server.should_exit = True
         self._thread.join(timeout=10)
         self._sock.close()

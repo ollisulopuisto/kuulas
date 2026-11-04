@@ -17,6 +17,7 @@ from pathlib import Path
 import uvicorn
 
 from . import (
+    ctl_discovery,
     diag,
     export_formats,
     live_engine,
@@ -204,10 +205,13 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
     recorder = RecordSession(
         session, live_engine_factory=live_engine.factory_or_none())
     sock = bind_local(port)
+    port_num = sock.getsockname()[1]
+    token = ctl_discovery.new_token()
+    ctl_discovery.write(folder, port_num, token, os.getpid())
     try:
-        url = f"http://{HOST}:{sock.getsockname()[1]}/"
+        url = f"http://{HOST}:{port_num}/"
         server = uvicorn.Server(uvicorn_config(
-            create_app(session, engine, recorder=recorder), sock))
+            create_app(session, engine, recorder=recorder, ctl_token=token), sock))
         print(t("cli.open.serving", path=folder, url=url))
         if browser:
             # Once the server accepts connections, not before: the first
@@ -221,6 +225,7 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
                              name="kuulas-open-browser").start()
         server.run(sockets=[sock])
     finally:
+        ctl_discovery.remove(folder)
         sock.close()
         recorder.close()
         engine.close()
@@ -267,6 +272,15 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     for sub in (opened, desktop_parser):
         sub.add_argument("--debug", action="store_true", help=t("cli.debug.help"))
     opened.add_argument("--window", action="store_true", help=t("cli.open.window"))
+    ctl_parser = commands.add_parser("ctl", help="Send command to a running window.")
+    ctl_parser.add_argument("folder", help=t("cli.info.folder"))
+    ctl_parser.add_argument("ctl_command", help="Command to run (state, edit op, etc).")
+    ctl_parser.add_argument("args", nargs="?", default="{}", help="JSON arguments.")
+    ctl_parser.add_argument("--json", action="store_true", help="Format output as JSON.")
+    mcp_parser = commands.add_parser("mcp", help="Run MCP server over stdio.")
+    mcp_parser.add_argument("folder", help=t("cli.info.folder"))
+    mcp_parser.add_argument("--allow-edits", action="store_true",
+                            help="Allow edits/mutations (default: read-only).")
     args = parser.parse_args(argv)
     if args.selftest:
         from . import selftest  # noqa: PLC0415
@@ -308,6 +322,19 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
             return desktop.run_window(args.folder)
         if args.command == "open":
             return open_project(args.folder, args.port, not args.no_browser)
+        if args.command == "ctl":
+            from .ctl import run_ctl  # noqa: PLC0415
+            parsed_args = json.loads(args.args) if args.args else {}
+            res = run_ctl(args.folder, args.ctl_command, parsed_args)
+            if args.json or isinstance(res, (dict, list)):
+                print(json.dumps(res, indent=2, ensure_ascii=False))
+            else:
+                print(res)
+            return 0
+        if args.command == "mcp":
+            from .mcp_server import serve_stdio  # noqa: PLC0415
+            serve_stdio(args.folder, allow_edits=args.allow_edits)
+            return 0
     except KuulasError as e:
         print(str(e), file=sys.stderr)
         return 1
