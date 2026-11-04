@@ -1,3 +1,8 @@
+## [v26.11.4.4] - 2026-11-04
+
+- **LLM and API control.** `kuulas ctl` provides authenticated remote control, and `kuulas mcp` exposes a read-only-by-default MCP server with explicit edit permission.
+- **Project discovery is safer.** Control instance records include authentication tokens and are only removed by the process that created them.
+
 ## [v26.11.4.3] - 2026-11-04
 
 - **Transcription respects memory limits.** Bulk and focused-track jobs route directly to Colab when local memory is low or cannot be checked.
