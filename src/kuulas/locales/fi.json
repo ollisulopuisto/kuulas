@@ -1605,6 +1605,11 @@
   },
   "ui.transcript.empty": "Ei vielä litteraattia.",
   "ui.transcript.missing": "Litterointi puuttuu",
+  "ui.transcript.colab_auth.checking": "Colab-kirjautuminen: tarkistetaan…",
+  "ui.transcript.colab_auth.signed_in": "Colab: kirjautuminen tallennettu",
+  "ui.transcript.colab_auth.sign_in": "Colab: kirjautuminen tarvitaan",
+  "ui.transcript.colab_auth.unavailable": "Colab-kirjautumisen tilaa ei saatu",
+  "ui.transcript.colab_auth_hint": "Kuulas löysi tallennetut Colab-kirjautumistiedot. Google tarkistaa ne yhteyden muodostuessa.",
   "ui.transcript.all_files": {
     "one": "Kaikki {count} tiedosto",
     "other": "Kaikki {count} tiedostoa"

@@ -1455,6 +1455,7 @@ const transcript = createTranscript({
     run: (id) => keyboard.registry.run(id, null, getState()),
     contextMenu: (event) => showPanelMenu("transcript", event),
     transcribeColab: (ids) => void transcribeOnColab(ids),
+    colabAuthStatus: () => api.colabSignin(),
     ensureLocalModel: () => orukeetDialogFor().ensure(),
     // The tracks a range edit acts on (all, the painted lanes, or the selected ones); null
     // with a notice when "selected tracks" is on and none is selected, as for X.

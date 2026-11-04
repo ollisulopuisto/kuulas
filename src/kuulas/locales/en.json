@@ -1609,6 +1609,11 @@
   },
   "ui.transcript.empty": "No transcript yet.",
   "ui.transcript.missing": "Transcription missing",
+  "ui.transcript.colab_auth.checking": "Colab sign-in: checking…",
+  "ui.transcript.colab_auth.signed_in": "Colab: login saved",
+  "ui.transcript.colab_auth.sign_in": "Colab: sign-in needed",
+  "ui.transcript.colab_auth.unavailable": "Colab sign-in status unavailable",
+  "ui.transcript.colab_auth_hint": "Kuulas found saved Colab credentials. Google verifies them when a job connects.",
   "ui.transcript.all_files": {
     "one": "All {count} file",
     "other": "All {count} files"

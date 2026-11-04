@@ -1,7 +1,7 @@
 // The transcript dock's "Transcription missing" list: one row per untranscribed recording.
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { offerRows } from "../transcript-offer.js";
+import { colabAuthState, offerRows } from "../transcript-offer.js";
 
 const media = [
   { id: "a", name: "Anna.wav" },
@@ -9,6 +9,15 @@ const media = [
   { id: "c", name: "Cleo.wav" },
 ];
 const job = (extra) => ({ kind: "transcribe", state: "running", progress: 0.4, ...extra });
+
+describe("Colab auth status", () => {
+  test("distinguishes loading, signed in, sign-in needed, and unavailable", () => {
+    assert.equal(colabAuthState(null), "checking");
+    assert.equal(colabAuthState({ signed_in: true }), "signed_in");
+    assert.equal(colabAuthState({ signed_in: false }), "sign_in");
+    assert.equal(colabAuthState({ error: "offline" }), "unavailable");
+  });
+});
 
 describe("offerRows", () => {
   test("every untranscribed recording gets a row, with an All row for two or more", () => {
