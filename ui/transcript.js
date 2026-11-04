@@ -12,6 +12,7 @@ import { setIcon } from "./icons.js";
 import { implicitMarkPlan } from "./marks.js";
 import { canShow, removedSummary, statusKey } from "./material-hits.js";
 import { canPutBack, commandArgs, describePlan } from "./put-back-model.js";
+import { provenanceLabel, rerunOptions } from "./transcript-provenance.js";
 import { musicNote } from "./transcribable.js";
 import {
   currentPosition,
@@ -123,7 +124,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   const heading = root.querySelector("h2");
   if (heading) headingRow.append(heading);
   headingRow.append(findBar);
-  root.append(headingRow, removed, follow, empty, list, pop);
+  const provenance = el("div", "tx-provenance");
+  root.append(headingRow, provenance, removed, follow, empty, list, pop);
   list.setAttribute("role", "document");
 
   // -- derived from the words (rebuilt only when they change) -----------------------------
@@ -251,6 +253,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       jobs: allJobs,
     });
     lastRows = rows;
+    renderProvenance();
     // A selected clip of a music recording: a plain note, never the transcribe offer.
     const note = musicNote({
       project: getState().project,
@@ -278,6 +281,36 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       el("span", "tx-hint", t("ui.transcript.background")),
     );
     scheduleWindow();
+  }
+
+  function renderProvenance() {
+    const info = getState().transcriptInfo ?? {};
+    const project = getState().project;
+    const mediaById = new Map((project?.media ?? []).map((item) => [item.id, item]));
+    const entries = Object.entries(info).filter(([id]) => mediaById.has(id));
+    provenance.replaceChildren();
+    provenance.hidden = entries.length === 0;
+    for (const [id, item] of entries) {
+      const row = el("div", "tx-provenance-row");
+      const name = mediaById.get(id).name;
+      const label = el("span", "tx-provenance-label", provenanceLabel(
+        item.engine,
+        item.created_utc,
+        t,
+        (value) => {
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? t("ui.transcript.time_unknown") :
+            new Intl.DateTimeFormat(getLanguage(), { dateStyle: "medium", timeStyle: "short" }).format(date);
+        },
+      ));
+      label.title = name;
+      const rerun = el("button", "button tx-rerun", t("ui.transcript.rerun"));
+      rerun.type = "button";
+      rerun.dataset.mediaId = id;
+      rerun.dataset.icon = "play";
+      row.append(label, rerun);
+      provenance.append(row);
+    }
   }
 
   /** "Music track: not transcribed" with the one explicit way round it (local only: no upload). */
@@ -362,17 +395,45 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     return item;
   }
 
-  async function transcribe(onlyIds, { force = false, localEngine = "whisper" } = {}) {
+  async function transcribe(onlyIds, {
+    force = false,
+    localEngine = "whisper",
+    backend = "local",
+    model,
+    language,
+    overwriteConfirmed = false,
+  } = {}) {
     const ids = onlyIds ?? transcribeTargets().map((item) => item.id);
     if (ids.length === 0) return;
+    const existing = new Set(Object.keys(getState().transcriptInfo ?? {}));
+    const replacing = ids.filter((id) => existing.has(id));
+    if (replacing.length && !overwriteConfirmed) {
+      const names = new Map((getState().project?.media ?? []).map((item) => [item.id, item.name]));
+      const confirmed = await actions.confirmRerun?.(
+        replacing.map((id) => names.get(id) ?? id).join(", "),
+      );
+      if (!confirmed) return;
+    }
     try {
       const consent =
         localEngine === "orukeet" && actions.ensureLocalModel
           ? await actions.ensureLocalModel()
           : true;
       if (!consent) return;
+      if (backend === "colab") {
+        await actions.transcribeColab?.(ids, {
+          model,
+          language,
+          force: force || replacing.length > 0,
+          overwriteConfirmed: true,
+        });
+        return;
+      }
       await api.transcribe(ids, {
-        force,
+        backend,
+        model,
+        language,
+        force: force || replacing.length > 0,
         local_engine: localEngine,
         ...(consent.allow_low_memory === true ? { allow_low_memory: true } : {}),
       });
@@ -829,6 +890,13 @@ export function createTranscript({ root, getState, setState, api, actions }) {
           actions.showError(error);
         });
     }
+  });
+  provenance.addEventListener("click", (event) => {
+    const rerun = event.target.closest?.("button[data-media-id]");
+    if (!rerun) return;
+    const id = rerun.dataset.mediaId;
+    const info = getState().transcriptInfo?.[id];
+    if (info) void transcribe([id], { ...rerunOptions(info.engine), overwriteConfirmed: false });
   });
 
   // -- the pop-up over the selection ----------------------------------------------------------------
@@ -1287,6 +1355,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       setState({
         words: body.words ?? [],
         transcribed: body.transcribed ?? [],
+        transcriptInfo: body.transcript_info ?? {},
         people: body.people ?? {},
         wordsHead: head,
         // The old indices mean other words now: keep the place, drop the selection.

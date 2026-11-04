@@ -272,7 +272,7 @@ material_revs(id INTEGER PRIMARY KEY, parent INTEGER, label TEXT NOT NULL,
   -- transcript revision in use per media, speaker names per media.
 transcript_revs(id INTEGER PRIMARY KEY, media TEXT NOT NULL, parent INTEGER,
                 words TEXT NOT NULL REFERENCES blobs(hash),
-                engine TEXT NOT NULL,  -- JSON: {"tool","model","version","language"}
+                engine TEXT NOT NULL,  -- JSON: backend, tool, model, language, optional version
                 created_utc TEXT)
 
 -- ---- edits: one undo tree each --------------------------------------------

@@ -3075,15 +3075,18 @@ class Session:
             return out
 
     def set_transcript(self, media_id: str, words: list[dict], label: str,
-                       timing: str | None = None) -> Project:
+                       timing: str | None = None,
+                       engine: dict | None = None) -> Project:
         """A new transcript for one media: one step, undone with Undo. ``timing``
-        (WP78): None keeps the media's timing marker, "" clears it, text sets it."""
+        (WP78): None keeps the media's timing marker, "" clears it, text sets it.
+        ``engine`` records how a generated transcript was made."""
         with self.lock:
             try:
                 self.history.state.media_item(media_id)
             except KeyError:
                 raise ops.EditError("error.edit.no_media", media_id=media_id) from None
-            self.history.add_transcript(media_id, words, label=label, timing=timing)
+            self.history.add_transcript(media_id, words, label=label, timing=timing,
+                                        engine=engine)
             return self._changed()
 
     # -- transcription as a detached background job (WP79) -------------------
@@ -3274,7 +3277,7 @@ class Session:
                     media_id, found["words"],
                     t("history.transcript", media_id=media_id),
                     # A local engine made these words: no "ctc-v1" claim survives.
-                    timing=found["timing"])
+                    timing=found["timing"], engine=found.get("engine"))
             except ops.EditError:
                 return "missing"
         with contextlib.suppress(OSError):

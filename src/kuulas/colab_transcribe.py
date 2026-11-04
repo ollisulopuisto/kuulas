@@ -317,10 +317,16 @@ def read_words_json(path: Path | str) -> dict:
                       "spk": ""})
     language = data.get("language")
     rejected = data.get("rejected")
-    return {"words": words, "timing": timing,
-            "language": language if isinstance(language, str) else "",
-            "rejected": rejected if isinstance(rejected, int)
-            and not isinstance(rejected, bool) and rejected >= 0 else 0}
+    engine = data.get("engine")
+    if not isinstance(engine, dict):
+        engine = None
+    result = {"words": words, "timing": timing,
+              "language": language if isinstance(language, str) else "",
+              "rejected": rejected if isinstance(rejected, int)
+              and not isinstance(rejected, bool) and rejected >= 0 else 0}
+    if engine:
+        result["engine"] = engine
+    return result
 
 
 # -- running -----------------------------------------------------------------------------

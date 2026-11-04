@@ -231,6 +231,7 @@ import { installTooltips } from "./tooltip.js";
 import { createTrackHeaders } from "./tracks.js";
 import { withoutMusic } from "./transcribable.js";
 import { createTranscript } from "./transcript.js";
+import { createTranscriptRerunConfirm } from "./transcript-rerun-confirm.js";
 import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
 import { createTransport } from "./transport.js";
 import { noteUse, readUse, writeUse } from "./use-hints.js";
@@ -1442,6 +1443,7 @@ async function downloadFile(path, fallback) {
 }
 
 // The transcript dock (WP7): paragraphs per speaker turn, following the playback.
+const transcriptRerunConfirm = createTranscriptRerunConfirm({ t });
 const transcript = createTranscript({
   root: $("panel-transcript"),
   getState,
@@ -1454,7 +1456,8 @@ const transcript = createTranscript({
     applyResponse: apply,
     run: (id) => keyboard.registry.run(id, null, getState()),
     contextMenu: (event) => showPanelMenu("transcript", event),
-    transcribeColab: (ids) => void transcribeOnColab(ids),
+    transcribeColab: (ids, options) => transcribeOnColab(ids, options),
+    confirmRerun: (name) => transcriptRerunConfirm.ask(name),
     ensureLocalModel: () => orukeetDialogFor().ensure(),
     // The tracks a range edit acts on (all, the painted lanes, or the selected ones); null
     // with a notice when "selected tracks" is on and none is selected, as for X.
@@ -2821,8 +2824,7 @@ async function transcribeTrack(backend = "local", localEngine = "whisper") {
     showNotice(t("ui.transcript.music_skipped"), "error");
     return;
   }
-  if (backend === "colab") await transcribeOnColab(ids ?? transcript.targetIds());
-  else await transcript.transcribe(ids, { localEngine });
+  await transcript.transcribe(ids, { backend, localEngine });
 }
 
 /** Text > Transcribe > All on this computer: every recording used on any track, except
@@ -2838,8 +2840,7 @@ async function transcribeAll(backend = "local", localEngine = "whisper") {
     showNotice(t("ui.transcript.nothing_to_transcribe"), "error");
     return;
   }
-  if (backend === "colab") await transcribeOnColab(ids);
-  else await transcript.transcribe(ids, { localEngine });
+  await transcript.transcribe(ids, { backend, localEngine });
 }
 
 // Transcription is a background job in a separate process (WP79): it goes on when this window
@@ -2923,7 +2924,7 @@ async function ensureColabSignedIn() {
   return colabDialogsFor().signIn();
 }
 
-async function transcribeOnColab(ids) {
+async function transcribeOnColab(ids, options = {}) {
   const project = getState().project;
   if (exportJob || !project || !ids || ids.length === 0) return;
   const names = project.media
@@ -2940,7 +2941,12 @@ async function transcribeOnColab(ids) {
     if (answer.remember) rememberConsent(prefs);
   }
   try {
-    const { jobs } = await api.transcribe(ids, { backend: "colab" });
+    const { jobs } = await api.transcribe(ids, {
+      backend: "colab",
+      model: options.model,
+      language: options.language,
+      force: options.force === true,
+    });
     exportJob = jobs[0];
     colabNames = names;
     void transcript.refreshJobs();

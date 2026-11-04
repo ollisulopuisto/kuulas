@@ -5274,6 +5274,36 @@ legend.form-heading {
   background: var(--surface-panel);
   border-bottom: 1px solid var(--border);
 }
+
+.tx-provenance {
+  display: grid;
+  gap: 4px;
+  padding: 0 12px 8px;
+}
+
+.tx-provenance[hidden] {
+  display: none;
+}
+
+.tx-provenance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.tx-provenance-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx-rerun {
+  flex: 0 0 auto;
+}
 #panel-transcript .tx-heading h2 {
   flex: none;
   padding-left: 0;

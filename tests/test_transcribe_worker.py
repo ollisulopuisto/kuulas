@@ -80,6 +80,10 @@ def test_local_job_selects_whisper_and_records_ctc_timing(folder):
     result = colab_transcribe.read_words_json(
         bgjobs.result_file(folder, job_id, "m0"))
     assert result["timing"] == "ctc-v1"
+    assert result["engine"] == {
+        "backend": "local", "tool": "whisper", "model": "large-v3-turbo",
+        "language": "fi",
+    }
 
 
 def status(folder, job_id):
@@ -104,6 +108,10 @@ def test_local_success_writes_one_result_per_media_in_the_contract_shape(folder)
         read = colab_transcribe.read_words_json(
             bgjobs.result_file(folder, job_id, media_id))
         assert read["timing"] == "orukeet"
+        assert read["engine"] == {
+            "backend": "local", "tool": "orukeet", "model": "small",
+            "language": "fi",
+        }
         assert read["words"][0]["w"] == "hello"
         assert read["words"][0]["s"] == FLICKS // 4
 
@@ -123,6 +131,10 @@ def test_colab_success_keeps_timing_and_language(folder):
     read = colab_transcribe.read_words_json(bgjobs.result_file(folder, job_id, "m1"))
     assert read["timing"] == "ctc-v1"
     assert read["language"] == "fi"
+    assert read["engine"] == {
+        "backend": "colab", "tool": "whisper", "model": "small",
+        "language": "fi",
+    }
 
 
 def test_failure_is_recorded_with_its_message_key(folder):
