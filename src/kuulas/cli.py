@@ -188,6 +188,7 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
     # real path before the session keys on it.
     folder = str(Path(folder).resolve())
     # Imported here: the engine pulls in the audio libraries, which `info` does not need.
+    from . import ctl_discovery  # noqa: PLC0415
     from .engine import Engine  # noqa: PLC0415
     from .record_session import RecordSession  # noqa: PLC0415
     from .server import create_app  # noqa: PLC0415
@@ -204,10 +205,12 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
     recorder = RecordSession(
         session, live_engine_factory=live_engine.factory_or_none())
     sock = bind_local(port)
+    token = ctl_discovery.new_token()
     try:
+        ctl_discovery.write(folder, sock.getsockname()[1], token, os.getpid())
         url = f"http://{HOST}:{sock.getsockname()[1]}/"
         server = uvicorn.Server(uvicorn_config(
-            create_app(session, engine, recorder=recorder), sock))
+            create_app(session, engine, recorder=recorder, ctl_token=token), sock))
         print(t("cli.open.serving", path=folder, url=url))
         if browser:
             # Once the server accepts connections, not before: the first
@@ -221,6 +224,7 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
                              name="kuulas-open-browser").start()
         server.run(sockets=[sock])
     finally:
+        ctl_discovery.remove(folder)
         sock.close()
         recorder.close()
         engine.close()
@@ -267,6 +271,14 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     for sub in (opened, desktop_parser):
         sub.add_argument("--debug", action="store_true", help=t("cli.debug.help"))
     opened.add_argument("--window", action="store_true", help=t("cli.open.window"))
+    control = commands.add_parser("ctl", help=t("cli.ctl.help"))
+    control.add_argument("folder", help=t("cli.info.folder"))
+    control.add_argument("action", help=t("cli.ctl.command"))
+    control.add_argument("--args", default="{}", help=t("cli.ctl.args"))
+    agent = commands.add_parser("mcp", help=t("cli.mcp.help"))
+    agent.add_argument("folder", help=t("cli.info.folder"))
+    agent.add_argument("--allow-edits", action="store_true",
+                       help=t("cli.mcp.allow_edits"))
     args = parser.parse_args(argv)
     if args.selftest:
         from . import selftest  # noqa: PLC0415
@@ -308,6 +320,23 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
             return desktop.run_window(args.folder)
         if args.command == "open":
             return open_project(args.folder, args.port, not args.no_browser)
+        if args.command == "ctl":
+            from .ctl import run_ctl  # noqa: PLC0415
+
+            try:
+                payload = json.loads(args.args)
+            except json.JSONDecodeError as e:
+                parser.error(t("cli.ctl.invalid_args", detail=str(e)))
+            if not isinstance(payload, dict):
+                parser.error(t("cli.ctl.args_must_be_object"))
+            print(json.dumps(run_ctl(args.folder, args.action, payload),
+                             ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "mcp":
+            from .mcp_server import serve  # noqa: PLC0415
+
+            serve(args.folder, allow_edits=args.allow_edits)
+            return 0
     except KuulasError as e:
         print(str(e), file=sys.stderr)
         return 1

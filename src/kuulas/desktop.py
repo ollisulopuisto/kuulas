@@ -218,30 +218,59 @@ class RunningProject:
 
     def __init__(self, folder: str) -> None:
         # Imported here: the engine pulls in the audio libraries.
+        from . import ctl_discovery  # noqa: PLC0415
         from .engine import Engine  # noqa: PLC0415
         from .record_session import RecordSession  # noqa: PLC0415
         from .server import create_app  # noqa: PLC0415
         from .session import Session  # noqa: PLC0415
 
-        self.folder = folder
+        self.folder = str(Path(folder).expanduser().resolve())
         #: Called with ``summary()`` once the project is closed (the Bridge's hook to
         #: refresh the recents record); never allowed to stop the close.
         self.on_stopped = None
-        self._session = Session(folder)
-        self._engine = Engine(self._session)
-        # Only a viewer of the recorder (WP12a): closing the window never stops a take.
-        self._recorder = RecordSession(
-            self._session, live_engine_factory=live_engine.factory_or_none())
-        self._sock = bind_local(0)
-        self.url = f"http://{HOST}:{self._sock.getsockname()[1]}/"
-        self._server = uvicorn.Server(uvicorn_config(
-            create_app(self._session, self._engine, recorder=self._recorder), self._sock))
-        self._thread = threading.Thread(
-            target=self._server.run, kwargs={"sockets": [self._sock]},
-            name="kuulas-server", daemon=True)
-        self._thread.start()
-        while not self._server.started and self._thread.is_alive():
-            threading.Event().wait(0.02)
+        self._session = Session(self.folder)
+        self._engine = None
+        self._recorder = None
+        self._sock = None
+        self._thread = None
+        try:
+            self._engine = Engine(self._session)
+            # Only a viewer of the recorder (WP12a): closing never stops a take.
+            self._recorder = RecordSession(
+                self._session, live_engine_factory=live_engine.factory_or_none())
+            self._sock = bind_local(0)
+            self.url = f"http://{HOST}:{self._sock.getsockname()[1]}/"
+            self._ctl_token = ctl_discovery.new_token()
+            ctl_discovery.write(self.folder, self._sock.getsockname()[1],
+                                self._ctl_token, os.getpid())
+            self._server = uvicorn.Server(uvicorn_config(
+                create_app(self._session, self._engine, recorder=self._recorder,
+                           ctl_token=self._ctl_token), self._sock))
+            self._thread = threading.Thread(
+                target=self._server.run, kwargs={"sockets": [self._sock]},
+                name="kuulas-server", daemon=True)
+            self._thread.start()
+            while not self._server.started and self._thread.is_alive():
+                threading.Event().wait(0.02)
+        except Exception:
+            self._abort_startup(ctl_discovery)
+            raise
+        if not self._server.started:
+            self._abort_startup(ctl_discovery)
+            raise KuulasError("error.desktop.server_start_failed")
+
+    def _abort_startup(self, ctl_discovery) -> None:
+        ctl_discovery.remove(self.folder)
+        if self._thread is not None and self._thread.is_alive():
+            self._server.should_exit = True
+            self._thread.join(timeout=2)
+        if self._sock is not None:
+            self._sock.close()
+        if self._recorder is not None:
+            self._recorder.close()
+        if self._engine is not None:
+            self._engine.close()
+        self._session.close()
 
     @property
     def session(self):
@@ -288,6 +317,9 @@ class RunningProject:
         self._session.flush_view(playhead=position)
         self._server.should_exit = True
         self._thread.join(timeout=10)
+        from . import ctl_discovery  # noqa: PLC0415
+
+        ctl_discovery.remove(self.folder)
         self._sock.close()
         self._recorder.close()
         self._engine.close()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -132,11 +133,21 @@ def test_the_window_is_started_without_a_custom_menu(tmp_path, monkeypatch):
 
 
 def test_running_project_serves_and_stops(tmp_path):
+    from kuulas import ctl_discovery  # noqa: PLC0415
+
     first = desktop.RunningProject(str(tmp_path / "A.kuulas"))
     second = desktop.RunningProject(str(tmp_path / "B.kuulas"))
     try:
         assert first.url != second.url
         assert first.url.startswith("http://127.0.0.1:")
+        first_info = ctl_discovery.read(first.folder)
+        assert first_info
+        port = int(first.url.rsplit(":", 1)[1][:-1])
+        assert first_info["port"] == port
+        assert first_info["pid"] == os.getpid()
+        from kuulas.ctl import run_ctl  # noqa: PLC0415
+
+        assert run_ctl(first.folder, "state")["project"]
         assert httpx.get(first.url + "api/state", timeout=10).status_code == 200
         assert httpx.get(first.url, timeout=10).status_code == 200
     finally:
@@ -144,6 +155,30 @@ def test_running_project_serves_and_stops(tmp_path):
         second.stop()
     with pytest.raises(httpx.TransportError):
         httpx.get(first.url + "api/state", timeout=2)
+    assert ctl_discovery.read(first.folder) is None
+
+
+def test_running_project_cleans_up_if_server_never_starts(tmp_path, monkeypatch):
+    from kuulas import ctl_discovery  # noqa: PLC0415
+
+    class FailedServer:
+        started = False
+        should_exit = False
+
+        def __init__(self, _config):
+            pass
+
+        def run(self, **_kwargs):
+            return
+
+    monkeypatch.setattr(desktop.uvicorn, "Server", FailedServer)
+    folder = tmp_path / "A.kuulas"
+
+    with pytest.raises(messages.KuulasError,
+                       match=messages.t("error.desktop.server_start_failed")):
+        desktop.RunningProject(str(folder))
+
+    assert ctl_discovery.read(folder) is None
 
 
 def test_closing_the_window_saves_where_the_engine_was(tmp_path):
@@ -151,8 +186,13 @@ def test_closing_the_window_saves_where_the_engine_was(tmp_path):
     folder = tmp_path / "A.kuulas"
     running = desktop.RunningProject(str(folder))
     try:
+        from kuulas import ctl_discovery  # noqa: PLC0415
+
+        info = ctl_discovery.read(folder)
+        assert info
         body = {"view": {"playhead": 5, "zoom": 2}}
-        sent = httpx.put(running.url + "api/view-memory", json=body, timeout=10)
+        sent = httpx.put(running.url + "api/view-memory", json=body, timeout=10,
+                         headers={"x-kuulas-token": info["token"]})
         assert sent.status_code == 200
         running._engine.status = lambda: {"position": 123456}
     finally:

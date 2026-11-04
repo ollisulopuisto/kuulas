@@ -40,6 +40,8 @@ transcribe = ["faster-whisper==1.2.1", "torch==2.10.0", "torchaudio==2.10.0"]
 # The native window (WP15): system web view, native file dialogs and menu.
 # Not in the base dependencies: Linux needs system WebKit packages for it.
 desktop = ["pywebview>=5"]
+# MCP integration is opt-in and does not affect editor/runtime installs.
+agent = ["mcp>=1.12,<2"]
 
 [project.scripts]
 kuulas = "kuulas.cli:main"
@@ -47,6 +49,8 @@ kuulas = "kuulas.cli:main"
 kuulas-recorder = "kuulas_recorder.cli:main"
 # The detached transcription worker (WP79): started by the editor, outlives it.
 kuulas-worker = "kuulas.transcribe_worker:main"
+# Optional local MCP server for agent-driven project work.
+kuulas-mcp = "kuulas.mcp_server:main"
 
 [tool.uv.sources]
 speechmix = { path = "../podcast/packages/speechmix", editable = true }

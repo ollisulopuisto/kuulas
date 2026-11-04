@@ -481,6 +481,7 @@ def _local_origin(origin: str) -> bool:
 def create_app(session, engine, *, language: str | None = None,
                ui_dir: str | Path = UI_DIR, tick: float = LIVE_TICK_S,
                meter_every: float = LIVE_METER_S, recorder=None,
+               ctl_token: str | None = None,
                profiler: profiler_module.Profiler | None = None,
                correct_every: float = LIVE_CORRECT_S) -> FastAPI:
     """``session``, ``engine`` and ``recorder`` (a ``RecordSession``, or None: recording
@@ -536,6 +537,30 @@ def create_app(session, engine, *, language: str | None = None,
                 error_body("error.server.bad_request", detail="Invalid Origin header"),
                 status_code=403,
             ))
+        # Same-origin UI requests are protected by the browser origin check. Headless
+        # clients have no Origin, so require the per-window capability token for writes.
+        # A supplied bad token is always rejected, including from a local Origin.
+        if ctl_token is not None:
+            from .ctl_discovery import check_token  # noqa: PLC0415
+
+            supplied = request.headers.get("x-kuulas-token")
+            auth = request.headers.get("authorization", "")
+            if supplied is None and auth.lower().startswith("bearer "):
+                supplied = auth[7:].strip()
+            token_valid = check_token({"token": ctl_token}, supplied)
+            if supplied is not None and not token_valid:
+                return secure(JSONResponse(
+                    error_body("error.server.bad_request",
+                               detail="Invalid control token"),
+                    status_code=403,
+                ))
+            if request.method not in {"GET", "HEAD", "OPTIONS"} and origin is None \
+                    and not token_valid:
+                return secure(JSONResponse(
+                    error_body("error.server.bad_request",
+                               detail="Control token required"),
+                    status_code=403,
+                ))
 
         messages.set_language(request_language(request.headers.get("accept-language"),
                                                default_language))

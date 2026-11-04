@@ -2,6 +2,7 @@
 
 import inspect
 import json
+import secrets
 import socket
 import time
 from pathlib import Path
@@ -144,6 +145,44 @@ def test_state_shape(client):
     assert body["can_undo"] is False
     assert body["can_redo"] is False
     assert body["missing"] == []
+
+
+def test_headless_mutations_require_ctl_token_when_origin_is_absent(
+        session, engine, tmp_path):
+    token = secrets.token_urlsafe()
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    with TestClient(create_app(session, engine, language="en", ui_dir=ui,
+                               ctl_token=token)) as c:
+        response = c.post("/api/transport", json={"action": "stop"})
+        assert response.status_code == 403
+
+
+def test_ctl_token_rejects_bad_token_even_for_local_origin(session, engine, tmp_path):
+    token = secrets.token_urlsafe()
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    with TestClient(create_app(session, engine, language="en", ui_dir=ui,
+                               ctl_token=token)) as c:
+        response = c.post("/api/transport", json={"action": "stop"},
+                          headers={"origin": "http://127.0.0.1:5000",
+                                   "x-kuulas-token": "invalid"})
+        assert response.status_code == 403
+
+
+def test_ctl_token_accepts_authenticated_cli_and_same_origin_ui(
+        session, engine, tmp_path):
+    token = secrets.token_urlsafe()
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    with TestClient(create_app(session, engine, language="en", ui_dir=ui,
+                               ctl_token=token)) as c:
+        cli_response = c.post("/api/transport", json={"action": "stop"},
+                              headers={"x-kuulas-token": token})
+        ui_response = c.post("/api/transport", json={"action": "stop"},
+                             headers={"origin": "http://127.0.0.1:5000"})
+        assert cli_response.status_code == 200
+        assert ui_response.status_code == 200
 
 
 def test_edit_applies_an_op_and_returns_the_state(client, loaded):
