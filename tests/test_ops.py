@@ -188,6 +188,22 @@ def test_add_bus_with_track_ids_assigns_them_in_the_same_edit():
     assert p.track("t2").bus == "b1"
 
 
+def test_add_bus_accepts_one_shot_track_ids():
+    track_ids = (track_id for track_id in ("t1", "t2"))
+    p = ops.add_bus(project_with_two_tracks(), bus_id="b1", name="Voices",
+                    track_ids=track_ids)
+    assert p.track("t1").bus == "b1"
+    assert p.track("t2").bus == "b1"
+
+
+def test_add_bus_rejects_unknown_track_in_one_shot_track_ids():
+    track_ids = (track_id for track_id in ("t1", "nope"))
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.add_bus(project_with_two_tracks(), track_ids=track_ids)
+    assert exc_info.value.key == "error.edit.no_track"
+    assert exc_info.value.params == {"track_id": "nope"}
+
+
 def test_add_bus_rejects_duplicate_id():
     p = ops.add_bus(project_with_two_tracks(), bus_id="b1", name="Voices")
     with pytest.raises(ops.EditError) as exc_info:
