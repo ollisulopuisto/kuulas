@@ -452,6 +452,7 @@ def normalize_ungated(p: Project) -> Project:
 def add_bus(p: Project, bus_id: str | None = None, name: str = "Bus",
             track_ids=()) -> Project:
     """Add a bus, and route ``track_ids`` to it in the same edit (one undo step)."""
+    track_ids = tuple(track_ids)
     bus_id = bus_id or new_id("b")
     if bus_id in {b.id for b in p.buses}:
         raise EditError("error.edit.bus_exists", bus_id=bus_id)
