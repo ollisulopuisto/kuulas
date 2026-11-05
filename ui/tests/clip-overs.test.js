@@ -31,6 +31,10 @@ describe("clip overs edge cases", () => {
     assert.throws(() => overs([], Number.NaN));
     assert.throws(() => maxOverDb([], Number.POSITIVE_INFINITY));
   });
+  test("NaN peak values retain the original Math.max behavior", () => {
+    assert.deepEqual(overs([[Number.NaN, 2]], 0), []);
+    assert.ok(Number.isNaN(maxOverDb([[Number.NaN, 2]], 0)));
+  });
 });
 
 describe("overLabel", () => {
