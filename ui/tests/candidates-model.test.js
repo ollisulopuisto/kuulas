@@ -174,6 +174,10 @@ describe("candidateBands (the stripes across the lanes)", () => {
     const bands = candidateBands([row("a", 1000, { state: "cut" })], { ...view, currentId: "a" });
     assert.equal(bands.length, 0);
   });
+  test("handles empty rows or rows with empty spans without error", () => {
+    assert.deepEqual(candidateBands([], view), []);
+    assert.deepEqual(candidateBands([row("a", null, { spans: [] })], view), []);
+  });
 });
 
 describe("the ruler flag", () => {
