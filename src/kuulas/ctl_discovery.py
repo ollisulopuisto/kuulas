@@ -24,10 +24,12 @@ def _validate_folder(project_folder: str | os.PathLike[str]) -> Path:
     """Validate project folder string/path against traversal and size limits."""
     raw = os.fspath(project_folder)
     if not raw or not raw.strip() or "\0" in raw or len(raw) > _MAX_PATH:
-        raise ValueError("Invalid project folder path")
+        msg = f"invalid project folder path {project_folder!r}"
+        raise ValueError(msg)
     path = Path(raw)
     if ".." in path.parts:
-        raise ValueError("Directory traversal not permitted in project folder")
+        msg = f"directory traversal in project folder {project_folder!r}"
+        raise ValueError(msg)
     return path
 
 
