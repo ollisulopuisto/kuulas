@@ -28,7 +28,7 @@ export function overs(peaks, gainDb, limitDb = CLIP_LIMIT_DB) {
     const high = pair[1];
     const absLow = low < 0 ? -low : low;
     const absHigh = high < 0 ? -high : high;
-    const peak = absLow > absHigh ? absLow : absHigh;
+    const peak = Math.max(absLow, absHigh);
     if (peak * gain > limit) {
       if (start === null) start = index;
     } else if (start !== null) {
@@ -54,8 +54,8 @@ export function maxOverDb(peaks, gainDb) {
     const high = pair[1];
     const absLow = low < 0 ? -low : low;
     const absHigh = high < 0 ? -high : high;
-    const peak = absLow > absHigh ? absLow : absHigh;
-    if (peak > max) max = peak;
+    const peak = Math.max(absLow, absHigh);
+    max = Math.max(max, peak);
   }
   const scaledMax = max * gain;
   if (scaledMax <= 0) return 0;
