@@ -145,3 +145,49 @@ class TestRemove:
         assert read(tmp_path)["token"] == "new-owner"  # noqa: S105
         assert remove_if_token(tmp_path, "new-owner") is True
         assert read(tmp_path) is None
+
+
+class TestPathSecurity:
+    def test_read_refuses_symlinked_discovery_file(self, tmp_path: Path):
+        outside = tmp_path / "outside.json"
+        payload = {
+            "port": 9000,
+            "token": "abc",
+            "pid": os.getpid(),
+            "started_utc": "2026-10-18T10:00:00Z",
+        }
+        outside.write_text(json.dumps(payload), encoding="utf-8")
+        ctl_file = discovery_path(tmp_path)
+        ctl_file.symlink_to(outside)
+        # Should not read through the symlink
+        assert read(tmp_path) is None
+
+    def test_remove_does_not_unlink_symlink_target(self, tmp_path: Path):
+        outside = tmp_path / "outside.json"
+        outside.write_text("irreplaceable content", encoding="utf-8")
+        ctl_file = discovery_path(tmp_path)
+        ctl_file.symlink_to(outside)
+        remove(tmp_path)
+        assert outside.exists()
+        assert outside.read_text(encoding="utf-8") == "irreplaceable content"
+        assert not ctl_file.exists()
+
+    @pytest.mark.parametrize(
+        "bad_folder",
+        [
+            "../outside",
+            "folder/../../outside",
+            "/outside\0null",
+            "a" * 5000,
+            "",
+            "   ",
+        ],
+    )
+    def test_rejects_traversal_and_invalid_project_folders(self, bad_folder: str):
+        with pytest.raises(ValueError, match="project folder"):
+            discovery_path(bad_folder)
+        assert read(bad_folder) is None
+        with pytest.raises(ValueError, match="project folder"):
+            write(bad_folder, 9000, "token", 1234)
+        with pytest.raises(ValueError, match="project folder"):
+            remove(bad_folder)

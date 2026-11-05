@@ -1,3 +1,8 @@
+## 2026-11-05 - Insecure discovery file handling and path traversal in control discovery
+**Vulnerability:** Control discovery functions accepted project directory paths without size bounds, NUL-byte checks, or directory traversal validation, and read discovery files through symbolic links.
+**Learning:** Discovery files used for local IPC and authentication tokens must validate directory path boundaries and explicitly ensure target files are regular non-symlink files prior to reading authentication material.
+**Prevention:** Always validate project paths against length limits and traversal components, and verify that metadata files containing authentication tokens are not symlinks before reading.
+
 ## 2026-11-04 - Incomplete path traversal validation in media resolution handlers
 **Vulnerability:** File location and replacement endpoints accepted paths containing relative segments or `..` directory traversal components before checking file presence and performing media relinking operations.
 **Learning:** Checking filesystem item existence via `Path.is_file()` or `os.path.isdir()` without prior syntactic rejection of `..` traversal components or verifying resolved realpaths allows callers to refer to files outside intended boundaries or probe filesystem structure.
