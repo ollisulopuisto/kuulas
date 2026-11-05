@@ -4,8 +4,9 @@ name: dmg
 #   - by hand: Actions > dmg > Run workflow (the .dmg is a downloadable artifact, 30 days);
 #   - on a version tag (v26.10.19.23 ...): the same build, attached to a GitHub Release
 #     (the repository is public: anyone can download the release).
-# Signed with the repository's Developer ID certificate. Not notarised until Apple
-# notarization credentials are configured; Gatekeeper may still require right-click > Open.
+# Signed with the repository's Developer ID certificate and notarised with the APPLE_ID /
+# APPLE_APP_PASSWORD secrets. A tag build fails without them; a manual run warns and ships
+# a signed but un-notarised artifact.
 
 on:
   workflow_dispatch:
@@ -78,6 +79,36 @@ jobs:
         run: |
           rm -f "$KUULAS_FFMPEG_CACHE/.fresh"
           scripts/build_dmg.sh --out "$RUNNER_TEMP/dist"
+      # Before the checksums: stapling rewrites the .dmg.
+      - name: Notarise and staple the .dmg
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: LWSR8T5392
+        run: |
+          set -euo pipefail
+          if [ -z "$APPLE_ID" ] || [ -z "$APPLE_APP_PASSWORD" ]; then
+            if [ "$GITHUB_REF_TYPE" = tag ]; then
+              echo "::error::APPLE_ID / APPLE_APP_PASSWORD secrets are missing; a release must be notarised."
+              exit 1
+            fi
+            echo "::warning::No notarisation credentials: this artifact is signed but not notarised."
+            exit 0
+          fi
+          for dmg in "$RUNNER_TEMP"/dist/*.dmg; do
+            result=$(xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_PASSWORD" --wait --timeout 45m --output-format json) || true
+            echo "$result"
+            id=$(printf '%s' "$result" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+            status=$(printf '%s' "$result" | python3 -c 'import json,sys; print(json.load(sys.stdin)["status"])')
+            if [ "$status" != Accepted ]; then
+              xcrun notarytool log "$id" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+              exit 1
+            fi
+            xcrun stapler staple "$dmg"
+            xcrun stapler validate "$dmg"
+            spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+          done
       - name: Remove signing keychain
         if: always()
         run: security delete-keychain "$RUNNER_TEMP/kuulas-signing.keychain-db" || true
@@ -108,5 +139,5 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" \
             --title "Kuulas ${GITHUB_REF_NAME}" \
-            --notes "Unsigned test build for Apple-silicon Macs. First open: right-click, Open. See docs/TESTERS.md. Checksums in SHA256.txt." \
+            --notes "Test build for Apple-silicon Macs, Developer ID signed and notarised. See docs/TESTERS.md. Checksums in SHA256.txt." \
             "$RUNNER_TEMP"/dist/*.dmg "$RUNNER_TEMP"/dist/SHA256.txt
