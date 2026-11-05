@@ -54,7 +54,7 @@ def frames_flushed(c) -> int:
 
 
 def kill_group(proc):
-    with contextlib.suppress(ProcessLookupError):
+    with contextlib.suppress(ProcessLookupError, PermissionError):
         os.killpg(proc.pid, signal.SIGKILL)
     proc.wait(10)
 

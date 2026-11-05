@@ -17,11 +17,25 @@ from typing import Any
 from .processes import pid_alive
 
 _REQUIRED_FIELDS = ("port", "token", "pid", "started_utc")
+_MAX_PATH = 4096
+
+
+def _validate_folder(project_folder: str | os.PathLike[str]) -> Path:
+    """Validate project folder string/path against traversal and size limits."""
+    raw = os.fspath(project_folder)
+    if not raw or not raw.strip() or "\0" in raw or len(raw) > _MAX_PATH:
+        msg = f"invalid project folder path {project_folder!r}"
+        raise ValueError(msg)
+    path = Path(raw)
+    if ".." in path.parts:
+        msg = f"directory traversal in project folder {project_folder!r}"
+        raise ValueError(msg)
+    return path
 
 
 def discovery_path(project_folder: str | os.PathLike[str]) -> Path:
     """Return the path to the discovery file inside ``project_folder``."""
-    return Path(project_folder) / "ctl.json"
+    return _validate_folder(project_folder) / "ctl.json"
 
 
 def new_token() -> str:
@@ -85,10 +99,13 @@ def _valid_info(value: Any) -> dict[str, Any] | None:
 
 def read(project_folder: str | os.PathLike[str]) -> dict[str, Any] | None:
     """Read and validate the discovery file, returning ``None`` on any error."""
-    path = discovery_path(project_folder)
     try:
+        path = discovery_path(project_folder)
+        # Never follow symlinks when reading discovery tokens/ports
+        if path.is_symlink() or not path.is_file():
+            return None
         data = path.read_text(encoding="utf-8")
-    except OSError:
+    except (OSError, ValueError):
         return None
     try:
         value = json.loads(data)
@@ -107,7 +124,8 @@ def is_alive(info: dict[str, Any]) -> bool:
 
 def remove(project_folder: str | os.PathLike[str]) -> None:
     """Delete the discovery file, ignoring a missing file."""
-    discovery_path(project_folder).unlink(missing_ok=True)
+    path = discovery_path(project_folder)
+    path.unlink(missing_ok=True)
 
 
 def remove_if_token(project_folder: str | os.PathLike[str], token: str) -> bool:
