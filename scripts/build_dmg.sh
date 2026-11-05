@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the unsigned tester .dmg of Kuulas for macOS (WP73), from the committed code.
+# Build a tester .dmg of Kuulas for macOS (WP73), from the committed code.
 #
 #   scripts/build_dmg.sh [--app-only] [--out <folder>]  (default: ./dist)
 #
@@ -15,10 +15,9 @@
 #      as the editor starts it, which must run a no-op job to "completed", and the bundled
 #      automixer answering `--help`) and stops if
 #      it fails,
-#   5. unless --app-only was given, packages "Kuulas <version>.dmg" (ad-hoc signed,
-#      NOT notarised: the first open
-#      needs right-click > Open, see docs/TESTERS.md), mounts it and runs --selftest
-#      again on the app inside, and prints the file, its size and its checksum.
+#   5. unless --app-only was given, packages "Kuulas <version>.dmg" (Developer ID signed
+#      when APPLE_SIGNING_IDENTITY is set, otherwise ad-hoc signed), mounts it and runs
+#      --selftest again on the app inside, and prints the file, its size and its checksum.
 #
 # Needs: macOS on Apple silicon, uv, git, network (Briefcase template and wheels, ffmpeg).
 # Everything it writes is under <repo>/build/dmg and the --out folder; the Briefcase
@@ -122,10 +121,20 @@ if [ "$app_only" = true ]; then
 fi
 
 echo "== briefcase package"
-briefcase package macOS app --adhoc-sign -p dmg
+if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+  briefcase package macOS app --identity "$APPLE_SIGNING_IDENTITY" --no-notarize -p dmg
+else
+  briefcase package macOS app --adhoc-sign -p dmg
+fi
 built="$(ls "$work"/stage/dist/*.dmg | head -1)"
 dmg="$out/Kuulas $version.dmg"
 cp "$built" "$dmg"
+
+if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+  echo "== sign dmg"
+  codesign --force --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$dmg"
+  codesign --verify --verbose=2 "$dmg"
+fi
 
 echo "== selftest (app inside the dmg)"
 mnt="$work/mnt"
@@ -133,6 +142,9 @@ mkdir -p "$mnt"
 hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$dmg" >/dev/null
 trap 'hdiutil detach -quiet "$mnt" 2>/dev/null || true' EXIT
 selftest "$mnt/Kuulas.app"
+if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+  codesign --verify --deep --strict --verbose=2 "$mnt/Kuulas.app"
+fi
 hdiutil detach -quiet "$mnt"
 trap - EXIT
 
