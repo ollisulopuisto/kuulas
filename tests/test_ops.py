@@ -201,3 +201,11 @@ def test_add_bus_with_an_unknown_track_changes_nothing():
     with pytest.raises(ops.EditError):
         ops.add_bus(before, track_ids=["t1", "nope"])
     assert before.buses == ()
+
+
+def test_add_track_rejects_duplicate_id():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.add_track(p, track_id="t1", name="Duplicate Track")
+    assert exc_info.value.key == "error.edit.track_exists"
+    assert exc_info.value.params == {"track_id": "t1"}
