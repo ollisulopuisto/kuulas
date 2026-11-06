@@ -43,12 +43,13 @@ test("explicit Colab transcription skips the local memory check", async () => {
   assert.deepEqual(calls, [["colab", ["recording-1"]]]);
 });
 
-test("bulk transcription goes through the guarded local-or-Colab dispatcher", () => {
+test("bulk transcription uses transcript flow and routes local requests through the guard", () => {
   const start = appSource.indexOf("async function transcribeAll(");
   const end = appSource.indexOf("// Transcription is a background job", start);
   assert.notEqual(start, -1);
   assert.match(
     appSource.slice(start, end),
-    /transcribeLocalOrColab\(ids, \{ backend, localEngine \}\)/,
+    /transcript\.transcribe\(ids, \{ backend, localEngine \}\)/,
   );
+  assert.match(appSource, /transcribeLocal: \(ids, options\) => transcribeLocalOrColab\(ids, options\)/);
 });

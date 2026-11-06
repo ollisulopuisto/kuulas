@@ -151,7 +151,8 @@ def _write_result(folder: Path, job_id: str, media_id: str, found: dict,
     write_json_atomic(bgjobs.result_file(folder, job_id, media_id),
                       bgjobs.words_to_file(found["words"], timing=found["timing"],
                                            language=found.get("language") or language,
-                                           rejected=found.get("rejected", 0)))
+                                           rejected=found.get("rejected", 0),
+                                           engine=found.get("engine")))
 
 
 def _stop_if_cancelled(cancel: threading.Event) -> None:
@@ -171,7 +172,8 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
         for item in items:
             _write_result(folder, job_id, item["id"], {"words": [
                 {"w": "selftest", "s": 0, "e": FLICKS // 2, "spk": ""}],
-                "timing": "whisper"}, language)
+                "timing": "whisper", "engine": {"backend": "selftest",
+                                                       "tool": "selftest"}}, language)
         return
     if job["backend"] == "colab":
         if colab is None and not colab_signin.signed_in():
@@ -192,9 +194,12 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
         settings["extra_args"] = [*settings.get("extra_args", []), "--backend", "colab"]
         found = engine(items, params, settings, report, cancel)
         _stop_if_cancelled(cancel)
+        provenance = {"backend": "colab", "tool": "whisper",
+                      "model": job.get("model"), "language": language or None}
         for item in items:
-            _write_result(folder, job_id, item["id"], found["results"][item["id"]],
-                          language)
+            result = dict(found["results"][item["id"]])
+            result["engine"] = provenance
+            _write_result(folder, job_id, item["id"], result, language)
         return
     # Existing queued jobs predate the engine selector and were Orukeet jobs.
     # New Session jobs persist the explicit local_engine value.
@@ -215,8 +220,10 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
                        cpu_threads=job.get("cpu_threads"), **memory_options)
         _stop_if_cancelled(cancel)
         timing = "ctc-v1" if use_whisper else "orukeet"
-        _write_result(folder, job_id, item["id"], {"words": words, "timing": timing},
-                      language)
+        provenance = {"backend": "local", "tool": "whisper" if use_whisper else "orukeet",
+                      "model": model, "language": job.get("language")}
+        _write_result(folder, job_id, item["id"], {"words": words, "timing": timing,
+                                                   "engine": provenance}, language)
 
 
 def run_job(job_path: Path | str, *, local: Callable | None = None,

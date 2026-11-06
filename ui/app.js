@@ -231,6 +231,7 @@ import { installTooltips } from "./tooltip.js";
 import { createTrackHeaders } from "./tracks.js";
 import { withoutMusic } from "./transcribable.js";
 import { createTranscript } from "./transcript.js";
+import { createTranscriptRerunConfirm } from "./transcript-rerun-confirm.js";
 import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
 import { dispatchTranscription } from "./transcription-route.js";
 import { createTransport } from "./transport.js";
@@ -1444,6 +1445,7 @@ async function downloadFile(path, fallback) {
 }
 
 // The transcript dock (WP7): paragraphs per speaker turn, following the playback.
+const transcriptRerunConfirm = createTranscriptRerunConfirm({ t });
 const transcript = createTranscript({
   root: $("panel-transcript"),
   getState,
@@ -1456,9 +1458,10 @@ const transcript = createTranscript({
     applyResponse: apply,
     run: (id) => keyboard.registry.run(id, null, getState()),
     contextMenu: (event) => showPanelMenu("transcript", event),
-    transcribeColab: (ids) => transcribeOnColab(ids),
+    transcribeColab: (ids, options) => transcribeOnColab(ids, options),
     transcribeLocal: (ids, options) => transcribeLocalOrColab(ids, options),
     colabAuthStatus: () => api.colabSignin(),
+    confirmRerun: (name) => transcriptRerunConfirm.ask(name),
     ensureLocalModel: () => orukeetDialogFor().ensure(),
     openTranscriptionJobs:
       typeof globalThis.pywebview?.api?.open_transcription_jobs === "function"
@@ -2832,20 +2835,26 @@ async function transcribeTrack(backend = "local", localEngine = "whisper") {
     showNotice(t("ui.transcript.music_skipped"), "error");
     return;
   }
-  await transcribeLocalOrColab(ids ?? transcript.targetIds(), { backend, localEngine });
+  await transcript.transcribe(ids ?? transcript.targetIds(), { backend, localEngine });
 }
 
 /** Send local-engine requests to Colab when this Mac cannot safely run them. */
 async function transcribeLocalOrColab(
   ids,
-  { backend = "local", force = false, localEngine = "whisper" } = {},
+  {
+    backend = "local",
+    force = false,
+    localEngine = "whisper",
+    model,
+    language,
+  } = {},
 ) {
   await dispatchTranscription({
     ids,
     backend,
     getLocalStatus: () => api.localModel(),
     onLowMemory: () => showNotice(t("ui.transcript.low_memory_colab"), "warn"),
-    transcribeColab: (targetIds) => transcribeOnColab(targetIds),
+    transcribeColab: (targetIds) => transcribeOnColab(targetIds, { model, language, force }),
     transcribeLocal: async (targetIds) => {
       const consent = localEngine === "orukeet" ? await orukeetDialogFor().ensure() : true;
       if (!consent) return;
@@ -2871,7 +2880,7 @@ async function transcribeAll(backend = "local", localEngine = "whisper") {
     showNotice(t("ui.transcript.nothing_to_transcribe"), "error");
     return;
   }
-  await transcribeLocalOrColab(ids, { backend, localEngine });
+  await transcript.transcribe(ids, { backend, localEngine });
 }
 
 // Transcription is a background job in a separate process (WP79): it goes on when this window
@@ -2955,7 +2964,7 @@ async function ensureColabSignedIn() {
   return colabDialogsFor().signIn();
 }
 
-async function transcribeOnColab(ids) {
+async function transcribeOnColab(ids, options = {}) {
   const project = getState().project;
   if (exportJob || !project || !ids || ids.length === 0) return;
   const names = project.media
@@ -2972,7 +2981,12 @@ async function transcribeOnColab(ids) {
     if (answer.remember) rememberConsent(prefs);
   }
   try {
-    const { jobs } = await api.transcribe(ids, { backend: "colab" });
+    const { jobs } = await api.transcribe(ids, {
+      backend: "colab",
+      model: options.model,
+      language: options.language,
+      force: options.force === true,
+    });
     exportJob = jobs[0];
     colabNames = names;
     void transcript.refreshJobs();

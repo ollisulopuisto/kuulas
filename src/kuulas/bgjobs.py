@@ -264,7 +264,7 @@ def launch_worker(path: Path | str) -> None:
 
 
 def words_to_file(words: list[dict], *, timing: str, language: str,
-                  rejected: int = 0) -> dict[str, Any]:
+                  rejected: int = 0, engine: dict | None = None) -> dict[str, Any]:
     """The Colab contract's shape (seconds) from stored words (flicks)."""
     doc: dict[str, Any] = {
         "version": 1, "timing": timing, "language": language,
@@ -272,4 +272,6 @@ def words_to_file(words: list[dict], *, timing: str, language: str,
                   for w in words]}
     if rejected:
         doc["rejected"] = rejected
+    if engine:
+        doc["engine"] = engine
     return doc

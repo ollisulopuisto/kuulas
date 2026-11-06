@@ -13,7 +13,7 @@ import uvicorn
 from fastapi.testclient import TestClient
 from test_history import heavy_hour, register
 
-from kuulas import cli, messages, plugins
+from kuulas import cli, messages, plugins, transcribe
 from kuulas import edit_points as ep
 from kuulas.clipboard import ClipRef, Entry
 from kuulas.clipboard_store import ClipboardStore
@@ -438,6 +438,23 @@ def test_transcript_import_then_words(client, loaded):
     assert r.json()["can_undo"] is True
     words = client.get("/api/words").json()["words"]
     assert [w["w"] for w in words] == ["hello", "there"]
+
+
+def test_words_include_current_transcript_provenance(client, loaded, session):
+    media = media_id(loaded)
+    session.history.add_transcript(
+        media, transcribe.parse(WORDS),
+        engine={"backend": "local", "tool": "whisper", "model": "large-v3-turbo",
+                "language": "fi"},
+    )
+    body = client.get("/api/words").json()
+    info = body["transcript_info"][media]
+    assert info["revision"] == session.history.transcript_rev(media)
+    assert info["engine"] == {
+        "backend": "local", "tool": "whisper", "model": "large-v3-turbo",
+        "language": "fi",
+    }
+    assert info["created_utc"].endswith("Z")
 
 
 def test_words_name_the_people_they_refer_to(client, loaded, session):
