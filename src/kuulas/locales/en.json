@@ -3588,5 +3588,9 @@
   "error.mcp.redo_disabled": "Redo is disabled in read-only mode.",
   "error.mcp.unknown_tool": "Unknown tool: {name}",
   "error.mcp.unknown_resource": "Unknown resource URI: {uri}",
-  "error.mcp.unknown_prompt": "Unknown prompt: {name}"
+  "error.mcp.unknown_prompt": "Unknown prompt: {name}",
+  "error.agent.edits_disabled": "Kuulas MCP is read-only. Relaunch with --allow-edits to enable changes.",
+  "error.agent.confirm_required": "This operation changes the project. Call it again with confirm=true to proceed.",
+  "error.agent.empty_media": "Choose at least one media item to transcribe.",
+  "error.agent.unknown_command": "Unknown Kuulas command: {name}. Read the command list to see available commands."
 }

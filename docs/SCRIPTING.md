@@ -97,18 +97,51 @@ uv run kuulas ctl Episode.kuulas split_clip '{"clip_id":"c1","at":96000}'
 `ctl` works only while that project is open in Kuulas (or `kuulas open`). It prints JSON to
 stdout and returns a non-zero exit status if the project is not running or the request fails.
 
-### MCP server: for an LLM client
+## MCP server
 
-Kuulas can expose the active project through an MCP stdio server. Point an MCP client at
-`uv run kuulas mcp /absolute/path/to/Episode.kuulas`. It provides project state, heard words,
-transcript search, the command catalogue, resources, and prompts. If Kuulas already has the
-project open, requests use that live instance; otherwise the MCP process opens a headless
-session.
+Kuulas also exposes the same project and command surface over the Model Context Protocol.
+Install the optional integration and start it for one project:
 
-MCP is read-only by default. To permit edits, explicitly add `--allow-edits` to the MCP
-command. The client can then call catalogue edits and commands, undo, and redo. Every change
-uses Kuulas's existing command paths and history, so edits remain undoable. Treat that option
-as write access to the project.
+```sh
+uv run --extra agent kuulas-mcp "/path/to/Episode.kuulas"
+```
+
+For an MCP host that accepts a JSON server configuration, the read-only setup is:
+
+```json
+{
+  "mcpServers": {
+    "kuulas": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/kuulas", "--extra", "agent",
+               "kuulas-mcp", "/path/to/Episode.kuulas"]
+    }
+  }
+}
+```
+
+To enable changes, add `--allow-edits` after the project path. This is a launch-time opt-in;
+each transcription or edit call must still pass `confirm=true`. Candidate application has its
+own `confirm=true` gate. A project already open in Kuulas is exposed read-only, regardless of
+the launch option. No tool can run shell commands or delete source recordings.
+
+The tools are `project_summary`, `list_media`, `read_transcript`, `list_jobs`, `list_commands`,
+`list_candidates`, `preview_candidate`, `transcribe_media`, `call_command` and
+`apply_candidate`. A typical agent workflow is:
+
+1. Read the summary and media list, then select the media to process.
+2. Call `transcribe_media` with `confirm=true`. Local transcription uses the selected local
+   engine (Whisper by default or Orukeet); `backend="colab"` sends the selected audio to Google
+   and requires Kuulas to be signed in to Colab first.
+3. Poll `list_jobs`, then read `read_transcript` after jobs complete.
+4. Call `list_commands` to discover candidate detection and transcript editing commands.
+   Run candidate detection with `call_command`, inspect `list_candidates` and
+   `preview_candidate`, then apply only the reviewed candidates with `apply_candidate` and
+   `confirm=true`.
+
+Transcript timestamps and editing positions use integer project frames. The MCP server does not
+make editorial decisions itself: the connected agent chooses which catalogued operations to
+call, while Kuulas validates and commits each requested operation through `Session` history.
 
 ## A worked example: remove the filler words
 
@@ -145,5 +178,4 @@ cannot stop working without a test failing.
 
 ## Not built yet
 
-`kuulas run <script>` is not built. Headless Python sessions, `kuulas ctl`, and the MCP server
-cover direct scripting, control of an open project, and LLM-client integration respectively.
+`kuulas run <script>` is not built. Headless Python sessions, `kuulas ctl`, and the MCP server cover direct scripting, control of an open project, and LLM-client integration respectively.

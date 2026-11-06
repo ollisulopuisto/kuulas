@@ -3588,5 +3588,9 @@
   "error.mcp.redo_disabled": "Uudelleen tekeminen ei ole käytössä vain luku -tilassa.",
   "error.mcp.unknown_tool": "Tuntematon työkalu: {name}",
   "error.mcp.unknown_resource": "Tuntematon resurssin URI: {uri}",
-  "error.mcp.unknown_prompt": "Tuntematon kehote: {name}"
+  "error.mcp.unknown_prompt": "Tuntematon kehote: {name}",
+  "error.agent.edits_disabled": "Kuulas MCP on vain luettavissa. Ota muutokset käyttöön käynnistämällä se valitsimella --allow-edits.",
+  "error.agent.confirm_required": "Tämä toiminto muuttaa projektia. Jatka kutsumalla toimintoa uudelleen parametrilla confirm=true.",
+  "error.agent.empty_media": "Valitse litteroitavaksi vähintään yksi äänitiedosto.",
+  "error.agent.unknown_command": "Kuulasta ei löydy komentoa {name}. Lue komentoluettelosta käytettävissä olevat komennot."
 }
