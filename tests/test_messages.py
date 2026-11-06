@@ -19,6 +19,7 @@ from speechmix import messages as speechmix_messages
 from kuulas import media, messages, ops, transcribe
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "kuulas"
+_APPLE_LANGUAGES = messages._apple_languages
 
 
 @pytest.fixture(autouse=True)
@@ -243,7 +244,7 @@ APPLE_FINNISH = '(\n    "fi-FI",\n    "en-FI"\n)\n'
 def mac(monkeypatch):
     """A Mac whose Terminal says LANG=en_US while the system language is whatever
     ``defaults`` is made to print."""
-    monkeypatch.undo()  # drop the autouse stub: these tests drive the real parser
+    monkeypatch.setattr(messages, "_apple_languages", _APPLE_LANGUAGES)
     monkeypatch.setattr(sys, "platform", "darwin")
     for var in ("LC_ALL", "LC_MESSAGES"):
         monkeypatch.delenv(var, raising=False)
@@ -296,7 +297,7 @@ def test_explicit_lc_all_still_outranks_the_macos_list(mac):
 
 
 def test_other_systems_never_run_defaults(monkeypatch):
-    monkeypatch.undo()
+    monkeypatch.setattr(messages, "_apple_languages", _APPLE_LANGUAGES)
     monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setenv("LANG", "fi_FI.UTF-8")
     monkeypatch.delenv("LC_ALL", raising=False)
@@ -355,3 +356,12 @@ def test_automatic_setting_falls_through_to_the_system(mac):
 def test_catalog_for_the_ui_is_the_whole_catalog():
     assert messages.catalog("fi") == messages._CATALOGS["fi"]
     assert messages.catalog("xx") is None
+
+
+def test_macos_parser_fixture_keeps_private_settings_isolated(mac):
+    # Restoring the real Apple parser must not undo the shared private-state
+    # fixtures and accidentally read a developer's View > Language setting.
+    assert os.environ.get("KUULAS_SETTINGS_FILE"), "private settings override lost"
+    _defaults(mac, APPLE_FINNISH)
+    assert messages.language_setting() == messages.AUTO
+    assert messages.default_language() == "fi"

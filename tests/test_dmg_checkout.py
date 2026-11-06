@@ -32,7 +32,8 @@ def test_podcast_checkout_excludes_notes_and_preserves_build_sources(tmp_path):
     git("-c", "user.name=Test", "-c", "user.email=test@example.org",
         "commit", "-m", "fixture")
     if paths:
-        git("sparse-checkout", "set", "--cone", *paths)
+        git("sparse-checkout", "init", "--cone")
+        git("sparse-checkout", "set", *paths)
     assert not (repo / ".jules").exists(), "Agent notes collide by case on macOS"
     assert (repo / "packages/wordalign/src/wordalign.py").is_file()
     assert (repo / "apps/automixer/main.py").is_file()
