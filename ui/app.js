@@ -343,6 +343,7 @@ function paintNoticeChip() {
   if (latest === null) return;
   chip.dataset.kind = latest.kind;
   chip.textContent = `● ${chipText(latest.text)}`;
+  chip.setAttribute("aria-label", chip.title);
 }
 // `rich`: the running automixer's structured view (automix-toast-model.js); `text` stays
 // the plain line under it.
