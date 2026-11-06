@@ -1,3 +1,8 @@
+## 2026-11-06 - Unvalidated export folder path and traversal vulnerability
+**Vulnerability:** Export configuration and region planning accepted user-supplied folder destination paths without absolute path enforcement, size bounds, NUL-byte rejection, or directory traversal validation.
+**Learning:** Background jobs and export workers that create filesystem directories and write rendered outputs based on request parameters must validate folder path boundaries at request planning time and snapshot time before job execution.
+**Prevention:** Apply strict path validation (bounded non-empty string <= 4096 characters, no NUL bytes, absolute path without `..` traversal components, and verified normalized realpath) to all user-configurable export destination directory arguments.
+
 ## 2026-11-05 - Insecure discovery file handling and path traversal in control discovery
 **Vulnerability:** Control discovery functions accepted project directory paths without size bounds, NUL-byte checks, or directory traversal validation, and read discovery files through symbolic links.
 **Learning:** Discovery files used for local IPC and authentication tokens must validate directory path boundaries and explicitly ensure target files are regular non-symlink files prior to reading authentication material.

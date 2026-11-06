@@ -282,6 +282,29 @@ def _fail(key: str, **params: Any) -> ExportError:
     return ExportError(key, **params)
 
 
+def _validate_folder(folder: object) -> str:
+    """Validate export target directory path against traversal and size bounds."""
+    if not isinstance(folder, str) or not folder.strip() or "\0" in folder:
+        raise _fail("error.export.cannot_write", path=str(folder or "")[:200],
+                    error="invalid path")
+    if len(folder) > 4096:
+        raise _fail("error.export.cannot_write", path=folder[:200],
+                    error="path too long")
+    raw = Path(folder)
+    if not raw.is_absolute() or ".." in raw.parts:
+        raise _fail("error.export.cannot_write", path=folder[:200],
+                    error="path traversal")
+    try:
+        norm = os.path.normpath(folder)
+        real = os.path.realpath(norm)
+        if ".." in Path(real).parts:
+            raise _fail("error.export.cannot_write", path=folder[:200],
+                        error="path traversal")
+    except (OSError, RuntimeError) as e:
+        raise _fail("error.export.cannot_write", path=folder[:200], error=str(e)) from e
+    return norm
+
+
 def _settings(kind: str, remembered: dict | None, args: dict) -> dict[str, Any]:
     """Defaults, then the last settings of this kind, then ``args``; checked."""
     if kind not in KINDS:
@@ -338,6 +361,10 @@ def _settings(kind: str, remembered: dict | None, args: dict) -> dict[str, Any]:
             not isinstance(ids, list) or not ids
             or not all(isinstance(i, str) for i in ids)):
         raise _fail("error.export.bad_tracks")
+    if "folder" in args and args["folder"] is not None:
+        merged["folder"] = _validate_folder(args["folder"])
+    elif "folder" in merged and merged["folder"] is not None:
+        merged["folder"] = _validate_folder(merged["folder"])
     if kind == "tracks":
         merged["for_automixer"] = bool(merged.get("for_automixer", False))
     return merged
@@ -408,7 +435,7 @@ def _snapshot(session, kind: str, args: dict) -> _Job:
         if not folder:
             folder = str(session.package.path.parent
                          / f"{session.package.path.stem} exports")
-        settings["folder"] = str(folder)
+        settings["folder"] = _validate_folder(folder)
         project = h.state
         _check_tracks(project, settings)
         rate = project.rate
@@ -884,6 +911,9 @@ def check(session, args: dict) -> None:
         h._check_writable()
         settings = _settings(
             kind, h.meta_json("export", {}).get("settings", {}).get(kind), args)
+        folder = settings.get("folder") or h.meta_json("export", {}).get("folder")
+        if folder:
+            _validate_folder(folder)
         _check_tracks(h.state, settings)
 
 
@@ -1168,9 +1198,11 @@ def plan_regions(session, args: dict) -> tuple[list[tuple[int, int, str]], dict]
     with session.lock:
         project = session.history.state
         saved = session.history.meta_json("export", {})
-        folder = (args.get("folder") or saved.get("folder")
-                  or str(session.package.path.parent
-                         / f"{session.package.path.stem} exports"))
+        folder_arg = args.get("folder") if "folder" in args else None
+        folder_raw = folder_arg if folder_arg is not None else (
+            saved.get("folder") or str(session.package.path.parent
+                                       / f"{session.package.path.stem} exports"))
+        folder = _validate_folder(folder_raw)
         regions = [m for m in project.markers if m.kind == "region"]
         edit_name = next((e["name"] for e in session.history.edits()
                           if e["id"] == session.history.edit), session.history.edit)
