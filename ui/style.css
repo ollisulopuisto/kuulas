@@ -1215,6 +1215,17 @@ input.has-ab {
 #timeline {
   touch-action: none;
 }
+.marker-label-rename {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  padding: 0 2px;
+  color: var(--text-primary);
+  font: var(--weight-strong) 11px / 1 var(--font-ui);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+}
 /* A scroll indicator that stays visible (overlay scrollbars hide on a Mac). */
 .lanes-scroll {
   position: absolute;

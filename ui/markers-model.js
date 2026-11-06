@@ -57,6 +57,17 @@ export function markerIdAtX(markers, { scroll, zoom, width = Number.POSITIVE_INF
   return hits[0]?.id ?? null;
 }
 
+/** The visible marker label under a pointer on the ruler, or null (flags remain draggable). */
+export function markerLabelAtX(markers, view, x) {
+  const { flags, bars } = flagLayout(markers, view);
+  for (const item of [...flags, ...bars]) {
+    if (item.label && x >= item.labelX - 2 && x <= item.labelX + item.labelWidth + 2) {
+      return { id: item.id, labelX: item.labelX, labelWidth: item.labelWidth };
+    }
+  }
+  return null;
+}
+
 /**
  * Where a dragged flag lands (owner, 2026-11-01): the pointer's frame minus the grab offset,
  * never before zero. A region's end moves with it (ops.move_marker keeps the length).
@@ -115,6 +126,7 @@ export function flagLayout(markers, { scroll, zoom, width, measure }) {
         startsInView: x >= 0,
         label: fits ? marker.name : null,
         labelX: x0 + BAR_PAD_PX,
+        labelWidth: fits ? measure(marker.name) : 0,
         start: x,
       });
     } else if (x >= -NOTCH_PX && x <= width) {
@@ -135,6 +147,7 @@ export function flagLayout(markers, { scroll, zoom, width, measure }) {
       x: point.x,
       label: fits ? point.name : null,
       labelX,
+      labelWidth: fits ? measure(point.name) : 0,
     };
   });
   return {
