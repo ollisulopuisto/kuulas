@@ -437,9 +437,16 @@ export function alsoRemovedIndices(words, preview) {
   if (!preview?.other_words?.length) return new Set();
   const wanted = new Set(preview.other_words.map(wordKey));
   const out = new Set();
-  words.forEach((word, i) => {
-    if (wanted.has(wordKey(word))) out.add(i);
-  });
+  const len = words.length;
+  let remaining = wanted.size;
+  // Indexed loop avoids per-element closure allocations and stops once all targets are found
+  for (let i = 0; i < len; i += 1) {
+    if (wanted.has(wordKey(words[i]))) {
+      out.add(i);
+      remaining -= 1;
+      if (remaining === 0) break;
+    }
+  }
   return out;
 }
 
