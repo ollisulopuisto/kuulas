@@ -350,6 +350,26 @@ describe("the crosstalk preview", () => {
   test("the other speakers' words map back to array indices", () => {
     assert.deepEqual([...alsoRemovedIndices(words, preview)], [1]);
     assert.equal(alsoRemovedIndices(words, null).size, 0);
+    assert.equal(alsoRemovedIndices(words, { other_words: [] }).size, 0);
+    assert.equal(alsoRemovedIndices([], preview).size, 0);
+  });
+  test("stops early once all other_words are found and tolerates missing or duplicate keys", () => {
+    const manyWords = [
+      { track: "a", clip: "c1", index: 0 },
+      { track: "b", clip: "c2", index: 1 },
+      { track: "b", clip: "c2", index: 2 },
+      { track: "a", clip: "c1", index: 3 },
+    ];
+    // Includes a duplicate key and a nonexistent key
+    const previewWithDupes = {
+      other_words: [
+        { track: "b", clip: "c2", index: 1 },
+        { track: "b", clip: "c2", index: 1 },
+        { track: "ghost", clip: "c0", index: 99 },
+      ],
+    };
+    const matched = alsoRemovedIndices(manyWords, previewWithDupes);
+    assert.deepEqual([...matched], [1]);
   });
   test("summary parts: words where there are words, audio seconds where not", () => {
     const parts = summaryParts(preview, { rate: 100, nameOf: (t) => `T-${t}` });
