@@ -1,3 +1,8 @@
+## [v26.11.6.1] - 2026-11-06
+
+- **Timeline overlays are faster.** Candidate-band computation avoids repeated work while scrolling and zooming.
+- **Project discovery is safer.** Control discovery rejects traversal paths, and interactive notice chips expose accessible labels.
+
 ## [v26.11.4.4] - 2026-11-04
 
 - **LLM and API control.** `kuulas ctl` provides authenticated remote control, and `kuulas mcp` exposes a read-only-by-default MCP server with explicit edit permission.
