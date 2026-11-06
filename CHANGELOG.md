@@ -1,3 +1,7 @@
+## [v26.11.6.2] - 2026-11-06
+
+- **Expand clips with less repeated work.** Hoist set construction out of the per-clip loop (PR #160).
+
 ## [v26.11.6.1] - 2026-11-06
 
 - **Timeline overlays are faster.** Candidate-band computation avoids repeated work while scrolling and zooming.

@@ -1,5 +1,7 @@
 # kuulas implementation plan
 
+**Release v26.11.6.2:** Faster clip expansion, faster timeline candidate overlays, hardened control discovery, and accessible notice-chip labels. The release includes v26.11.4.4's LLM/MCP controls and all earlier changes listed below.
+
 **Release v26.11.6.1:** Faster timeline candidate overlays, hardened control discovery, and accessible notice-chip labels. The release includes v26.11.4.4's LLM/MCP controls and all earlier changes listed below.
 
 **Release v26.11.1.6:** Record becomes Stop during a take; marker flags drag along the ruler and the Markers tab can set the in point while recording. Also: grouped clip labels move every group member at the leading edge; current track headers have a track-color tint; stale Colab sessions retry once with a fresh session; pressing 0 fits a growing recording. Includes v26.11.1.4's faster-whisper Colab path, grouped Inspector files and inline bus renaming.
