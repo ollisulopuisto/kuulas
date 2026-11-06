@@ -275,3 +275,35 @@ def test_check_replace_media_rejects_relative_and_traversal(tmp_path):
             session.check_replace_media("m1", str(traversal))
     finally:
         session.close()
+
+
+def test_export_rejects_relative_and_traversal_folder(tmp_path):
+    import numpy as np  # noqa: PLC0415
+    import soundfile as sf  # noqa: PLC0415
+
+    from kuulas.export import ExportError, check, plan_regions  # noqa: PLC0415
+
+    src = tmp_path / "src"
+    src.mkdir()
+    sf.write(src / "audio.wav", np.zeros((48000,), dtype=np.float32), 48000,
+             subtype="PCM_16")
+    session = Session(tmp_path / "Show.kuulas")
+    try:
+        session.import_media([str(src / "audio.wav")])
+        session.edit("add_marker", {
+            "marker_id": "r1", "name": "Part 1", "start": 0, "end": 24000,
+            "kind": "region",
+        })
+        folder = tmp_path / "exports"
+        folder.mkdir()
+        for bad in ["relative/exports", str(folder / ".." / "exports"), "bad\0path", ""]:
+            with pytest.raises(ExportError):
+                check(session, {"folder": bad, "kind": "mix"})
+            with pytest.raises(ExportError):
+                session.export({"folder": bad, "kind": "mix"})
+            with pytest.raises(ExportError):
+                plan_regions(session, {"folder": bad})
+            with pytest.raises(ExportError):
+                session.export_regions({"folder": bad})
+    finally:
+        session.close()
