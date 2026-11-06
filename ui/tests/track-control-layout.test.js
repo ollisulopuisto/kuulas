@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const source = readFileSync(new URL("../tracks.js", import.meta.url), "utf8");
+const tokens = readFileSync(new URL("../tokens.css", import.meta.url), "utf8");
 test("track controls reserve equal rails and move values above them", () => {
   assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\)/);
   assert.match(css, /grid-template-rows: 12px 24px/);
@@ -47,4 +48,17 @@ test("pan arc leaves the bottom quarter open without changing rotary mapping", (
   assert.match(css, /conic-gradient\(\s*from 225deg/);
   assert.match(css, /0deg 270deg,\s*transparent 270deg 360deg/);
   assert.match(source, /parts\.pan\.wrap\.classList\.add\("dial"\)/);
+});
+
+test("track mixer controls open in an overlay beside stable narrow headers", () => {
+  assert.match(tokens, /--heads-w: 160px/);
+  assert.match(tokens, /--heads-w-min: 152px/);
+  assert.match(css, /.track-controls-flyout\s*\{[^}]*position:\s*fixed/s);
+  assert.match(css, /.track-controls-flyout\s*\[hidden\]\s*\{\s*display:\s*none/s);
+  assert.match(source, /"aria-controls": `track-controls-\$\{id\}`/);
+  assert.match(source, /top\.append\(handle, name, buttons, disclosure\)/);
+  assert.match(source, /flyout\.append\(metadata, controls\)/);
+  assert.match(source, /disclosure\.addEventListener\("keydown"/);
+  assert.match(source, /flyout\.querySelector\([\s\S]*?:not\(\[tabindex="-1"\]\)/);
+  assert.match(source, /window\.addEventListener\("scroll", positionFlyout, true\)/);
 });
