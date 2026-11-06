@@ -368,10 +368,7 @@ button.chip {
   display: flex;
   flex-direction: column;
 }
-/* The toolbar rail (WP86): a vertical strip left of the track headers, level with them. The header
-   column grows by the rail's width (the corner above it and the timeline and transcript beside it
-   move together), so nothing else in the window changes. 340 and 280 repeat tokens.css's
-   --heads-w and --heads-w-min. */
+/* The toolbar rail (WP86): a vertical strip left of the narrow track headers, level with them. */
 .heads-row {
   flex: 1;
   min-height: 0;
@@ -379,13 +376,13 @@ button.chip {
 }
 .editor[data-rail="labels"] {
   --rail-w: 124px;
-  --heads-w: calc(260px + var(--rail-w));
-  --heads-w-min: calc(240px + var(--rail-w));
+  --heads-w: calc(160px + var(--rail-w));
+  --heads-w-min: calc(152px + var(--rail-w));
 }
 .editor[data-rail="icons"] {
   --rail-w: 44px;
-  --heads-w: calc(260px + var(--rail-w));
-  --heads-w-min: calc(240px + var(--rail-w));
+  --heads-w: calc(160px + var(--rail-w));
+  --heads-w-min: calc(152px + var(--rail-w));
 }
 .tool-rail {
   flex: none;
@@ -1214,6 +1211,17 @@ input.has-ab {
 }
 #timeline {
   touch-action: none;
+}
+.marker-label-rename {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  padding: 0 2px;
+  color: var(--text-primary);
+  font: var(--weight-strong) 11px / 1 var(--font-ui);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
 }
 /* A scroll indicator that stays visible (overlay scrollbars hide on a Mac). */
 .lanes-scroll {
@@ -2925,6 +2933,22 @@ input[type="text"] {
 }
 .tx-empty strong {
   color: var(--text);
+}
+.tx-missing-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3) var(--space-5);
+}
+.tx-colab-auth {
+  font-size: var(--text-sm);
+}
+.tx-colab-auth[data-state="signed_in"] {
+  color: var(--success-text, var(--text-secondary));
+}
+.tx-colab-auth[data-state="sign_in"],
+.tx-colab-auth[data-state="unavailable"] {
+  color: var(--warning-text, var(--text-secondary));
 }
 .tx-missing {
   list-style: none;
@@ -5274,6 +5298,36 @@ legend.form-heading {
   background: var(--surface-panel);
   border-bottom: 1px solid var(--border);
 }
+
+.tx-provenance {
+  display: grid;
+  gap: 4px;
+  padding: 0 12px 8px;
+}
+
+.tx-provenance[hidden] {
+  display: none;
+}
+
+.tx-provenance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.tx-provenance-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx-rerun {
+  flex: 0 0 auto;
+}
 #panel-transcript .tx-heading h2 {
   flex: none;
   padding-left: 0;
@@ -6128,4 +6182,161 @@ legend.form-heading {
 /* A live length counts from the in point to the take's place while recording. */
 .mrow.live .v {
   color: var(--accent-text);
+}
+
+/* Stable speaker strip: controls are portalled into a fixed overlay so opening them
+   cannot alter the grid track or move the timeline. */
+.track-header[data-track] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-content: center;
+  padding: 0 6px 0 12px;
+  row-gap: 0;
+}
+.track-header[data-track] .th-top {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto 22px;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 100%;
+}
+.track-header[data-track] .track-name {
+  grid-column: 2;
+  min-width: 0;
+}
+.track-header[data-track] .ms {
+  grid-column: 3;
+  gap: 2px;
+}
+.track-header[data-track] .ms-button {
+  width: 20px;
+  min-width: 20px;
+  height: 24px;
+}
+.th-disclosure {
+  grid-column: 4;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.th-disclosure svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+.th-disclosure:hover,
+.th-disclosure[aria-pressed="true"] {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.th-disclosure:focus-visible {
+  outline: var(--focus-width) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+.track-header.strip[data-track] .th-top {
+  grid-template-columns: minmax(0, 1fr) auto 18px;
+}
+.track-header.strip[data-track] .track-name {
+  grid-column: 1;
+}
+.track-header.strip[data-track] .ms {
+  grid-column: 2;
+  display: flex;
+}
+.track-header.strip[data-track] .ms-button {
+  width: 14px;
+  min-width: 14px;
+  height: 14px;
+  font-size: 9px;
+}
+.track-header.strip[data-track] .th-disclosure {
+  grid-column: 3;
+  width: 16px;
+  height: 16px;
+}
+.track-flyout-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  pointer-events: none;
+}
+.track-controls-flyout {
+  position: fixed;
+  z-index: 1;
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  overflow: auto;
+  padding: var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+  color: var(--text);
+  pointer-events: auto;
+}
+.track-controls-flyout[hidden] {
+  display: none;
+}
+.track-flyout-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-h-sm);
+}
+.track-controls-flyout .bus-select {
+  flex: 1;
+  width: auto;
+  min-width: 64px;
+}
+.track-controls-flyout .th-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.track-controls-flyout .slider-control:not(.pan) {
+  display: grid;
+  grid-template-columns: 3em minmax(0, 1fr) auto;
+  grid-template-rows: 16px 24px;
+  min-width: 0;
+  padding: 0;
+}
+.track-controls-flyout .slider-control:not(.pan) .slider-caption {
+  grid-area: 1 / 1;
+}
+.track-controls-flyout .slider-control:not(.pan) output {
+  grid-area: 1 / 3;
+}
+.track-controls-flyout .slider-control:not(.pan) input[type="range"] {
+  grid-area: 2 / 1 / 3 / -1;
+  width: 100%;
+}
+.track-controls-flyout .slider-control.pan {
+  display: grid;
+  grid-template-columns: 36px;
+  grid-template-rows: 16px 36px;
+  justify-items: center;
+  min-width: 36px;
+  padding: 0;
+}
+.track-controls-flyout .slider-control.pan .slider-caption {
+  grid-area: 1 / 1;
+}
+.track-controls-flyout .slider-control.pan input[type="range"] {
+  grid-area: 2 / 1;
+}
+.track-controls-flyout .slider-control.bus-fader {
+  grid-column: 1 / -1;
 }

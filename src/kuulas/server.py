@@ -1750,6 +1750,7 @@ def create_app(session, engine, *, language: str | None = None,
         transcribed = session.transcribed_media()
         if transcribed:
             body["transcribed"] = transcribed
+            body["transcript_info"] = session.history.transcript_info()
         # The names of the people the words refer to, so the transcript can head a
         # paragraph with "Anna" and not an id; absent when nobody is mapped.
         used = {w["person"] for w in words if w.get("person")}

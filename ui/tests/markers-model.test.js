@@ -7,6 +7,7 @@ import {
   flagLayout,
   markerAt,
   markerIdAtX,
+  markerLabelAtX,
   markerRows,
   nextMarkerName,
   regionCount,
@@ -178,6 +179,31 @@ describe("which marker a ruler pointer is on", () => {
   test("a region: anywhere along its bar", () => {
     assert.equal(markerIdAtX(markers, view, 400), "r");
     assert.equal(markerIdAtX(markers, view, 600), null);
+  });
+});
+
+describe("which marker label a ruler pointer is on", () => {
+  const view = { scroll: 0, zoom: 100, width: 400, measure: (text) => text.length * 6 };
+  test("finds the visible part of a point marker label", () => {
+    assert.equal(markerLabelAtX([m("intro", 5000, { name: "Intro" })], view, 70)?.id, "intro");
+  });
+  test("finds a region label as well as point labels", () => {
+    assert.equal(
+      markerLabelAtX([m("region", 0, { name: "Interview", kind: "region", end: 20_000 })], view, 20)
+        ?.id,
+      "region",
+    );
+  });
+  test("does not hit the flag or a label omitted to avoid overlap", () => {
+    assert.equal(markerLabelAtX([m("intro", 5000, { name: "Intro" })], view, 52), null);
+    assert.equal(
+      markerLabelAtX(
+        [m("intro", 5000, { name: "Intro" }), m("next", 6500, { name: "Next" })],
+        view,
+        70,
+      ),
+      null,
+    );
   });
 });
 

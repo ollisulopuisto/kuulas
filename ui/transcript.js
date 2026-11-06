@@ -12,6 +12,7 @@ import { setIcon } from "./icons.js";
 import { implicitMarkPlan } from "./marks.js";
 import { canShow, removedSummary, statusKey } from "./material-hits.js";
 import { canPutBack, commandArgs, describePlan } from "./put-back-model.js";
+import { provenanceLabel, rerunOptions } from "./transcript-provenance.js";
 import { musicNote } from "./transcribable.js";
 import {
   currentPosition,
@@ -53,7 +54,7 @@ import {
   wordAtTime,
   wordRefs,
 } from "./transcript-model.js";
-import { anyActive, offerRows } from "./transcript-offer.js";
+import { anyActive, colabAuthState, offerRows } from "./transcript-offer.js";
 
 const MARGIN_PX = 600;
 const PREVIEW_DELAY_MS = 120;
@@ -133,7 +134,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     headingRow.append(openJobs);
   }
   headingRow.append(findBar);
-  root.append(headingRow, removed, follow, empty, list, pop);
+  const provenance = el("div", "tx-provenance");
+  root.append(headingRow, provenance, removed, follow, empty, list, pop);
   list.setAttribute("role", "document");
 
   // -- derived from the words (rebuilt only when they change) -----------------------------
@@ -171,6 +173,35 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   let also = new Set();
   let allJobs = [];
   let lastRows = [];
+  let colabAuthStatus = null;
+  let colabAuthRequest = null;
+
+  function renderColabAuthStatus() {
+    const status = empty.querySelector(".tx-colab-auth");
+    if (!status) return;
+    const state = colabAuthState(colabAuthStatus);
+    status.textContent = t(`ui.transcript.colab_auth.${state}`);
+    status.dataset.state = state;
+    status.title = t("ui.transcript.colab_auth_hint");
+  }
+
+  function refreshColabAuthStatus() {
+    if (typeof actions.colabAuthStatus !== "function" || colabAuthRequest) return;
+    colabAuthStatus = null;
+    renderColabAuthStatus();
+    colabAuthRequest = actions
+      .colabAuthStatus()
+      .then((status) => {
+        colabAuthStatus = status;
+      })
+      .catch(() => {
+        colabAuthStatus = { error: true };
+      })
+      .finally(() => {
+        colabAuthRequest = null;
+        renderColabAuthStatus();
+      });
+  }
   let jobTimer = 0;
   let findQuery = "";
   let matches = [];
@@ -261,6 +292,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       jobs: allJobs,
     });
     lastRows = rows;
+    renderProvenance();
     // A selected clip of a music recording: a plain note, never the transcribe offer.
     const note = musicNote({
       project: getState().project,
@@ -278,7 +310,14 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       empty.append(el("strong", "", t("ui.transcript.empty")));
       return;
     }
-    empty.append(el("strong", "", t("ui.transcript.missing")));
+    const missingHeading = el("div", "tx-missing-heading");
+    missingHeading.append(el("strong", "", t("ui.transcript.missing")));
+    const colabStatus = el("span", "tx-colab-auth");
+    colabStatus.setAttribute("role", "status");
+    colabStatus.setAttribute("aria-live", "polite");
+    missingHeading.append(colabStatus);
+    empty.append(missingHeading);
+    renderColabAuthStatus();
     const table = el("ul", "tx-missing");
     for (const row of rows) table.append(offerRow(row));
     if (all) table.append(offerRow({ all }));
@@ -287,7 +326,40 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       el("span", "tx-hint", t("ui.transcript.remote_note")),
       el("span", "tx-hint", t("ui.transcript.background")),
     );
+    if (typeof actions.colabAuthStatus === "function" && colabAuthStatus == null) {
+      refreshColabAuthStatus();
+    }
     scheduleWindow();
+  }
+
+  function renderProvenance() {
+    const info = getState().transcriptInfo ?? {};
+    const project = getState().project;
+    const mediaById = new Map((project?.media ?? []).map((item) => [item.id, item]));
+    const entries = Object.entries(info).filter(([id]) => mediaById.has(id));
+    provenance.replaceChildren();
+    provenance.hidden = entries.length === 0;
+    for (const [id, item] of entries) {
+      const row = el("div", "tx-provenance-row");
+      const name = mediaById.get(id).name;
+      const label = el("span", "tx-provenance-label", provenanceLabel(
+        item.engine,
+        item.created_utc,
+        t,
+        (value) => {
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? t("ui.transcript.time_unknown") :
+            new Intl.DateTimeFormat(getLanguage(), { dateStyle: "medium", timeStyle: "short" }).format(date);
+        },
+      ));
+      label.title = name;
+      const rerun = el("button", "button tx-rerun", t("ui.transcript.rerun"));
+      rerun.type = "button";
+      rerun.dataset.mediaId = id;
+      rerun.dataset.icon = "play";
+      row.append(label, rerun);
+      provenance.append(row);
+    }
   }
 
   /** "Music track: not transcribed" with the one explicit way round it (local only: no upload). */
@@ -372,19 +444,53 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     return item;
   }
 
-  async function transcribe(onlyIds, { force = false, localEngine = "whisper" } = {}) {
+  async function transcribe(onlyIds, {
+    force = false,
+    localEngine = "whisper",
+    backend = "local",
+    model,
+    language,
+    overwriteConfirmed = false,
+  } = {}) {
     const ids = onlyIds ?? transcribeTargets().map((item) => item.id);
     if (ids.length === 0) return;
+    const existing = new Set(Object.keys(getState().transcriptInfo ?? {}));
+    const replacing = ids.filter((id) => existing.has(id));
+    if (replacing.length && !overwriteConfirmed) {
+      const names = new Map((getState().project?.media ?? []).map((item) => [item.id, item.name]));
+      const confirmed = await actions.confirmRerun?.(
+        replacing.map((id) => names.get(id) ?? id).join(", "),
+      );
+      if (!confirmed) return;
+    }
     try {
-      if (actions.transcribeLocal) await actions.transcribeLocal(ids, { force, localEngine });
-      else {
+      const confirmedForce = force || replacing.length > 0;
+      if (backend === "colab") {
+        await actions.transcribeColab?.(ids, {
+          model,
+          language,
+          force: confirmedForce,
+          overwriteConfirmed: true,
+        });
+      } else if (actions.transcribeLocal) {
+        await actions.transcribeLocal(ids, {
+          force: confirmedForce,
+          localEngine,
+          backend,
+          model,
+          language,
+        });
+      } else {
         const consent =
           localEngine === "orukeet" && actions.ensureLocalModel
             ? await actions.ensureLocalModel()
             : true;
         if (!consent) return;
         await api.transcribe(ids, {
-          force,
+          backend,
+          model,
+          language,
+          force: confirmedForce,
           local_engine: localEngine,
           ...(consent.allow_low_memory === true ? { allow_low_memory: true } : {}),
         });
@@ -831,7 +937,10 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     else if (button.dataset.act === "transcribe-anyway") void transcribe(ids, { force: true });
     else if (button.dataset.act === "transcribe-orukeet") {
       void transcribe(ids, { localEngine: "orukeet" });
-    } else if (button.dataset.act === "transcribe-colab") actions.transcribeColab?.(ids);
+    } else if (button.dataset.act === "transcribe-colab") {
+      refreshColabAuthStatus();
+      void transcribe(ids, { backend: "colab" });
+    }
     else if (button.dataset.act === "transcribe-cancel") {
       button.disabled = true;
       void api
@@ -842,6 +951,13 @@ export function createTranscript({ root, getState, setState, api, actions }) {
           actions.showError(error);
         });
     }
+  });
+  provenance.addEventListener("click", (event) => {
+    const rerun = event.target.closest?.("button[data-media-id]");
+    if (!rerun) return;
+    const id = rerun.dataset.mediaId;
+    const info = getState().transcriptInfo?.[id];
+    if (info) void transcribe([id], { ...rerunOptions(info.engine), overwriteConfirmed: false });
   });
 
   // -- the pop-up over the selection ----------------------------------------------------------------
@@ -1305,6 +1421,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       setState({
         words: body.words ?? [],
         transcribed: body.transcribed ?? [],
+        transcriptInfo: body.transcript_info ?? {},
         people: body.people ?? {},
         wordsHead: head,
         // The old indices mean other words now: keep the place, drop the selection.

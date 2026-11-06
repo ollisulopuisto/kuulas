@@ -6,7 +6,7 @@
 
 import { bindToggle } from "./ab-value.js";
 import { busRoleStatus, roleDiffers } from "./bus-role.js";
-import { bindDialRange, controlLines } from "./dial-range.js";
+import { bindDialRange } from "./dial-range.js";
 import { inactiveTracks } from "./focus-layout.js";
 import { busHues, busLetter } from "./grammar.js";
 import { detectPlatform, formatDb, formatNumber, t } from "./i18n.js";
@@ -20,6 +20,7 @@ import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
 import { dropIndex } from "./track-drop.js";
+import { initialTrackFlyoutState, openTrackFlyoutId, trackFlyoutReducer } from "./track-header-flyout.js";
 import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
@@ -223,11 +224,74 @@ function paintLoudness(node, readout) {
 export function createTrackHeaders({ root, editor, actions, onBusCreated = () => {} }) {
   let signature = "";
   let rows = new Map();
+  let flyoutState = initialTrackFlyoutState();
+  let closeTimer = null;
+  const doc = root.ownerDocument;
+  const flyoutLayer = el("div", "track-flyout-layer", { "aria-live": "off" });
+  doc.body.append(flyoutLayer);
+
+  const cancelClose = () => {
+    if (closeTimer !== null) window.clearTimeout(closeTimer);
+    closeTimer = null;
+  };
+  const positionFlyout = () => {
+    const openId = openTrackFlyoutId(flyoutState);
+    const parts = openId ? rows.get(openId) : null;
+    if (!parts?.flyout || parts.flyout.hidden) return;
+    const rect = parts.node.getBoundingClientRect();
+    const width = Math.min(264, Math.max(220, window.innerWidth - 24));
+    const left = Math.min(rect.right, Math.max(8, window.innerWidth - width - 8));
+    const top = Math.max(8, Math.min(rect.top, window.innerHeight - 180));
+    parts.flyout.style.left = `${left}px`;
+    parts.flyout.style.top = `${top}px`;
+    parts.flyout.style.width = `${width}px`;
+    parts.flyout.style.maxHeight = `${Math.max(120, window.innerHeight - top - 8)}px`;
+  };
+  const syncFlyout = () => {
+    const openId = openTrackFlyoutId(flyoutState);
+    for (const parts of rows.values()) {
+      if (parts.kind !== "track") continue;
+      const id = parts.node.dataset.track;
+      const isOpen = id === openId;
+      parts.flyout.hidden = !isOpen;
+      parts.flyout.inert = !isOpen;
+      parts.flyout.setAttribute("aria-hidden", String(!isOpen));
+      parts.disclosure.setAttribute("aria-expanded", String(isOpen));
+      parts.disclosure.setAttribute("aria-pressed", String(flyoutState.pinnedId === id));
+      parts.node.classList.toggle("controls-open", isOpen);
+      if (isOpen) positionFlyout();
+    }
+  };
+  const dispatchFlyout = (type, trackId) => {
+    flyoutState = trackFlyoutReducer(flyoutState, { type, trackId });
+    syncFlyout();
+  };
+  const scheduleClose = (trackId) => {
+    cancelClose();
+    closeTimer = window.setTimeout(() => {
+      dispatchFlyout("leave", trackId);
+      dispatchFlyout("blur", trackId);
+    }, 140);
+  };
+  const dismissFlyoutOnEscape = (event) => {
+    if (event.key !== "Escape" || !openTrackFlyoutId(flyoutState)) return;
+    event.stopPropagation();
+    cancelClose();
+    flyoutState = trackFlyoutReducer(flyoutState, { type: "escape" });
+    syncFlyout();
+  };
+  root.addEventListener("keydown", dismissFlyoutOnEscape);
+  flyoutLayer.addEventListener("keydown", dismissFlyoutOnEscape);
+  window.addEventListener("resize", positionFlyout);
+  window.addEventListener("scroll", positionFlyout, true);
 
   // Rows follow the lane layout: a bus header above its member tracks.
   function build(state) {
+    cancelClose();
     root.replaceChildren();
+    flyoutLayer.replaceChildren();
     rows = new Map();
+    flyoutState = initialTrackFlyoutState();
     for (const row of layoutFor(state).rows) {
       let parts;
       if (row.kind === "track") {
@@ -240,7 +304,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       else parts = { node: el("div", "group-gap", { "aria-hidden": "true" }), kind: "gap" };
       rows.set(row.id, parts);
       root.append(parts.node);
+      if (parts.kind === "track") flyoutLayer.append(parts.flyout);
     }
+    syncFlyout();
   }
 
   const busIndexOf = (project, id) => project.buses.findIndex((bus) => bus.id === id);
@@ -267,11 +333,12 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       });
     });
     fader.wrap.querySelector(".slider-caption").textContent = t("ui.bus.fader");
-    parts.node.querySelector(".th-controls").append(label, fader.wrap);
+    parts.controls.append(label, fader.wrap);
     parts.busFader = { control: fader, id };
   }
 
   function buildTrack(track, project) {
+    const id = track.id;
     const node = el("section", "track-header");
     node.dataset.track = track.id;
     const top = el("div", "th-top");
@@ -298,6 +365,25 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const solo = toggle(t("ui.track.solo"), t("ui.track.solo.short"), "solo");
     const buttons = el("span", "ms");
     buttons.append(mute, solo);
+    const disclosure = el("button", "button icon th-disclosure", {
+      type: "button",
+      "aria-label": t("ui.track.controls.pin"),
+      title: t("ui.track.controls.pin"),
+      "aria-expanded": "false",
+      "aria-pressed": "false",
+      "aria-controls": `track-controls-${id}`,
+    });
+    const icon = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("viewBox", "0 0 16 16");
+    icon.setAttribute("aria-hidden", "true");
+    for (const cx of [3, 8, 13]) {
+      const dot = doc.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("cx", String(cx));
+      dot.setAttribute("cy", "8");
+      dot.setAttribute("r", "1");
+      icon.append(dot);
+    }
+    disclosure.append(icon);
     // The bus picker is compact: its option text starts with the bus letter,
     // which is what shows in the narrow select (the badge of the group).
     const bus = el("select", "bus-select", { "aria-label": t("ui.track.bus") });
@@ -317,16 +403,26 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     bus.append(newBus);
     // A small handle at the left: drag the header up or down to move the track.
     const handle = el("span", "track-handle", { title: t("ui.track.drag"), "aria-hidden": "true" });
-    top.append(handle, name, tag, roleBadge, channelTag, bus, buttons);
+    top.append(handle, name, buttons, disclosure);
     // The loudness sits on the level row, so it never takes the name's room.
     const controls = el("div", "th-controls");
+    const metadata = el("div", "th-flyout-meta");
+    metadata.append(tag, roleBadge, channelTag, bus);
+    const flyout = el("section", "track-controls-flyout", {
+      id: `track-controls-${id}`,
+      "aria-label": t("ui.track.controls.show"),
+      "data-track": id,
+      hidden: "",
+      "aria-hidden": "true",
+    });
+    flyout.append(metadata, controls);
     // Measurement belongs to gain context, never pan hover.
     const gain = slider(t("ui.track.gain"), GAIN);
     gain.wrap.append(loudness);
     // Put feedback beside the lane, never on its name or controls. If there is
     // no side room, use the viewport's top edge rather than covering another row.
     const positionLoudness = () => {
-      const lane = node.getBoundingClientRect();
+      const lane = flyout.getBoundingClientRect();
       const width = loudness.offsetWidth || 240;
       const height = loudness.offsetHeight || 28;
       const sideRoom = lane.right + width + 16 <= window.innerWidth;
@@ -354,7 +450,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const pan = slider(t("ui.track.pan"), PAN);
     pan.wrap.classList.add("pan");
     const positionPanValue = () => {
-      const lane = node.getBoundingClientRect();
+      const lane = flyout.getBoundingClientRect();
       pan.output.style.left = `${Math.min(lane.right + 8, window.innerWidth - 92)}px`;
       pan.output.style.top = `${Math.max(8, Math.min(pan.wrap.getBoundingClientRect().top, window.innerHeight - 36))}px`;
     };
@@ -364,8 +460,50 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     controls.append(gain.wrap, pan.wrap);
     // A thin grab zone on the bottom edge: drag to size this lane, double-click to reset it.
     const grip = el("div", "lane-grip", { title: t("ui.track.resize"), "aria-hidden": "true" });
-    node.append(top, controls, grip);
-    const id = track.id;
+    node.append(top, grip);
+    node.addEventListener("pointerenter", () => {
+      cancelClose();
+      dispatchFlyout("hover", id);
+    });
+    node.addEventListener("pointerleave", (event) => {
+      if (!node.contains(event.relatedTarget)) scheduleClose(id);
+    });
+    node.addEventListener("focusin", () => {
+      cancelClose();
+      dispatchFlyout("focus", id);
+    });
+    node.addEventListener("focusout", (event) => {
+      if (!node.contains(event.relatedTarget)) scheduleClose(id);
+    });
+    flyout.addEventListener("pointerenter", () => {
+      cancelClose();
+      dispatchFlyout("hover", id);
+    });
+    flyout.addEventListener("pointerleave", (event) => {
+      if (!flyout.contains(event.relatedTarget)) scheduleClose(id);
+    });
+    flyout.addEventListener("focusin", () => {
+      cancelClose();
+      dispatchFlyout("focus", id);
+    });
+    flyout.addEventListener("focusout", (event) => {
+      if (!flyout.contains(event.relatedTarget)) scheduleClose(id);
+    });
+    flyout.addEventListener("pointerdown", (event) => event.stopPropagation());
+    disclosure.addEventListener("click", (event) => {
+      event.stopPropagation();
+      cancelClose();
+      dispatchFlyout("pin", id);
+    });
+    disclosure.addEventListener("keydown", (event) => {
+      if (event.key !== "Tab" || event.shiftKey || openTrackFlyoutId(flyoutState) !== id) return;
+      const firstControl = flyout.querySelector(
+        'button:not([disabled]):not([tabindex="-1"]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]):not([tabindex="-1"])',
+      );
+      if (!firstControl) return;
+      event.preventDefault();
+      firstControl.focus();
+    });
     grip.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;
       event.preventDefault();
@@ -513,6 +651,10 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       mute,
       solo,
       bus,
+      controls,
+      metadata,
+      flyout,
+      disclosure,
       gain,
       pan,
       kind: "track",
@@ -700,7 +842,6 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       const parts = rows.get(row.id);
       if (!parts) continue;
       parts.node.style.height = `${row.height}px`;
-      parts.node.dataset.controlLines = String(controlLines(row.height));
       parts.node.classList.toggle("micro-controls", row.height < 32);
       if (parts.kind === "gap") continue;
       parts.node.classList.toggle("group-end", Boolean(row.last));
@@ -743,7 +884,6 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.mute.setAttribute("aria-pressed", String(track.mute));
         parts.solo.setAttribute("aria-pressed", String(track.solo));
         if (document.activeElement !== parts.bus) parts.bus.value = track.bus ?? "";
-        parts.gain.wrap.classList.toggle("dial", controlLines(row.height) === 1);
         parts.pan.wrap.classList.add("dial");
         setSlider(parts.gain, track.gain_db, formatDb(track.gain_db));
         setSlider(parts.pan, Math.round(track.pan * 100), panText(track.pan));

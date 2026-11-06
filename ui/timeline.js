@@ -76,7 +76,12 @@ import {
 import { leftOffFlag } from "./left-off.js";
 import { liveWaveformColumns } from "./live-take.js";
 import { activeLoop } from "./loop-range.js";
-import { draggedMarkerStart, flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
+import {
+  draggedMarkerStart,
+  flagLayout,
+  NOTCH_PX as MARKER_NOTCH_PX,
+  markerLabelAtX,
+} from "./markers-model.js";
 import { lengthPill, markDrawing } from "./marks.js";
 import { heldFromEvent, modClick } from "./modifiers.js";
 import { advanceDelta, movedSpans, moveTargets, snapMove } from "./move-snap.js";
@@ -190,6 +195,7 @@ export function createTimeline({
   let edgeSession = null; // an edge being dragged: see the pointer section
   let tweakSession = null; // a gain line or fade handle being dragged
   let markerSession = null; // a marker flag being dragged along the ruler (owner, 2026-11-01)
+  let markerRenameInput = null;
   let hoverClipId = null; // the clip under the pointer: its fade handles show
   let altTargetClip = null; // clip targeted for direct mute with Alt held
   let lastPointerHit = null;
@@ -1856,6 +1862,65 @@ export function createTimeline({
     return hitTest({ layout, project: state.project, view: { ...state, width: size.width }, x, y });
   }
 
+  function markerLabelHit(event) {
+    const state = getState();
+    const point = locate(event);
+    if (point.y < 0 || point.y >= RULER_HEIGHT) return null;
+    overlay.font = `600 ${MARK_FONT_PX}px ${theme.font}`;
+    return markerLabelAtX(
+      state.project?.markers,
+      {
+        scroll: state.scroll,
+        zoom: state.zoom,
+        width: size.width,
+        measure: (text) => overlay.measureText(text).width,
+      },
+      point.x,
+    );
+  }
+
+  function startMarkerRename(target) {
+    const marker = getState().project?.markers.find((item) => item.id === target.id);
+    if (!marker || !actions.renameMarker) return;
+    markerRenameInput?.remove();
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "marker-label-rename";
+    input.setAttribute("aria-label", t("ui.markers.rename_label"));
+    input.value = marker.name;
+    const left = Math.max(0, target.labelX - 2);
+    input.style.left = `${left}px`;
+    input.style.top = "1px";
+    input.style.width = `${Math.min(size.width - left, Math.max(88, target.labelWidth + 4))}px`;
+    input.style.height = `${RULER_HEIGHT - 3}px`;
+    markerRenameInput = input;
+    let finished = false;
+    const finish = (commit) => {
+      if (finished) return;
+      finished = true;
+      markerRenameInput = null;
+      input.remove();
+      const name = input.value.trim();
+      if (commit && name && name !== marker.name)
+        actions.renameMarker({ markerId: marker.id, name });
+      requestOverlay();
+    };
+    input.addEventListener("keydown", (event) => {
+      event.stopPropagation();
+      if (event.key === "Enter") {
+        event.preventDefault();
+        finish(true);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        finish(false);
+      }
+    });
+    input.addEventListener("blur", () => finish(true));
+    stack.append(input);
+    input.focus();
+    input.select();
+  }
+
   // Over an implicit portion the tooltip explains M; over a
   // narration placeholder (WP43) it says it is to be recorded and that Enter edits it.
   // What the sync badge, the anchor tag and a moved clip say on hover: relative to which anchor,
@@ -2031,6 +2096,12 @@ export function createTimeline({
   overlayCanvas.addEventListener("dblclick", (event) => {
     if (!getState().project || event.button !== 0) return;
     if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
+    const markerLabel = markerLabelHit(event);
+    if (markerLabel) {
+      event.preventDefault();
+      startMarkerRename(markerLabel);
+      return;
+    }
     const hit = hitAt(event);
     const { placeholder, clip } = hit;
     // A clip whose file is missing: straight to File > Locate media… (owner, 2026-10-21).
@@ -2229,6 +2300,8 @@ export function createTimeline({
     if (!getState().project || event.button !== 0) return;
     overlayCanvas.focus();
     const hit = hitAt(event);
+    const markerLabel = hit.area === "ruler" ? markerLabelHit(event) : null;
+    if (markerLabel) hit.marker = markerLabel.id;
     const before = getState().selection; // the press may replace it; a move takes the old one
     const groupLabel = groupedLabelHit(hit, event);
     const zone = event.shiftKey || groupLabel ? null : tweakZone(hit, event, before);
@@ -2254,7 +2327,8 @@ export function createTimeline({
     actions.pointerDown(hit, event, { noSeek: adjusting || Boolean(hit.marker) });
     // A press on a marker flag arms a drag: a click stays a click (selection happened on the
     // press), past DRAG_PX the flag follows the pointer and release sends one move_marker.
-    if (hit.area === "ruler" && hit.marker) startMarker(hit, event);
+    if (hit.area === "ruler" && hit.marker)
+      startMarker(hit, event, { fromLabel: Boolean(markerLabel) });
     // A press on the ruler (not on a marker flag) goes on as a scrub while the button is down.
     if (hit.area === "ruler" && !hit.marker && actions.scrub) {
       rulerScrub = createRulerScrub({
@@ -2414,7 +2488,7 @@ export function createTimeline({
   // Dragging a marker flag on the ruler (owner, 2026-11-01): a press selects (the plain
   // pointerDown), DRAG_PX of travel moves the flag with the pointer, Esc cancels, release
   // sends one undoable move_marker (a region keeps its length; the server shifts the end).
-  function startMarker(hit, event) {
+  function startMarker(hit, event, { fromLabel = false } = {}) {
     const marker = getState().project?.markers.find((item) => item.id === hit.marker);
     if (!marker || markerSession) return;
     markerSession = {
@@ -2426,6 +2500,7 @@ export function createTimeline({
       pointerId: event.pointerId,
       dragging: false,
       seekFrame: hit.frame,
+      fromLabel,
       frame: marker.start,
     };
     overlayCanvas.setPointerCapture?.(event.pointerId);
@@ -2458,7 +2533,7 @@ export function createTimeline({
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     if (!cancel && session.dragging && session.frame !== session.startFrame)
       actions.moveMarker?.({ markerId: session.id, frame: session.frame });
-    if (!cancel && !session.dragging) actions.seek?.(session.seekFrame);
+    if (!cancel && !session.dragging && !session.fromLabel) actions.seek?.(session.seekFrame);
     requestOverlay();
   }
 
@@ -2823,6 +2898,7 @@ export function createTimeline({
     destroy() {
       observer.disconnect();
       dark.removeEventListener("change", refreshTheme);
+      markerRenameInput?.remove();
     },
   };
 }

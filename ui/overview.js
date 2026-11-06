@@ -13,7 +13,7 @@ import {
 } from "./overview-segments.js";
 import { trackHues } from "./paint.js";
 import { readTheme } from "./theme.js";
-import { overviewScroll, overviewWindow } from "./view.js";
+import { overviewScroll, overviewSelectionRect } from "./view.js";
 
 // The strip is a map, not a waveform: blocks at reduced strength so the
 // visible-part box (accent) is the strongest thing in it. A track's bar is drawn only
@@ -104,18 +104,25 @@ export function createOverview({
         }
       }
     }
-    const box = overviewWindow({
+    const box = overviewSelectionRect({
       total,
       scroll: state.scroll,
       zoom: state.zoom,
       width: getTimelineWidth(),
       strip: width,
+      top: plotTop,
+      height,
     });
     context.fillStyle = theme.range;
-    context.fillRect(box.x, 0, box.w, height);
+    context.fillRect(box.x, box.y, box.w, box.h);
     context.strokeStyle = theme.accent;
     context.lineWidth = 1.5;
-    context.strokeRect(box.x + 0.75, 0.75, Math.max(1, box.w - 1.5), height - 1.5);
+    context.strokeRect(
+      box.x + 0.75,
+      box.y + 0.75,
+      Math.max(1, box.w - 1.5),
+      Math.max(1, box.h - 1.5),
+    );
     // Keep overview times above the map, clear of the timeline ruler below.
     context.fillStyle = theme.rulerText;
     context.font = `${OVERVIEW_LABEL_PX}px system-ui, sans-serif`;

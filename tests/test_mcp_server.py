@@ -1,226 +1,168 @@
-"""Tests for kuulas mcp server (WP53)."""
+"""Agent-facing MCP tools are discoverable and keep writes behind explicit gates."""
 
 from __future__ import annotations
 
-import io
-import json
 from pathlib import Path
-from unittest.mock import patch
 
-import stub_podcast  # noqa: F401
+import pytest
 
-from kuulas.mcp_server import McpServer, serve_stdio
+from kuulas import mcp_server
+from kuulas.mcp_server import TOOL_NAMES, AgentTools
 
 
-def test_mcp_initialize(tmp_path: Path):
-    server = McpServer(tmp_path)
-    res = server.handle_request(
-        {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {"protocolVersion": "2024-11-05"},
+class FakeState:
+    def to_dict(self):
+        return {
+            "name": "Episode",
+            "rate": 48000,
+            "duration_frames": 200,
+            "media": [{"id": "m1", "name": "olli.wav", "frames": 100}],
+            "tracks": [{"id": "t1", "name": "Olli", "clips": []}],
         }
-    )
-    assert res is not None
-    assert res["id"] == 1
-    assert res["result"]["serverInfo"]["name"] == "kuulas"
-    assert "tools" in res["result"]["capabilities"]
 
 
-def test_mcp_tools_list(tmp_path: Path):
-    server = McpServer(tmp_path)
-    res = server.handle_request(
-        {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/list",
-        }
-    )
-    assert res is not None
-    tool_names = [t["name"] for t in res["result"]["tools"]]
-    assert "get_project_state" in tool_names
-    assert "get_heard_words" in tool_names
-    assert "search_transcript" in tool_names
-    assert "list_commands" in tool_names
-    assert "execute_edit" in tool_names
-    assert "execute_command" in tool_names
-    assert "undo" in tool_names
-    assert "redo" in tool_names
+class FakeProject:
+    rate = 48000
+    length = 200
+    media = (object(),)
+    tracks = (object(),)
+
+    def to_dict(self):
+        return FakeState().to_dict()
 
 
-def test_mcp_resources_and_prompts(tmp_path: Path):
-    server = McpServer(tmp_path)
-    res_list = server.handle_request(
-        {
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "resources/list",
-        }
-    )
-    uris = [r["uri"] for r in res_list["result"]["resources"]]
-    assert "kuulas://project/state" in uris
-    assert "kuulas://project/words" in uris
-    assert "kuulas://project/commands" in uris
+class FakeSession:
+    state = FakeProject()
+    read_only = False
+    package = type("Package", (), {"path": "Episode.kuulas"})()
 
-    prompt_list = server.handle_request(
-        {
-            "jsonrpc": "2.0",
-            "id": 4,
-            "method": "prompts/list",
-        }
-    )
-    prompts = [p["name"] for p in prompt_list["result"]["prompts"]]
-    assert "review_transcript" in prompts
-    assert "summarize_project" in prompts
+    def __init__(self):
+        self.transcribe_args = None
+        self.command_args = None
+        self.edit_args = None
 
+    def heard_words(self):
+        return [{"media": "m1", "w": "um", "s": 0, "e": 5}]
 
-def test_mcp_read_only_mode_refuses_mutations(tmp_path: Path):
-    server = McpServer(tmp_path, allow_edits=False)
-    # execute_edit
-    res = server.handle_request(
-        {
-            "jsonrpc": "2.0",
-            "id": 5,
-            "method": "tools/call",
-            "params": {
-                "name": "execute_edit",
-                "arguments": {"op": "split_clip", "args": {"clip_id": "c1", "at": 100}},
-            },
-        }
-    )
-    assert res["result"]["isError"] is True
-    assert "disabled" in res["result"]["content"][0]["text"]
+    def transcribed_media(self):
+        return ["m1"]
 
-    # execute_command
-    res = server.handle_request(
-        {
-            "jsonrpc": "2.0",
-            "id": 6,
-            "method": "tools/call",
-            "params": {
-                "name": "execute_command",
-                "arguments": {"name": "cut_words", "args": {"indices": [0]}},
-            },
-        }
-    )
-    assert res["result"]["isError"] is True
-    assert "disabled" in res["result"]["content"][0]["text"]
+    def background_jobs(self):
+        return [{"id": "j1", "state": "running", "progress": 0.4}]
 
-    # undo
-    res = server.handle_request(
-        {
-            "jsonrpc": "2.0",
-            "id": 7,
-            "method": "tools/call",
-            "params": {"name": "undo"},
-        }
-    )
-    assert res["result"]["isError"] is True
-    assert "disabled" in res["result"]["content"][0]["text"]
+    def candidates(self, state=None):
+        return {"candidates": [], "summary": {"open": 0}}
+
+    def candidate_preview(self, candidate_id, mode="soft", tracks=None):
+        return {"id": candidate_id, "mode": mode, "tracks": tracks or []}
+
+    def transcribe(self, media_ids, model=None, language=None, backend="local",
+                   force=False, allow_low_memory=False, local_engine="whisper"):
+        self.transcribe_args = (media_ids, model, language, backend, force, local_engine)
+        return ["j2"]
+
+    def command(self, name, args):
+        self.command_args = (name, args)
+
+    def edit(self, name, args, label=None):
+        self.edit_args = (name, args, label)
+
+    def candidate_apply(self, candidate_id, mode="soft", tracks=None):
+        self.command_args = ("candidate_apply", {"id": candidate_id,
+                                                  "mode": mode, "tracks": tracks})
+        return {"mode": mode, "spans": [[1, 2]], "tracks": tracks or ["t1"]}
 
 
-def test_mcp_queries_and_live_routing(tmp_path: Path):
-    server = McpServer(tmp_path, allow_edits=True)
+def test_read_tools_summarize_project_transcript_jobs_and_commands():
+    session = FakeSession()
+    tools = AgentTools(session, allow_edits=False)
 
-    fake_state = {"project": {"tracks": [{"name": "Voice"}]}, "head": "head1"}
-    fake_words = [{"w": "hello", "s": 0, "e": 1000}]
-
-    with (
-        patch.object(server, "get_state", return_value=fake_state),
-        patch.object(server, "get_words", return_value=fake_words),
-    ):
-        # 1. State tool
-        res1 = server.handle_request(
-            {
-                "jsonrpc": "2.0",
-                "id": 10,
-                "method": "tools/call",
-                "params": {"name": "get_project_state"},
-            }
-        )
-        parsed1 = json.loads(res1["result"]["content"][0]["text"])
-        assert parsed1["head"] == "head1"
-
-        # 2. Words tool
-        res2 = server.handle_request(
-            {
-                "jsonrpc": "2.0",
-                "id": 11,
-                "method": "tools/call",
-                "params": {"name": "get_heard_words"},
-            }
-        )
-        parsed2 = json.loads(res2["result"]["content"][0]["text"])
-        assert parsed2[0]["w"] == "hello"
-
-        # 3. Search transcript
-        res3 = server.handle_request(
-            {
-                "jsonrpc": "2.0",
-                "id": 12,
-                "method": "tools/call",
-                "params": {"name": "search_transcript", "arguments": {"query": "ell"}},
-            }
-        )
-        parsed3 = json.loads(res3["result"]["content"][0]["text"])
-        assert len(parsed3) == 1
-        assert parsed3[0]["w"] == "hello"
-
-        # 4. Resource read
-        res4 = server.handle_request(
-            {
-                "jsonrpc": "2.0",
-                "id": 13,
-                "method": "resources/read",
-                "params": {"uri": "kuulas://project/words"},
-            }
-        )
-        parsed4 = json.loads(res4["result"]["contents"][0]["text"])
-        assert parsed4[0]["w"] == "hello"
-
-        # 5. Prompt get
-        res5 = server.handle_request(
-            {
-                "jsonrpc": "2.0",
-                "id": 14,
-                "method": "prompts/get",
-                "params": {"name": "summarize_project"},
-            }
-        )
-        assert "Voice" in res5["result"]["messages"][0]["content"]["text"]
+    summary = tools.project_summary()
+    assert summary["media_count"] == 1
+    assert summary["track_count"] == 1
+    assert summary["duration_frames"] == 200
+    assert tools.list_media()[0]["id"] == "m1"
+    assert tools.transcript()["words"] == session.heard_words()
+    assert tools.jobs() == session.background_jobs()
+    assert {entry["name"] for entry in tools.list_commands()} >= {
+        "candidates_detect", "candidate_apply", "cut_words",
+    }
 
 
-def test_serve_stdio(tmp_path: Path):
-    in_buf = io.StringIO(
-        json.dumps(
-            {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "initialize",
-                "params": {},
-            }
-        )
-        + "\n"
-    )
-    out_buf = io.StringIO()
-
-    serve_stdio(tmp_path, in_stream=in_buf, out_stream=out_buf)
-    out_lines = out_buf.getvalue().strip().split("\n")
-    assert len(out_lines) == 1
-    resp = json.loads(out_lines[0])
-    assert resp["id"] == 1
-    assert resp["result"]["serverInfo"]["name"] == "kuulas"
+def test_documentation_lists_every_mcp_tool():
+    documentation = Path(__file__).parents[1].joinpath("docs/SCRIPTING.md").read_text()
+    assert all(f"`{name}`" in documentation for name in TOOL_NAMES)
 
 
-def test_serve_stdio_reports_parse_errors_and_ignores_notifications(tmp_path: Path):
-    request = json.dumps({"jsonrpc": "2.0", "id": 3, "method": "tools/list"})
-    notification = json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"})
-    in_buf = io.StringIO("{bad json}\n" + request + "\n" + notification + "\n")
-    out_buf = io.StringIO()
-    serve_stdio(tmp_path, in_stream=in_buf, out_stream=out_buf)
-    responses = [json.loads(line) for line in out_buf.getvalue().splitlines()]
-    assert len(responses) == 2
-    assert responses[0]["error"]["code"] == -32700
-    assert responses[0]["id"] is None
-    assert responses[1]["id"] == 3
+def test_transcription_is_disabled_by_default():
+    tools = AgentTools(FakeSession(), allow_edits=False)
+    with pytest.raises(PermissionError, match="read-only"):
+        tools.transcribe_media(["m1"])
+
+
+def test_transcription_is_explicit_and_reports_async_jobs():
+    session = FakeSession()
+    tools = AgentTools(session, allow_edits=True)
+
+    result = tools.transcribe_media(["m1"], backend="colab", model="large-v3-turbo",
+                                    language="fi", local_engine="whisper", confirm=True)
+
+    assert result == {"jobs": ["j2"]}
+    assert session.transcribe_args == (
+        ["m1"], "large-v3-turbo", "fi", "colab", False, "whisper")
+
+
+def test_colab_transcription_requires_sign_in(monkeypatch):
+    monkeypatch.setattr(mcp_server.colab_signin, "signed_in", lambda: False)
+    tools = AgentTools(FakeSession(), allow_edits=True)
+
+    with pytest.raises(PermissionError, match="Google"):
+        tools.transcribe_media(["m1"], backend="colab", confirm=True)
+
+
+def test_locked_project_rejects_confirmed_edits():
+    session = FakeSession()
+    session.read_only = True
+    session.package.locked_by = {"host": "another-machine"}
+    tools = AgentTools(session, allow_edits=True)
+
+    with pytest.raises(PermissionError, match="another-machine"):
+        tools.call_command("candidates_detect", {}, confirm=True)
+
+
+def test_transcription_rejects_empty_media_list():
+    tools = AgentTools(FakeSession(), allow_edits=True)
+
+    with pytest.raises(ValueError, match="at least one"):
+        tools.transcribe_media([], confirm=True)
+
+
+def test_generic_command_requires_launch_opt_in_and_per_call_confirmation():
+    session = FakeSession()
+    readonly = AgentTools(session, allow_edits=False)
+    with pytest.raises(PermissionError, match="read-only"):
+        readonly.call_command("candidates_detect", {})
+
+    writable = AgentTools(session, allow_edits=True)
+    with pytest.raises(PermissionError, match="confirm=true"):
+        writable.call_command("candidates_detect", {})
+
+    result = writable.call_command("candidates_detect", {}, confirm=True)
+    assert result["ok"] is True
+    assert session.command_args == ("candidates_detect", {})
+
+    with pytest.raises(ValueError, match="Unknown Kuulas command"):
+        writable.call_command("not-a-kuulas-command", {}, confirm=True)
+
+
+def test_candidate_preview_is_read_only_and_apply_requires_confirmation():
+    session = FakeSession()
+    tools = AgentTools(session, allow_edits=True)
+    assert tools.preview_candidate("c1")["mode"] == "soft"
+
+    with pytest.raises(PermissionError, match="confirm=true"):
+        tools.apply_candidate("c1")
+
+    result = tools.apply_candidate("c1", confirm=True)
+    assert result == {"mode": "soft", "spans": [[1, 2]], "tracks": ["t1"]}
+    assert session.command_args[0] == "candidate_apply"

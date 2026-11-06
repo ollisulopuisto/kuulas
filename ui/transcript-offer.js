@@ -6,6 +6,13 @@ const FAILED = new Set(["failed", "cancelled", "interrupted"]);
 // Which state wins when a recording has several jobs: work in flight, then the newest failure.
 const RANK = { running: 3, queued: 2, failed: 1 };
 
+/** The small auth status shown beside the transcript dock's Colab action. */
+export function colabAuthState(status) {
+  if (status == null) return "checking";
+  if (status.error) return "unavailable";
+  return status.signed_in ? "signed_in" : "sign_in";
+}
+
 /**
  * `media`: [{ id, name }] the recordings in use; `transcribed`: the ids that have words;
  * `jobs`: /api/jobs. -> { rows: [{ id, name, status: "none"|"queued"|"running"|"failed",

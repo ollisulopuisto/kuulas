@@ -1058,6 +1058,25 @@ class History:
         rev = self.material["transcripts"].get(media_id)
         return None if rev is None else int(rev)
 
+    def transcript_info(self) -> dict[str, dict]:
+        """Provenance for every transcript the current material revision uses."""
+        revisions = self.material["transcripts"]
+        if not revisions:
+            return {}
+        info = {}
+        for media_id, rev in revisions.items():
+            row = self.db.execute(
+                "select engine, created_utc from transcript_revs where id=?",
+                (int(rev),),
+            ).fetchone()
+            if row is not None:
+                info[media_id] = {
+                    "revision": int(rev),
+                    "engine": json.loads(row[0]),
+                    "created_utc": row[1],
+                }
+        return info
+
     def transcripts(self) -> dict[str, list[dict]]:
         """The words every media uses now, for ``transcript.timeline_words``."""
         return {m: self.transcript(r) for m, r in self.material["transcripts"].items()}
