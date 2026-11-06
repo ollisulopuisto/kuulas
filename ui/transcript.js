@@ -53,7 +53,7 @@ import {
   wordAtTime,
   wordRefs,
 } from "./transcript-model.js";
-import { anyActive, offerRows } from "./transcript-offer.js";
+import { anyActive, colabAuthState, offerRows } from "./transcript-offer.js";
 
 const MARGIN_PX = 600;
 const PREVIEW_DELAY_MS = 120;
@@ -171,6 +171,35 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   let also = new Set();
   let allJobs = [];
   let lastRows = [];
+  let colabAuthStatus = null;
+  let colabAuthRequest = null;
+
+  function renderColabAuthStatus() {
+    const status = empty.querySelector(".tx-colab-auth");
+    if (!status) return;
+    const state = colabAuthState(colabAuthStatus);
+    status.textContent = t(`ui.transcript.colab_auth.${state}`);
+    status.dataset.state = state;
+    status.title = t("ui.transcript.colab_auth_hint");
+  }
+
+  function refreshColabAuthStatus() {
+    if (typeof actions.colabAuthStatus !== "function" || colabAuthRequest) return;
+    colabAuthStatus = null;
+    renderColabAuthStatus();
+    colabAuthRequest = actions
+      .colabAuthStatus()
+      .then((status) => {
+        colabAuthStatus = status;
+      })
+      .catch(() => {
+        colabAuthStatus = { error: true };
+      })
+      .finally(() => {
+        colabAuthRequest = null;
+        renderColabAuthStatus();
+      });
+  }
   let jobTimer = 0;
   let findQuery = "";
   let matches = [];
@@ -278,7 +307,14 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       empty.append(el("strong", "", t("ui.transcript.empty")));
       return;
     }
-    empty.append(el("strong", "", t("ui.transcript.missing")));
+    const missingHeading = el("div", "tx-missing-heading");
+    missingHeading.append(el("strong", "", t("ui.transcript.missing")));
+    const colabStatus = el("span", "tx-colab-auth");
+    colabStatus.setAttribute("role", "status");
+    colabStatus.setAttribute("aria-live", "polite");
+    missingHeading.append(colabStatus);
+    empty.append(missingHeading);
+    renderColabAuthStatus();
     const table = el("ul", "tx-missing");
     for (const row of rows) table.append(offerRow(row));
     if (all) table.append(offerRow({ all }));
@@ -287,6 +323,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       el("span", "tx-hint", t("ui.transcript.remote_note")),
       el("span", "tx-hint", t("ui.transcript.background")),
     );
+    if (typeof actions.colabAuthStatus === "function" && colabAuthStatus == null) {
+      refreshColabAuthStatus();
+    }
     scheduleWindow();
   }
 
@@ -831,7 +870,10 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     else if (button.dataset.act === "transcribe-anyway") void transcribe(ids, { force: true });
     else if (button.dataset.act === "transcribe-orukeet") {
       void transcribe(ids, { localEngine: "orukeet" });
-    } else if (button.dataset.act === "transcribe-colab") actions.transcribeColab?.(ids);
+    } else if (button.dataset.act === "transcribe-colab") {
+      refreshColabAuthStatus();
+      actions.transcribeColab?.(ids);
+    }
     else if (button.dataset.act === "transcribe-cancel") {
       button.disabled = true;
       void api

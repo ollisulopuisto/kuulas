@@ -2937,6 +2937,22 @@ input[type="text"] {
 .tx-empty strong {
   color: var(--text);
 }
+.tx-missing-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3) var(--space-5);
+}
+.tx-colab-auth {
+  font-size: var(--text-sm);
+}
+.tx-colab-auth[data-state="signed_in"] {
+  color: var(--success-text, var(--text-secondary));
+}
+.tx-colab-auth[data-state="sign_in"],
+.tx-colab-auth[data-state="unavailable"] {
+  color: var(--warning-text, var(--text-secondary));
+}
 .tx-missing {
   list-style: none;
   margin: 0;

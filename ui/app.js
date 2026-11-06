@@ -1458,6 +1458,8 @@ const transcript = createTranscript({
     contextMenu: (event) => showPanelMenu("transcript", event),
     transcribeColab: (ids) => transcribeOnColab(ids),
     transcribeLocal: (ids, options) => transcribeLocalOrColab(ids, options),
+    colabAuthStatus: () => api.colabSignin(),
+    ensureLocalModel: () => orukeetDialogFor().ensure(),
     openTranscriptionJobs:
       typeof globalThis.pywebview?.api?.open_transcription_jobs === "function"
         ? async () => {
