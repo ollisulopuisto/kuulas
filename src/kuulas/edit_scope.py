@@ -111,8 +111,9 @@ def expand_clips(project: Project, clip_ids: Iterable[str]) -> list[str]:
     """The clip ids plus every member of an explicit group any of them belongs to.
     Sync partners are not included (WP83): sync never moves anything."""
     initial = list(dict.fromkeys(clip_ids))
+    initial_ids = set(initial)
     groups = {c.group for t in project.tracks for c in t.clips
-              if c.id in set(initial) and c.group is not None}
+              if c.id in initial_ids and c.group is not None}
     if not groups:
         return initial
     out = list(initial)
