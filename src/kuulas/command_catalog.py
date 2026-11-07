@@ -86,6 +86,13 @@ SESSION: dict[str, tuple[str, bool, list[dict]]] = {
             _arg("open_before_s", "number", note="0 to 3"),
             _arg("open_after_s", "number", note="0 to 5"),
         ]),
+    "process_voice": (
+        "Process selected speech tracks with the voice chain and keep the originals.",
+        False, [
+            _arg("track_ids", IDS, required=True),
+            _arg("plugin", "str", note="optional plugin path"),
+            _arg("plugin_state", "str", note="optional plugin state"),
+        ]),
     "open_gates": (
         "Clear Auto-Silence from the given tracks.", True,
         [_arg("track_ids", IDS, note="default: every track that has any")]),

@@ -169,6 +169,12 @@ def _on_clips(args: Args, c: _Context) -> Described:
              "delta": c.length(args.get("delta", 0))}, "", key or None)
 
 
+def _variant(args: Args, _c: _Context) -> Described:
+    ids = args.get("clip_ids") or []
+    count = len(ids) if isinstance(ids, list | tuple) else 0
+    return {"count": count}, "", ",".join(sorted(map(str, ids))) or None
+
+
 def _clips_settings(args: Args, c: _Context) -> Described:
     values, _, key = _on_clips(args, c)
     return values, _fields({k: v for k, v in args.items() if k != "clip_ids"}), key
@@ -288,6 +294,7 @@ DESCRIBERS: dict[str, Describer] = {
     "restore_cuts": _on_clips,
     "roll_trim": _on_clip,
     "ripple_trim": _on_clip,
+    "use_variant": _variant,
     "group_clips": _on_clips,
     "ungroup_clips": _on_clips,
     "merge_clips": _on_clips,

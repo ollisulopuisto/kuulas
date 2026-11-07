@@ -846,6 +846,10 @@ changes the sound (a rename or a new target changes no key). Algorithm
     by hash when the mtime changed.
   - `working`: a FLAC in `media/`.
   - `excerpt`: a FLAC in `media/excerpts/`.
+- Processed voice-chain alternatives keep their lineage in the media row's
+  `extra` JSON: `variant_of` is the source media ID and `variant` is the
+  user-visible variant name (`voice chain`). Selecting a variant changes clip
+  media references in an undoable edit; the source media stays available.
 - A media row is inserted only after its file is complete and renamed. The
   row is the "import finished" marker; today's per-media JSON files go away.
 - Missing linked media: the project opens; those clips draw as offline

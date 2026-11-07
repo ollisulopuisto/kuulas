@@ -58,6 +58,8 @@ class Media:
     # (``clock``), so it never rounds; None when the file carries none.
     # ``ops.mark_in_sync(basis="files")``.
     time_ref_flicks: int | None = None
+    variant_of: str | None = None
+    variant: str = ""
     # A WP20 excerpt: a copy of part of another media. Its frame 0 is the
     # original's ``excerpt_start_flicks``, so it shares the original's sync.
     # Media id when the original is in this project, otherwise its SHA-256.
@@ -77,6 +79,9 @@ class Media:
         d = _out(self)
         if not self.timing:
             d.pop("timing", None)
+        if not self.variant_of:
+            d.pop("variant_of", None)
+            d.pop("variant", None)
         return d
 
     @classmethod

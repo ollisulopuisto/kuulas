@@ -156,11 +156,14 @@ def media_from_row(row: dict, rate: int) -> Media:
     frames = row["source_frames"]
     if row["source_rate"] != rate:
         frames = flicks_to_frames(frames_to_flicks(frames, row["source_rate"]), rate)
+    extra = json.loads(row["extra"] or "{}")
+    variant_of = extra.pop("variant_of", None)
+    variant = extra.pop("variant", "")
     return Media(id=row["id"], name=row["name"], channels=row["channels"],
                  frames=frames, sha256=row["sha256"],
                  time_ref_flicks=row["time_ref_flicks"], excerpt_of=row["excerpt_of"],
                  excerpt_start_flicks=row["excerpt_start_flicks"] or 0,
-                 extra=json.loads(row["extra"] or "{}"))
+                 variant_of=variant_of, variant=variant, extra=extra)
 
 
 def _rows(cursor) -> list[dict]:

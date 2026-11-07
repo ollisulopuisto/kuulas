@@ -6306,7 +6306,7 @@ legend.form-heading {
   gap: var(--space-3);
   min-width: 0;
 }
-.track-controls-flyout .slider-control:not(.pan) {
+.track-controls-flyout[data-track] .th-controls .slider-control:not(.pan) {
   display: grid;
   grid-template-columns: 3em minmax(0, 1fr) auto;
   grid-template-rows: 16px 24px;
@@ -6337,6 +6337,6 @@ legend.form-heading {
 .track-controls-flyout .slider-control.pan input[type="range"] {
   grid-area: 2 / 1;
 }
-.track-controls-flyout .slider-control.bus-fader {
+.track-controls-flyout[data-track] .th-controls .slider-control.bus-fader {
   grid-column: 1 / -1;
 }
