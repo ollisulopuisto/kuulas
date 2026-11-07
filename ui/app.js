@@ -1837,12 +1837,11 @@ function applyTheme() {
   const value = themeAttribute(themeChoice);
   if (value) document.documentElement.dataset.theme = value;
   else delete document.documentElement.dataset.theme;
-  const themeButton = $("theme");
-  themeButton.textContent = t(
+  $("theme").textContent = t(
     `ui.theme.${themeChoice === "light" || themeChoice === "dark" ? themeChoice : "system"}`,
   );
-  themeButton.title = t("ui.theme.title");
-  themeButton.setAttribute("aria-label", `${themeButton.textContent}. ${themeButton.title}`);
+  $("theme").title = t("ui.theme.title");
+  $("theme").setAttribute("aria-label", $("theme").title);
   timeline?.refreshTheme();
   overview?.refreshTheme();
 }

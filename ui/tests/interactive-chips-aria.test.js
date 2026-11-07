@@ -73,20 +73,19 @@ test("rec-chip in record-view.js sets aria-label matching its title", () => {
   );
 });
 
-// The theme button keeps its short visible state at the start of its longer name.
-test("theme button in index.html and app.js keeps its accessible name tied to its visible label", () => {
+test("theme button in index.html and app.js sets aria-label matching its title", () => {
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const code = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 
   assert.match(
     html,
     /id="theme"[^>]*data-i18n-aria-label="ui\.theme\.title"/,
-    "theme button in index.html has a translated aria-label fallback",
+    "theme button in index.html has data-i18n-aria-label matching ui.theme.title",
   );
 
   assert.match(
     code,
-    /function applyTheme[\s\S]*?themeButton\.setAttribute\("aria-label",\s*`\$\{themeButton\.textContent\}\. \$\{themeButton\.title\}`\)/,
-    "applyTheme includes the visible theme label and its descriptive title in the accessible name",
+    /function applyTheme[\s\S]*?\$\("theme"\)\.setAttribute\("aria-label",\s*\$\("theme"\)\.title\)/,
+    "applyTheme in app.js sets aria-label matching title",
   );
 });
