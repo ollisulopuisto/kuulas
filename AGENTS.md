@@ -19,11 +19,12 @@ Non-negotiable, in short:
   `node --test ui/tests/` and `npx --yes @biomejs/biome@2.2.4 check ui/`.
 - Every user-facing string is a key in `src/kuulas/locales/en.json` and
   `fi.json` (natural Finnish).
-- One task, one git worktree and branch. Commit locally, never push. Do not
+- One task, one git worktree and branch. Work lands as a pull request;
+  the owner reviews and merges, agents never push to main. Do not
   bump the version or edit `CHANGELOG.md`, `ROADMAP.md` or PLAN status lines
   unless you are the integrator.
-- This repo has no remote and no pull requests, which differs from the
-  owner's other repos (for example vikasietotila's `GEMINI.md`).
+- This repo is on GitHub (`ollisulopuisto/kuulas`) and uses pull requests,
+  like the owner's other repos (for example vikasietotila's `GEMINI.md`).
 
 ## Coordinator channel (agents that take tasks from the coordinator)
 
