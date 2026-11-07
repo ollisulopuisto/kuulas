@@ -216,11 +216,14 @@ def _cut_at(p: Project, track_id: str, frame: int, ramp: int) -> Project:
     pieces at the cut."""
     for clip in [c for c in p.track(track_id).clips if c.start < frame < c.end]:
         right_id = ops.new_id("c")
+        # split_clip keeps clip.id on the left piece [clip.start, frame) and
+        # gives the right piece right_id over [frame, clip.end), so the
+        # lengths are known without rescanning the track's clips.
+        left_length = frame - clip.start
+        right_length = clip.end - frame
         p = ops.split_clip(p, clip.id, frame, right_id)
-        left = next(c for c in p.track(track_id).clips if c.id == clip.id)
-        right = next(c for c in p.track(track_id).clips if c.id == right_id)
-        p = ops.set_clip(p, left.id, fade_out=min(ramp, left.length))
-        p = ops.set_clip(p, right.id, fade_in=min(ramp, right.length))
+        p = ops.set_clip(p, clip.id, fade_out=min(ramp, left_length))
+        p = ops.set_clip(p, right_id, fade_in=min(ramp, right_length))
     return p
 
 
