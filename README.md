@@ -17,7 +17,7 @@ Taglines (use either, not together): *"A podcast editor where nothing is ever lo
 
 ## What works today
 
-- **Multitrack editor window**: Timeline with comfortable (80 px) and compact densities, waveform pyramid rendering, overview navigation strip, and live WebSocket playhead feed.
+- **Multitrack editor window**: Timeline with comfortable (80 px) and compact densities, waveform pyramid rendering, overview navigation strip, and live WebSocket playhead feed. Track headers keep a compact, track-colored name and M/S tab beside each lane; mixer controls open in an overlay without moving the timeline. Bus headers use a shorter level row and rotary pan control.
 - **Hindenburg-level keyboard editing**: Full customizable keymap (`?` cheat sheet), B split (Shift+B all tracks), Backspace/Delete soft cut, X ripple cut, Q/W trim to cursor, N mute, Shift+M track mute, Shift+S solo, E group editing, and modifier nudge/gain controls.
 - **Contextual help and command palette**: Docked F1 help panel with topic search and "Show me" ring highlights, Mod+K palette, and in-window menu bar with live modifier previews.
 - **Clipboard with persistent history**: Mod+C / X copy, Mod+V insert paste (sync groups follow), Alt+Mod+V overwrite, and sidebar Clipboard tab with cross-project history, pin, rename, and delete.

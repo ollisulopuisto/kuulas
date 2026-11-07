@@ -1,4 +1,6 @@
 /** Pure interaction state for the track-control overlay. */
+export const TRACK_FLYOUT_CLOSE_DELAY_MS = 140;
+
 export const initialTrackFlyoutState = () => ({
   hoveredId: null,
   focusedId: null,

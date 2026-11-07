@@ -327,7 +327,7 @@
   --control-h-sm: 28px; /* M / S, bus picker, chips inside headers */
   --target-min: 44px; /* hit target of the main controls (WCAG 2.5.5) */
   --lane-h: 80px; /* lanes.js DEFAULT_LANE */
-  --bus-h: 68px; /* lanes.js BUS_HEIGHT: a name line and a level line */
+  --bus-h: 56px; /* lanes.js BUS_HEIGHT: a name line and a compact level line */
   --bus-collapsed-h: 40px; /* a collapsed bus: ribbons or summed waveform */
   --group-gap: 14px; /* lanes.js GROUP_GAP: plain lane between groups */
   --strip-h: 16px; /* focus-mode strips (WP28) */
@@ -378,7 +378,7 @@
   --control-h-sm: 18px;
   --target-min: 24px;
   --lane-h: 40px;
-  --bus-h: 68px;
+  --bus-h: 56px;
   --bus-collapsed-h: 32px;
   --group-gap: 6px;
   --reading-max: 72ch;

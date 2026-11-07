@@ -23,6 +23,7 @@ import { dropIndex } from "./track-drop.js";
 import {
   initialTrackFlyoutState,
   openTrackFlyoutId,
+  TRACK_FLYOUT_CLOSE_DELAY_MS,
   trackFlyoutReducer,
 } from "./track-header-flyout.js";
 import { parseDbText, parsePanText } from "./value-edit.js";
@@ -275,7 +276,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     closeTimer = window.setTimeout(() => {
       dispatchFlyout("leave", trackId);
       dispatchFlyout("blur", trackId);
-    }, 140);
+    }, TRACK_FLYOUT_CLOSE_DELAY_MS);
   };
   const dismissFlyoutOnEscape = (event) => {
     if (event.key !== "Escape" || !openTrackFlyoutId(flyoutState)) return;
@@ -345,7 +346,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const id = track.id;
     const node = el("section", "track-header");
     node.dataset.track = track.id;
-    const top = el("div", "th-top");
+    const top = el("div", "th-top track-tab");
     // The name is a label, not a tab stop (rename: double-click; Enter on the
     // current track arrives with WP5), which keeps the resting view's controls few.
     const name = el("button", "track-name", {
@@ -686,6 +687,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const gain = slider(t("ui.bus.gain"), GAIN);
     const pan = slider(t("ui.bus.pan"), PAN);
     pan.wrap.classList.add("pan");
+    pan.wrap.classList.add("dial");
     const positionPanValue = () => {
       const lane = node.getBoundingClientRect();
       pan.output.style.left = `${Math.min(lane.right + 8, window.innerWidth - 92)}px`;
@@ -925,6 +927,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.mute.setAttribute("aria-pressed", String(bus.mute));
         setSlider(parts.gain, bus.gain_db, formatDb(bus.gain_db));
         setSlider(parts.pan, Math.round(bus.pan * 100), panText(bus.pan));
+        parts.pan.paintDial();
       }
     }
   }

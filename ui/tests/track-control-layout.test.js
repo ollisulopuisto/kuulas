@@ -62,3 +62,32 @@ test("track mixer controls open in an overlay beside stable narrow headers", () 
   assert.match(source, /flyout\.querySelector\([\s\S]*?:not\(\[tabindex="-1"\]\)/);
   assert.match(source, /window\.addEventListener\("scroll", positionFlyout, true\)/);
 });
+
+test("the track header name and M/S rail forms a downward tab above the lane", () => {
+  assert.ok(source.includes('el("div", "th-top track-tab")'), "track row uses tab markup");
+  assert.ok(/\.track-tab::after\s*\{[^}]*border-top:/s.test(css), "tab points down");
+  assert.ok(/\.track-tab::after\s*\{[^}]*position:\s*absolute/s.test(css), "tab adds no row");
+  assert.ok(
+    /\.track-header\[data-track\] \.track-tab\s*\{[^}]*height:\s*28px/s.test(css),
+    "tab stays compact",
+  );
+  assert.ok(
+    /\.track-header\.strip\[data-track\] \.track-tab\s*\{[^}]*height:\s*16px/s.test(css),
+    "focus strip fits its lane",
+  );
+});
+
+test("bus headers use the shorter footprint and a rotary pan control", () => {
+  const busBuilder = source.slice(
+    source.indexOf("function buildBus"),
+    source.indexOf("function update"),
+  );
+  const busUpdate = source.slice(source.indexOf("function update"));
+  assert.ok(/pan\.wrap\.classList\.add\("dial"\)/.test(busBuilder), "bus pan is a dial");
+  assert.ok(/parts\.pan\.paintDial\(\)/.test(busUpdate), "bus dial tracks its value");
+  assert.ok(
+    /\.bus-header:not\(\.compact\)\s*\{[^}]*grid-template-rows:\s*28px 28px/s.test(css),
+    "bus header uses shorter rows",
+  );
+  assert.ok(/\.bus-header \.slider-control\.dial/.test(css), "bus dial has rotary styling");
+});
