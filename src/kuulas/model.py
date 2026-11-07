@@ -79,6 +79,9 @@ class Media:
         d = _out(self)
         if not self.timing:
             d.pop("timing", None)
+        if not self.variant_of:
+            d.pop("variant_of", None)
+            d.pop("variant", None)
         return d
 
     @classmethod

@@ -34,12 +34,16 @@ def test_add_array_stores_a_24_bit_variant_with_lineage(tmp_path):
     try:
         session.import_media([str(source_path)], copy=True)
         source = session.state.media[0]
+        assert "variant_of" not in source.to_dict()
+        assert "variant" not in source.to_dict()
         audio = np.full((1, RATE), 0.125, dtype=np.float32)
 
         variant = session.store.add_array(audio, "source voice chain", source.id)
 
         assert variant.variant_of == source.id
         assert variant.variant == "voice chain"
+        assert variant.to_dict()["variant_of"] == source.id
+        assert variant.to_dict()["variant"] == "voice chain"
         assert variant.frames == source.frames == RATE
         assert session.state.media_item(variant.id).variant_of == source.id
         assert session.state.media_item(variant.id).variant == "voice chain"
