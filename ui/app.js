@@ -4847,6 +4847,7 @@ function updateFollowChip(state) {
   chip.hidden = !state.project;
   chip.dataset.on = String(!state.followPaused);
   chip.setAttribute("aria-pressed", String(!state.followPaused));
+  chip.setAttribute("aria-label", chip.title);
   const side = arrowOf({
     follow: !state.followPaused,
     playhead: playheadNow(state),

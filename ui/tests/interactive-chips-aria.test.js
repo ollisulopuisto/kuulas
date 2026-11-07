@@ -1,9 +1,26 @@
-// Interactive chip and status buttons (waveform-gain, speed-chip, follow-arrow,
+// Interactive chip and status buttons (waveform-gain, speed-chip, follow-arrow, follow-chip,
 // series-chip, scope-chip, rec-chip, notice-chip) have terse visual text and must provide accessible names
 // (aria-label matching title) so screen reader users understand what action clicking them takes.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+
+test("follow-chip in index.html and app.js sets aria-label matching its title", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const code = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+
+  assert.match(
+    html,
+    /id="follow-chip"[^>]*data-i18n-aria-label="ui\.view\.follow_chip_title"/,
+    "follow-chip in index.html has data-i18n-aria-label matching ui.view.follow_chip_title",
+  );
+
+  assert.match(
+    code,
+    /function updateFollowChip[\s\S]*?chip\.setAttribute\("aria-label",\s*chip\.title\)/,
+    "follow-chip in app.js sets aria-label matching chip.title",
+  );
+});
 
 test("notice-chip in index.html and app.js sets aria-label matching its title", () => {
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
