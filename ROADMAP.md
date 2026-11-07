@@ -1,8 +1,8 @@
 # kuulas roadmap
 
-Current release: **v26.11.6.2**, prepared on 2026-11-06. It includes faster
-clip expansion plus faster timeline candidate overlays, hardened project
-discovery, and accessible notice-chip labels. The release notes are in
+Current release: **v26.11.7.1**, prepared on 2026-11-07. It includes background
+voice-chain variants, compact cross-project paste excerpts, faster editing and
+playback paths, and an accessible theme toggle. The release notes are in
 [CHANGELOG.md](CHANGELOG.md).
 
 Kuulas is a keyboard-first, speech-aware multitrack editor for spoken-word
@@ -17,7 +17,7 @@ summary; the work package specifications and dependency details live in
 implementation status: see [M1 verification](docs/M1-VERIFY.md),
 [M2 verification](docs/M2-VERIFY.md), and [open bugs](docs/BUGS.md).
 
-Milestone status was reviewed on 2026-11-01; counts include owner confirmation
+Milestone status was reviewed on 2026-11-07; counts include owner confirmation
 items and are summarized from the package statuses below. WP28 Focus Mode is
 complete; it is not the next implementation package.
 
@@ -40,13 +40,13 @@ Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner
 
 ✓ WP41, ◐ WP8, ◐ WP22, ◐ WP26, ✓ WP9, ◐ WP7, ◐ WP23a, ◐ WP44, ◐ WP48, ◐ WP49, ✓ WP50, ◐ WP52, ◐ WP55, ✓ WP57, ◐ WP63, WP62, ✓ WP69, ✓ WP70, ◐ WP77, ◐ WP78, ✓ WP79.
 
-**M3 · The editing loop** (4 of 25 done, 11 partly): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
+**M3 · The editing loop** (4 of 25 done, 12 partly): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
 
-✓ WP28, ◐ WP43, ◐ WP18, ◐ WP19f, ◐ WP24.2, WP21, ◐ WP40, ◐ WP31, WP32, WP20, ✓ WP39, ✓ WP37, ◐ WP19c, WP19d, WP19b, ◐ WP19h, ◐ WP19g, WP19e, WP45, ◐ WP51, WP60, ✓ WP65, WP80, WP64, ◐ WP82.
+✓ WP28, ◐ WP43, ◐ WP18, ◐ WP19f, ◐ WP24.2, WP21, ◐ WP40, ◐ WP31, WP32, ◐ WP20, ✓ WP39, ✓ WP37, ◐ WP19c, WP19d, WP19b, ◐ WP19h, ◐ WP19g, WP19e, WP45, ◐ WP51, WP60, ✓ WP65, WP80, WP64, ◐ WP82.
 
-**M4 · Pipeline depth** (2 of 6 done, 2 partly): Voice chain, music report, Hindenburg import, rendered FX.
+**M4 · Pipeline depth** (2 of 6 done, 3 partly): Voice chain, music report, Hindenburg import, rendered FX.
 
-✓ WP14, WP10, ◐ WP25, ✓ WP13, WP23b, ◐ WP68.
+✓ WP14, ◐ WP10, ◐ WP25, ✓ WP13, WP23b, ◐ WP68.
 
 **M5 · Recording and alignment** (3 of 10 done, 2 partly): Foolproof recording, clip bin, align by sound.
 
@@ -73,7 +73,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R1 | Multitrack editor | core done (model, edits, mixer); UI next |
 | R2 | Buses (track groups) | core done: routing, gain, pan, mute; UI next |
 | R3 | Signal processing from the podcast pipeline, not reimplemented | done: `speechmix` + `nhsx` imported as path deps (pan laws, speech grid, duck masks, duck envelopes) |
-| R4 | Automixer support | ducking → editable track automation done; speechmix chain per track next |
+| R4 | Automixer support | ducking → editable track automation done; voice-chain backend variants shipped; Inspector toggle awaits WP4 |
 | R5 | Transcription, local and Colab | local Orukeet through the shared podcast CLI (Apple-silicon MLX) and Colab runner built; Colab model selector offers Whisper large-v3-turbo and Parakeet Ultra (v26.10.30.1); faster-whisper removed from local execution and dependencies; GUI model setup built, packaged TLS fix in v26.10.27.4; real Colab run still unverified |
 | R6 | Edit audio by editing the transcript, and vice versa | done in core: words follow clip edits; deleting words cuts all tracks at pause midpoints |
 | R7 | Clip ops Hindenburg lacks: clip volume, pan, gain automation | done in core |

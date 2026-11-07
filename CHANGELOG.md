@@ -1,3 +1,10 @@
+## [v26.11.7.1] - 2026-11-07
+
+- **Voice-chain processing keeps the source.** Background processing stores an alternate media variant, and switching clips between the source and variant is undoable. The Inspector control remains planned.
+- **Cross-project pastes use less space.** When source media cannot be linked or reused, Kuulas copies only the referenced ranges and handles, with transcript and recording-time alignment preserved.
+- **Editing and playback do less repeated work.** Clip deletion uses a batch pass; scalar gain and block-level cutting avoid repeated setup.
+- **The theme toggle is more accessible.** Its accessible name follows the current language.
+
 ## [v26.11.6.2] - 2026-11-06
 
 - **Expand clips with less repeated work.** Hoist set construction out of the per-clip loop (PR #160).

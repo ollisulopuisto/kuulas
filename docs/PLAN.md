@@ -1,5 +1,7 @@
 # kuulas implementation plan
 
+**Release v26.11.7.1:** Background voice-chain variants with undoable source switching; compact cross-project paste excerpts; faster clip deletion, scalar gain and block-level cutting; accessible theme toggle. Includes all earlier changes listed below.
+
 **Release v26.11.6.2:** Faster clip expansion, faster timeline candidate overlays, hardened control discovery, and accessible notice-chip labels. The release includes v26.11.4.4's LLM/MCP controls and all earlier changes listed below.
 
 **Release v26.11.6.1:** Faster timeline candidate overlays, hardened control discovery, and accessible notice-chip labels. The release includes v26.11.4.4's LLM/MCP controls and all earlier changes listed below.
@@ -1078,7 +1080,7 @@ monkeypatched to return fixed words.
 
 ### WP10 — speechmix voice chain per track (automixer, R4)
 
-Status: open. Needs WP1, WP9.
+Status: backend done in v26.11.7.1; the Inspector's Processed toggle remains gated on WP4. Needs WP1, WP9.
 
 Command `process_voice` `{track_ids: [...], plugin?: path, plugin_state?: str}`
 runs `speechmix.chain.process` on every **media** used by speech clips of those
@@ -1890,7 +1892,7 @@ keyboard context, including after a click on a track header; word stops are re-r
 
 ### WP20 — Copy clips between projects without bloat
 
-Status: open. Needs WP1, WP4. Also the mechanism under the clip bin (WP17).
+Status: paste's compact excerpt path done in v26.11.7.1; the project picker and used-only consolidate remain open. Needs WP1, WP4. Also the mechanism under the clip bin (WP17).
 
 Hindenburg copies the **whole source file** into the target session when a
 clip comes from another session's clipboard. A two-second soundbite from an
