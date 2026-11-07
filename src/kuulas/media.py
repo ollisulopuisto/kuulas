@@ -603,6 +603,13 @@ class MediaStore:
         """Preserve importer metadata alongside the media row."""
         self._update(media_id, extra=json.dumps(extra, ensure_ascii=False))
 
+    def mark_excerpt(self, media_id: str, original_sha256: str, start_flicks: int,
+                     time_ref_flicks: int | None) -> None:
+        """Record the original content hash and recording-clock range of an excerpt."""
+        self._update(media_id, excerpt_of=original_sha256,
+                     excerpt_start_flicks=int(start_flicks),
+                     time_ref_flicks=time_ref_flicks)
+
     def _check_writable(self) -> None:
         if self.read_only:
             raise MediaError("error.media.read_only")

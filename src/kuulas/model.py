@@ -60,6 +60,7 @@ class Media:
     time_ref_flicks: int | None = None
     # A WP20 excerpt: a copy of part of another media. Its frame 0 is the
     # original's ``excerpt_start_flicks``, so it shares the original's sync.
+    # Media id when the original is in this project, otherwise its SHA-256.
     excerpt_of: str | None = None
     excerpt_start_flicks: int = 0
     # Whose voice is on this file, for a single-person mic (WP41). Material:
