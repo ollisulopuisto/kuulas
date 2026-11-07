@@ -18,6 +18,7 @@ import logging
 import math
 import os
 import sqlite3
+import tempfile
 import threading
 from collections import deque
 from collections.abc import Callable
@@ -26,6 +27,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import soundfile as sf
 from lxml import etree
 from nhsx import NhsxError
 from nhsx import locate as nhsx_locate
@@ -103,6 +105,7 @@ from .clipboard_preview import preview_project
 from .clipboard_store import ClipboardStore, entry_dict, project_path
 from .clipboard_text import entry_text
 from .clock import FLICKS, frames_to_flicks
+from .excerpt_plan import excerpt_ranges
 from .history import History, UndoInfo
 from .jobs import JobCancelledError, Jobs
 from .loudness import gain_to_target, measure_clip, track_target_lufs
@@ -117,6 +120,10 @@ from .resume import ResumeWriter, now_iso
 from .view_memory import ViewMemory
 
 log = logging.getLogger("kuulas.session")
+
+
+def _source_media_ended() -> None:
+    raise OSError
 
 
 class NhsxImportError(KuulasError, ValueError):
@@ -1160,24 +1167,129 @@ class Session:
             return {"clipboard": {"ok": False, "entry": None, "error": problem}}
         return {"clipboard": {"ok": True, "entry": entry.id, "error": None}}
 
-    def _link_missing_media(self, entry: Entry) -> None:
+    def _link_missing_media(self, entry: Entry) -> Entry:
         """Pasting into another project: link, in place and without copying,
         the recordings this project lacks from the files the entry's source
         project imported them from, when such a file is still there and still
-        has the hash. What cannot be found stays missing (reported by the
-        paste). Media are material shared by every edit, so linking is not an
-        undo step of its own; the paste after it is."""
+        has the hash. Otherwise, copy only the referenced ranges (plus handles)
+        from the source project's working FLAC. What cannot be found stays
+        missing (reported by the paste). Media are material shared by every
+        edit, so imports are not an undo step of their own; the paste after it
+        is."""
         here = Path(self.package.path)
         if not entry.source_project or Path(entry.source_project) == here:
-            return
+            return entry
+        try:
+            source_folder = clipboard_browse.project_folder(entry.source_project)
+        except ops.EditError:
+            return entry
         have = {m.sha256 for m in self.state.media}
-        for digest in sorted({r.media_sha256 for r in entry.refs} - have):
-            for path in clipboard_link.candidate_paths(entry.source_project, digest):
+        missing = sorted({r.media_sha256 for r in entry.refs} - have)
+        excerpts: dict[str, list[tuple[int, int, str]]] = {}
+        source_history = None
+        source_state = None
+        for digest in missing:
+            for path in clipboard_link.candidate_paths(str(source_folder), digest):
                 if not clipboard_link.has_digest(path, digest):
                     continue
                 result = self.store.import_batch([path], copy=False)[0]
                 if result.ok:
+                    have.add(digest)
                     break
+            if digest in have:
+                continue
+            try:
+                if source_history is None:
+                    source_history = History(
+                        source_folder / "project.sqlite", read_only=True,
+                    )
+                    source_state = source_history.state
+                original = next(m for m in source_state.media if m.sha256 == digest)
+                source_file = source_folder / "media" / f"{original.id}.flac"
+                if not source_file.is_file():
+                    continue
+                info = sf.info(str(source_file))
+                if (info.samplerate != source_state.rate
+                        or info.channels != original.channels):
+                    log.warning(
+                        "clipboard excerpt source metadata does not match: %s",
+                        original.id,
+                    )
+                    continue
+                used = [
+                    (ref.offset / source_state.rate,
+                     (ref.offset + ref.length) / source_state.rate)
+                    for ref in entry.refs if ref.media_sha256 == digest
+                ]
+                plan = excerpt_ranges(
+                    [(digest, start, end) for start, end in used],
+                    duration={digest: info.frames / source_state.rate},
+                )
+                for range_start, range_end in plan.get(digest, ()):
+                    start = round(range_start * source_state.rate)
+                    end = min(info.frames, round(range_end * source_state.rate))
+                    if end <= start:
+                        continue
+                    with tempfile.TemporaryDirectory(prefix="kuulas-excerpt-") as folder:
+                        excerpt_file = Path(folder) / f"{original.id}-{start}.flac"
+                        subtype = (
+                            info.subtype
+                            if info.subtype in {"PCM_16", "PCM_24"}
+                            else "PCM_24"
+                        )
+                        with sf.SoundFile(str(source_file)) as source_audio, sf.SoundFile(
+                            str(excerpt_file), "w", source_state.rate, info.channels,
+                            subtype=subtype, format="FLAC",
+                        ) as output:
+                            source_audio.seek(start)
+                            remaining = end - start
+                            while remaining:
+                                block = source_audio.read(
+                                    min(remaining, source_state.rate * 10),
+                                    dtype="int32",
+                                    always_2d=True,
+                                )
+                                if not len(block):
+                                    _source_media_ended()
+                                output.write(block)
+                                remaining -= len(block)
+                        excerpt = self.store.import_file(excerpt_file, copy=True)
+                    excerpt_start_flicks = frames_to_flicks(start, source_state.rate)
+                    time_ref_flicks = (
+                        None if original.time_ref_flicks is None
+                        else original.time_ref_flicks + excerpt_start_flicks
+                    )
+                    self.store.mark_excerpt(
+                        excerpt.id, original.sha256, excerpt_start_flicks,
+                        time_ref_flicks,
+                    )
+                    excerpts.setdefault(digest, []).append((start, end, excerpt.sha256))
+            except Exception:
+                # A broken source project or working file costs only these
+                # references; the normal paste reports them missing.
+                log.exception("clipboard excerpt failed for %s", digest[:12])
+        if source_history is not None:
+            source_history.close()
+        if not excerpts:
+            return entry
+        refs = []
+        for ref in entry.refs:
+            matches = excerpts.get(ref.media_sha256, ())
+            excerpt = next((item for item in matches
+                            if item[0] <= ref.offset
+                            and ref.offset + ref.length <= item[1]), None)
+            if excerpt is None:
+                refs.append(ref)
+                continue
+            start, end, digest = excerpt
+            refs.append(replace(
+                ref,
+                media_sha256=digest,
+                offset=ref.offset - start,
+                envelope=tuple((frame - start, db) for frame, db in ref.envelope
+                               if start <= frame <= end),
+            ))
+        return replace(entry, refs=tuple(refs))
 
     def clipboard_paste(self, entry_id: str, *, at: int, mode: str = "insert",
                         target_tracks=None, out: int | None = None,
@@ -1227,7 +1339,7 @@ class Session:
         time-shifting edit: it ripples the target tracks only (WP83: a sync group
         is not a scope)."""
         entry = self._entry(entry_id)
-        self._link_missing_media(entry)
+        entry = self._link_missing_media(entry)
         mapping = (None if target_tracks is None
                    else {int(slot): track for slot, track in target_tracks.items()})
         at = int(at)

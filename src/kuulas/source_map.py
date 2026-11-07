@@ -28,10 +28,13 @@ def _resolve_recording(
             return None
         seen.add(current.id)
         origin += current.excerpt_start_flicks
-        try:
-            current = media_by_id[current.excerpt_of]
-        except KeyError:
+        parent = media_by_id.get(current.excerpt_of)
+        if parent is None:
+            if (len(current.excerpt_of) == 64
+                    and all(char in "0123456789abcdef" for char in current.excerpt_of)):
+                return current.excerpt_of, origin
             return None
+        current = parent
     return current.sha256, origin
 
 
@@ -125,14 +128,11 @@ def coverage(project: Project, media_sha256: str):
 
     - ``used``: audible ranges (any non-muted, non-silenced clip).
     - ``cut``: covered only by inaudible clips (muted or ducked).
-    - ``unused``: the rest of the recording, up to its media length.
+    - ``unused``: the rest of the recording, up to its media length when known.
 
     Each list is merged, sorted and disjoint.
     """
     length = _recording_length_flicks(project, media_sha256)
-    if length is None:
-        return [], [], []
-
     audible, inaudible = _source_intervals(project, media_sha256)
     used = _merge_ranges(audible)
     all_covered = _merge_ranges(audible + inaudible)
@@ -161,15 +161,16 @@ def coverage(project: Project, media_sha256: str):
 
     # unused = gaps in [0, length] outside all covered ranges
     unused: list[tuple[int, int]] = []
-    current = 0
-    for cover_start, cover_end in all_covered:
-        if current < cover_start and current < length:
-            unused.append((current, min(cover_start, length)))
-        current = max(current, cover_end)
-        if current >= length:
-            break
-    if current < length:
-        unused.append((current, length))
+    if length is not None:
+        current = 0
+        for cover_start, cover_end in all_covered:
+            if current < cover_start and current < length:
+                unused.append((current, min(cover_start, length)))
+            current = max(current, cover_end)
+            if current >= length:
+                break
+        if current < length:
+            unused.append((current, length))
 
     return used, cut, unused
 

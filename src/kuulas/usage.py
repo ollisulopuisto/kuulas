@@ -44,11 +44,14 @@ def _recording(media: Media, media_by_id: dict[str, Media]) -> tuple[str, int]:
             raise UsageError("error.usage.excerpt_cycle", media_id=current.id)
         seen.add(current.id)
         origin += current.excerpt_start_flicks
-        try:
-            current = media_by_id[current.excerpt_of]
-        except KeyError as error:
+        parent = media_by_id.get(current.excerpt_of)
+        if parent is None:
+            if (len(current.excerpt_of) == 64
+                    and all(char in "0123456789abcdef" for char in current.excerpt_of)):
+                return current.excerpt_of, origin
             raise UsageError("error.usage.excerpt_missing", media_id=current.id,
-                             original_id=current.excerpt_of) from error
+                             original_id=current.excerpt_of)
+        current = parent
     return current.sha256, origin
 
 
