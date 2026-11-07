@@ -1,3 +1,8 @@
+## 2026-11-07 - Unbounded path length in project initialization and process spawning
+**Vulnerability:** New project path planning and project window launching routines accepted user-supplied directory paths without length bounds before passing them to OS filesystem and subprocess APIs.
+**Learning:** Functions that validate paths for directory creation or working directories must explicitly bound string length (<= 4096 characters) before performing filesystem calls or passing them to child process startup to avoid OS-level buffer and path resolution errors.
+**Prevention:** Apply the standard path validation invariant (non-empty string <= 4096 characters, no NUL bytes, absolute path without `..` traversal components) consistently to project creation and window startup paths.
+
 ## 2026-11-06 - Unvalidated export folder path and traversal vulnerability
 **Vulnerability:** Export configuration and region planning accepted user-supplied folder destination paths without absolute path enforcement, size bounds, NUL-byte rejection, or directory traversal validation.
 **Learning:** Background jobs and export workers that create filesystem directories and write rendered outputs based on request parameters must validate folder path boundaries at request planning time and snapshot time before job execution.
