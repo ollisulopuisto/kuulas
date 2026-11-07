@@ -48,6 +48,7 @@ import platform
 import shutil
 import struct
 import subprocess
+import tempfile
 import threading
 import time
 from collections.abc import Iterator
@@ -602,6 +603,68 @@ class MediaStore:
     def set_extra(self, media_id: str, extra: dict) -> None:
         """Preserve importer metadata alongside the media row."""
         self._update(media_id, extra=json.dumps(extra, ensure_ascii=False))
+
+    def add_array(self, audio: np.ndarray, name: str, variant_of: str) -> Media:
+        """Store processed ``(channels, frames)`` audio as a 24-bit FLAC variant."""
+        self._check_writable()
+        original = self._row(variant_of)
+        if original is None:
+            raise MediaError("error.edit.no_media", media_id=variant_of)
+        samples = np.asarray(audio, dtype=np.float32)
+        if (samples.ndim != 2 or samples.shape[0] not in (1, 2)
+                or not samples.shape[1] or not np.isfinite(samples).all()):
+            raise MediaError("error.media.bad_variant_array")
+        self.folder.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            dir=self.folder, prefix=".variant-", suffix=".flac", delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+        frames = samples.shape[1]
+        peaks = []
+        try:
+            with sf.SoundFile(
+                str(temp_path), "w", self.rate, samples.shape[0], subtype="PCM_24",
+                format="FLAC",
+            ) as output:
+                for start in range(0, frames, CHUNK_SEC * self.rate):
+                    block = samples[:, start:start + CHUNK_SEC * self.rate]
+                    output.write(block.T)
+                    peaks.append(_peaks(block))
+            digest = _sha256(temp_path)
+            media_id = self.media_id(digest)
+            row = self._row(media_id)
+            if row is not None:
+                temp_path.unlink(missing_ok=True)
+                extra = json.loads(row["extra"] or "{}")
+                media_variant_of = extra.pop("variant_of", None)
+                media_variant = extra.pop("variant", "")
+                return Media(
+                    id=media_id, name=row["name"], channels=row["channels"],
+                    frames=row["source_frames"], sha256=digest,
+                    time_ref_flicks=row["time_ref_flicks"],
+                    excerpt_of=row["excerpt_of"],
+                    excerpt_start_flicks=row["excerpt_start_flicks"] or 0,
+                    variant_of=media_variant_of, variant=media_variant, extra=extra,
+                )
+            target = self.working_file(media_id)
+            temp_path.replace(target)
+            extra = json.dumps({"variant_of": variant_of, "variant": "voice chain"})
+            try:
+                self._finish({
+                    "id": media_id, "sha256": digest, "name": name,
+                    "storage": "working", "channels": samples.shape[0],
+                    "source_frames": frames, "subtype": "PCM_24", "lossless": 0,
+                    "time_ref_flicks": original["time_ref_flicks"], "excerpt_of": None,
+                    "excerpt_start_flicks": 0, "tags": "{}", "extra": extra,
+                }, peaks)
+            except Exception:
+                target.unlink(missing_ok=True)
+                raise
+            return Media(id=media_id, name=name, channels=samples.shape[0], frames=frames,
+                         sha256=digest, time_ref_flicks=original["time_ref_flicks"],
+                         variant_of=variant_of, variant="voice chain")
+        finally:
+            temp_path.unlink(missing_ok=True)
 
     def mark_excerpt(self, media_id: str, original_sha256: str, start_flicks: int,
                      time_ref_flicks: int | None) -> None:

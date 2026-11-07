@@ -288,6 +288,43 @@ def replace_clip_media(p: Project, media_id: str, new_media_id: str) -> Project:
     return replace(p, tracks=tracks)
 
 
+def use_variant(p: Project, clip_ids, media_id: str) -> Project:
+    """Switch selected clips between one processed variant and its source."""
+    try:
+        variant = p.media_item(media_id)
+    except KeyError:
+        raise EditError("error.edit.no_media", media_id=media_id) from None
+    source_id = variant.variant_of
+    if not source_id or source_id == variant.id:
+        raise EditError("error.edit.no_media", media_id=media_id)
+    try:
+        source = p.media_item(source_id)
+    except KeyError:
+        raise EditError("error.edit.no_media", media_id=source_id) from None
+    if source.channels != variant.channels or source.frames != variant.frames:
+        raise EditError("error.edit.clip_outside_media")
+    wanted = set(clip_ids)
+    if not wanted:
+        raise EditError("error.edit.no_selection")
+    found = set()
+    for track in p.tracks:
+        for clip in track.clips:
+            if clip.id in wanted:
+                found.add(clip.id)
+                if clip.media not in {source.id, variant.id}:
+                    raise EditError("error.edit.no_media", media_id=clip.media)
+    if found != wanted:
+        missing = next(iter(wanted - found))
+        raise EditError("error.edit.no_clip", clip_id=missing)
+    tracks = tuple(replace(
+        track,
+        clips=tuple(replace(
+            clip, media=(source.id if clip.media == variant.id else variant.id),
+        ) if clip.id in wanted else clip for clip in track.clips),
+    ) for track in p.tracks)
+    return replace(p, tracks=tracks)
+
+
 def set_clips_ungated(p: Project, clip_ids, value: bool = True) -> Project:
     """Keep the mic open under the given clips (``Clip.ungated``): the gate under them is
     opened now and stays open however they are trimmed or moved (``normalize_ungated``);
@@ -1736,6 +1773,7 @@ OPS = {
         set_gate, set_track_auto_silence, add_gate_range, remove_gate_range,
         set_clips_ungated, open_gated_region, trim_auto_silence_edge,
         replace_clip_media,
+        use_variant,
         add_marker, rename_marker, move_marker, set_region_end, delete_marker,
         set_marker_kind,
         add_placeholder, edit_placeholder_text, set_placeholder_length,

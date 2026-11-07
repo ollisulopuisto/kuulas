@@ -25,8 +25,10 @@ from collections.abc import Callable
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
+import numpy as np
 import soundfile as sf
 from lxml import etree
 from nhsx import NhsxError
@@ -39,6 +41,7 @@ from nhsx.read import children as nhsx_children
 from nhsx.read import descendants as nhsx_descendants
 from nhsx.read import localname as nhsx_localname
 from nhsx.read import time_to_seconds as nhsx_time_to_seconds
+from speechmix import chain as voice_chain
 
 from . import (
     analysis,
@@ -689,6 +692,15 @@ class Session:
                 material = self.history.carry_transcript(
                     applied["media_id"], applied["new_media_id"],
                     new.media_item(applied["new_media_id"]).frames)
+            elif name == "use_variant":
+                variant = new.media_item(applied["media_id"])
+                if any(
+                    clip.id in applied["clip_ids"] and clip.media == variant.variant_of
+                    for track in self.history.state.tracks for clip in track.clips
+                ):
+                    material = self.history.carry_transcript(
+                        variant.variant_of, variant.id, variant.frames,
+                    )
             self.history.commit(label or name, new,
                                 coalesce or _coalesce_key(name, args),
                                 op={"name": name, "args": recorded},
@@ -3872,6 +3884,133 @@ def _consolidate(s: Session, _args: dict) -> Project:
     return s.history.state
 
 
+def _voice_speaking_mask(track, media_id: str, frames: int,
+                         lane, rate: int, block_seconds: float) -> np.ndarray:
+    """Map one track's timeline speech lane onto this source's rider blocks."""
+    block_frames = max(1, int(block_seconds * rate))
+    source_frames = np.arange((frames + block_frames - 1) // block_frames) * block_frames
+    source_frames += block_frames // 2
+    mask = np.zeros(source_frames.size, dtype=bool)
+    hop_frames = analysis.hop_frames(rate)
+    for clip in track.clips:
+        if clip.media != media_id or clip.muted:
+            continue
+        indexes = np.flatnonzero(
+            (source_frames >= clip.offset) & (source_frames < clip.offset + clip.length)
+        )
+        if not indexes.size:
+            continue
+        timeline = clip.start + source_frames[indexes] - clip.offset
+        hops = timeline // hop_frames
+        valid = hops < len(lane.on)
+        mask[indexes[valid]] |= np.asarray(lane.on, dtype=bool)[hops[valid]]
+    return mask
+
+
+def _process_voice(s: Session, args: dict) -> Project:
+    """Queue one source-preserving speechmix voice-chain job per used media."""
+    track_ids = list(dict.fromkeys(args.get("track_ids") or ()))
+    if not track_ids:
+        raise ops.EditError("error.edit.no_selection")
+    plugin_path = args.get("plugin")
+    plugin_state = args.get("plugin_state")
+    if ((plugin_path is not None and not isinstance(plugin_path, str))
+            or (plugin_state is not None and not isinstance(plugin_state, str))):
+        raise ops.EditError("error.edit.bad_arguments", name="process_voice",
+                            detail="plugin")
+    with s.lock:
+        s.history._check_writable()
+        snapshot = s.history.state
+        tracks = []
+        for track_id in track_ids:
+            try:
+                track = snapshot.track(str(track_id))
+            except KeyError:
+                raise ops.EditError("error.edit.no_track", track_id=track_id) from None
+            if track.kind != "speech":
+                raise ops.EditError("error.edit.bad_arguments", name="process_voice",
+                                    detail="track kind")
+            tracks.append(track)
+        clips_by_media: dict[str, list[str]] = {}
+        tracks_by_media: dict[str, list] = {}
+        for track in tracks:
+            for clip in track.clips:
+                clips_by_media.setdefault(clip.media, []).append(clip.id)
+                tracks_by_media.setdefault(clip.media, []).append(track)
+        media_by_id = {media.id: media for media in snapshot.media}
+        work = []
+        for media_id, clip_ids in clips_by_media.items():
+            source = media_by_id.get(media_id)
+            if source is None:
+                continue
+            old_variant = next((media for media in snapshot.media
+                                if media.variant_of == media_id
+                                and media.variant == "voice chain"), None)
+            work.append((source, list(dict.fromkeys(clip_ids)),
+                         list(dict.fromkeys(tracks_by_media[media_id])), old_variant))
+        if not work:
+            raise ops.EditError("error.edit.no_selection")
+
+    for source, clip_ids, source_tracks, old_variant in work:
+        def on_done(variant, ids=clip_ids, original=source):
+            if variant is None or variant.variant_of != original.id:
+                return
+            with s.lock:
+                live_ids = {
+                    clip.id for track in s.history.state.tracks for clip in track.clips
+                    if clip.id in ids and clip.media == original.id
+                }
+            if live_ids:
+                s.edit("use_variant", {"clip_ids": sorted(live_ids),
+                                        "media_id": variant.id})
+
+        if old_variant is not None:
+            def process(_progress, value=old_variant):
+                return value
+        else:
+            def process(progress, original=source, owners=source_tracks):
+                progress(0.0, "")
+                if original.id in s.store.missing():
+                    raise ops.EditError("error.media.offline", name=original.name)
+                audio = s.store.read(original.id, 0, original.frames)
+                masks = []
+                for owner in owners:
+                    one_track = replace(snapshot, tracks=(owner,))
+                    lane_name = owner.speaker or owner.name
+                    lane = next((item for item in
+                                 analysis.speech_lanes(one_track, s.store).speakers
+                                 if item.name == lane_name), None)
+                    if lane is not None:
+                        masks.append(_voice_speaking_mask(
+                            owner, original.id, original.frames, lane,
+                            snapshot.rate, voice_chain.RIDER_BLOCK_S,
+                        ))
+                speaking = np.logical_or.reduce(masks) if masks else None
+                settings = SimpleNamespace(
+                    high_pass_hz=voice_chain.HIGH_PASS_HZ,
+                    peak_threshold_db=voice_chain.PEAK_THRESHOLD_DB,
+                    leveler_threshold_db=voice_chain.LEVELER_THRESHOLD_DB,
+                    declick=True, declick_sensitivity=0.5, rider=True,
+                )
+                plugin = voice_chain.load_plugin(plugin_path, state=plugin_state)
+                try:
+                    processed, _result = voice_chain.process(
+                        audio, snapshot.rate, settings, gain_db=0.0, speech=True,
+                        target_lufs=None, plugin=plugin, speaking=speaking,
+                        stage=lambda name, value: progress(value, name),
+                    )
+                    if processed.shape[1] != original.frames:
+                        raise ops.EditError("error.edit.clip_outside_media")
+                    variant = s.store.add_array(processed, original.name, original.id)
+                    return variant if variant.id != original.id else None
+                finally:
+                    del audio
+
+        s.jobs.submit("process_voice", t("job.process_voice", name=source.name),
+                      process, on_done=on_done, keep_result=True)
+    return s.history.state
+
+
 def _create_person(s: Session, args: dict) -> Project:
     s.create_person(args.get("name", ""), args.get("role", ""),
                     args.get("aliases", ()), args.get("notes", ""))
@@ -4120,6 +4259,7 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "candidate_apply": _candidate_apply,
     "candidate_mark": _candidate_mark,
     "match_loudness": _match_loudness,
+    "process_voice": _process_voice,
     "set_music_level": _set_music_level,
     "level_blocks": _level_blocks,
     "placeholder_take": _placeholder_take,
@@ -4132,4 +4272,5 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
 #: snapshot and their commit: their work is slow and must not stall playback
 #: or edits (ground rule 14).
 LOCK_FREE_COMMANDS = frozenset({"candidates_detect", "match_loudness", "save_backup",
-                                "set_music_level", "level_blocks", "duck_music"})
+                                "set_music_level", "level_blocks", "duck_music",
+                                "process_voice"})
