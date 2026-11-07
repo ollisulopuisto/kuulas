@@ -57,6 +57,9 @@ def test_project_path_refuses_a_bad_parent_and_an_existing_project(tmp_path):
     with pytest.raises(EditError) as raised:
         new_project.project_path(str(tmp_path / ".." / tmp_path.name), "Show")
     assert raised.value.key == "error.project.bad_parent"
+    with pytest.raises(EditError) as raised:
+        new_project.project_path("/var/projects/" + "a" * 4096, "Show")
+    assert raised.value.key == "error.project.bad_parent"
     (tmp_path / "Show.kuulas").mkdir()
     with pytest.raises(EditError) as raised:
         new_project.project_path(str(tmp_path), "Show")
@@ -129,6 +132,7 @@ BAD_FOLDERS = [
     "a\0.kuulas",
     "",
     "/nope/S.kuulas",
+    "/var/projects/" + "a" * 4096 + ".kuulas",
 ]
 
 
@@ -163,3 +167,19 @@ def test_a_real_project_folder_opens_in_a_new_window(monkeypatch, tmp_path):
     args, kwargs = spawned[0]
     assert args[0][-2:] == ["open", "."]
     assert kwargs["cwd"] == str(project.resolve())
+
+
+def test_checked_project_folder_rejects_oversized_path(monkeypatch):
+    monkeypatch.setattr("os.path.isdir", lambda _p: True)
+    monkeypatch.setattr("os.path.realpath", lambda p: p)
+    with pytest.raises(EditError) as raised:
+        new_project.checked_project_folder("/var/projects/" + "a" * 5000 + ".kuulas")
+    assert raised.value.key == "error.project.bad_parent"
+
+
+def test_project_path_rejects_oversized_parent(monkeypatch):
+    monkeypatch.setattr("os.path.isdir", lambda _p: True)
+    monkeypatch.setattr("os.path.realpath", lambda p: p)
+    with pytest.raises(EditError) as raised:
+        new_project.project_path("/var/projects/" + "a" * 5000, "Show")
+    assert raised.value.key == "error.project.bad_parent"

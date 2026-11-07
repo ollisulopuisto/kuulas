@@ -20,6 +20,7 @@ from .ops import EditError
 
 SUFFIX = ".kuulas"
 MAX_NAME = 100
+MAX_PATH = 4096
 _FORBIDDEN = "/\\\0<>:\"|?*"
 
 
@@ -41,7 +42,8 @@ def project_path(parent: object, name: object) -> Path:
     an existing folder without ``..`` (``error.project.bad_parent``), and nothing is
     there yet (``error.project.exists``). Nothing is created."""
     folder = folder_name(name)
-    if not isinstance(parent, str) or not parent.strip() or "\0" in parent:
+    if (not isinstance(parent, str) or not parent.strip() or "\0" in parent
+            or len(parent) > MAX_PATH):
         raise EditError("error.project.bad_parent", path=str(parent)[:200])
     raw_parent = Path(parent)
     if not raw_parent.is_absolute() or ".." in raw_parent.parts:
@@ -85,7 +87,7 @@ def checked_project_folder(folder: object) -> str:
     checked before it goes on a command line: no option-like text, no NUL, absolute,
     real."""
     if (not isinstance(folder, str) or not folder or "\0" in folder
-            or folder.startswith("-")):
+            or folder.startswith("-") or len(folder) > MAX_PATH):
         raise EditError("error.project.bad_parent", path=str(folder)[:200])
     raw_path = Path(folder)
     if not raw_path.is_absolute() or raw_path.suffix != SUFFIX or ".." in raw_path.parts:
