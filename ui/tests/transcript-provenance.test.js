@@ -24,12 +24,18 @@ test("rerun repeats known settings and falls back safely for imported transcript
     { backend: "colab", model: "large-v3", language: "fi", localEngine: "whisper" },
   );
   assert.deepEqual(rerunOptions({ tool: "nhsx" }), {
-    backend: "local", model: undefined, language: undefined, localEngine: "whisper",
+    backend: "local",
+    model: undefined,
+    language: undefined,
+    localEngine: "whisper",
   });
 });
 
 test("rerunning an Orukeet transcript keeps the local engine", () => {
   assert.deepEqual(rerunOptions({ backend: "local", tool: "orukeet", model: "small" }), {
-    backend: "local", model: "small", language: undefined, localEngine: "orukeet",
+    backend: "local",
+    model: "small",
+    language: undefined,
+    localEngine: "orukeet",
   });
 });

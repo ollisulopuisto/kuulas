@@ -12,7 +12,6 @@ import { setIcon } from "./icons.js";
 import { implicitMarkPlan } from "./marks.js";
 import { canShow, removedSummary, statusKey } from "./material-hits.js";
 import { canPutBack, commandArgs, describePlan } from "./put-back-model.js";
-import { provenanceLabel, rerunOptions } from "./transcript-provenance.js";
 import { musicNote } from "./transcribable.js";
 import {
   currentPosition,
@@ -55,6 +54,7 @@ import {
   wordRefs,
 } from "./transcript-model.js";
 import { anyActive, colabAuthState, offerRows } from "./transcript-offer.js";
+import { provenanceLabel, rerunOptions } from "./transcript-provenance.js";
 
 const MARGIN_PX = 600;
 const PREVIEW_DELAY_MS = 120;
@@ -342,16 +342,19 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     for (const [id, item] of entries) {
       const row = el("div", "tx-provenance-row");
       const name = mediaById.get(id).name;
-      const label = el("span", "tx-provenance-label", provenanceLabel(
-        item.engine,
-        item.created_utc,
-        t,
-        (value) => {
+      const label = el(
+        "span",
+        "tx-provenance-label",
+        provenanceLabel(item.engine, item.created_utc, t, (value) => {
           const date = new Date(value);
-          return Number.isNaN(date.getTime()) ? t("ui.transcript.time_unknown") :
-            new Intl.DateTimeFormat(getLanguage(), { dateStyle: "medium", timeStyle: "short" }).format(date);
-        },
-      ));
+          return Number.isNaN(date.getTime())
+            ? t("ui.transcript.time_unknown")
+            : new Intl.DateTimeFormat(getLanguage(), {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }).format(date);
+        }),
+      );
       label.title = name;
       const rerun = el("button", "button tx-rerun", t("ui.transcript.rerun"));
       rerun.type = "button";
@@ -444,14 +447,17 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     return item;
   }
 
-  async function transcribe(onlyIds, {
-    force = false,
-    localEngine = "whisper",
-    backend = "local",
-    model,
-    language,
-    overwriteConfirmed = false,
-  } = {}) {
+  async function transcribe(
+    onlyIds,
+    {
+      force = false,
+      localEngine = "whisper",
+      backend = "local",
+      model,
+      language,
+      overwriteConfirmed = false,
+    } = {},
+  ) {
     const ids = onlyIds ?? transcribeTargets().map((item) => item.id);
     if (ids.length === 0) return;
     const existing = new Set(Object.keys(getState().transcriptInfo ?? {}));
@@ -940,8 +946,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     } else if (button.dataset.act === "transcribe-colab") {
       refreshColabAuthStatus();
       void transcribe(ids, { backend: "colab" });
-    }
-    else if (button.dataset.act === "transcribe-cancel") {
+    } else if (button.dataset.act === "transcribe-cancel") {
       button.disabled = true;
       void api
         .cancelJob(button.dataset.jobId)

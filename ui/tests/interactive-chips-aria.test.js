@@ -72,3 +72,20 @@ test("rec-chip in record-view.js sets aria-label matching its title", () => {
     "rec-chip sets aria-label matching chip.title",
   );
 });
+
+test("theme button in index.html and app.js sets aria-label matching its title", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const code = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+
+  assert.match(
+    html,
+    /id="theme"[^>]*data-i18n-aria-label="ui\.theme\.title"/,
+    "theme button in index.html has data-i18n-aria-label matching ui.theme.title",
+  );
+
+  assert.match(
+    code,
+    /function applyTheme[\s\S]*?\$\("theme"\)\.setAttribute\("aria-label",\s*\$\("theme"\)\.title\)/,
+    "applyTheme in app.js sets aria-label matching title",
+  );
+});

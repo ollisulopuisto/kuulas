@@ -20,7 +20,11 @@ import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
 import { dropIndex } from "./track-drop.js";
-import { initialTrackFlyoutState, openTrackFlyoutId, trackFlyoutReducer } from "./track-header-flyout.js";
+import {
+  initialTrackFlyoutState,
+  openTrackFlyoutId,
+  trackFlyoutReducer,
+} from "./track-header-flyout.js";
 import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
