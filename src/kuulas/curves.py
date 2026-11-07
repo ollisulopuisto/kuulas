@@ -29,4 +29,14 @@ def db_curve(points, first: int, count: int) -> np.ndarray | None:
 
 
 def gain(db) -> np.ndarray | float:
+    """Linear gain from dB: ``10 ** (db / 20)``.
+
+    A scalar gain (clip, track, bus or master) is computed in pure Python so
+    the hot per-block, per-clip mixer path avoids a numpy ufunc call and the
+    per-call 0-d array allocation it forces. An envelope or automation array
+    stays vectorized through numpy. The result matches the numpy ufunc within
+    floating-point rounding.
+    """
+    if isinstance(db, (int, float, np.floating)):
+        return 10.0 ** (db / 20.0)
     return np.power(10.0, np.asarray(db) / 20.0)
