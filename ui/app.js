@@ -1841,6 +1841,7 @@ function applyTheme() {
     `ui.theme.${themeChoice === "light" || themeChoice === "dark" ? themeChoice : "system"}`,
   );
   $("theme").title = t("ui.theme.title");
+  $("theme").setAttribute("aria-label", $("theme").title);
   timeline?.refreshTheme();
   overview?.refreshTheme();
 }
