@@ -231,8 +231,8 @@ import { installTooltips } from "./tooltip.js";
 import { createTrackHeaders } from "./tracks.js";
 import { withoutMusic } from "./transcribable.js";
 import { createTranscript } from "./transcript.js";
-import { createTranscriptRerunConfirm } from "./transcript-rerun-confirm.js";
 import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
+import { createTranscriptRerunConfirm } from "./transcript-rerun-confirm.js";
 import { dispatchTranscription } from "./transcription-route.js";
 import { createTransport } from "./transport.js";
 import { noteUse, readUse, writeUse } from "./use-hints.js";
@@ -2843,13 +2843,7 @@ async function transcribeTrack(backend = "local", localEngine = "whisper") {
 /** Send local-engine requests to Colab when this Mac cannot safely run them. */
 async function transcribeLocalOrColab(
   ids,
-  {
-    backend = "local",
-    force = false,
-    localEngine = "whisper",
-    model,
-    language,
-  } = {},
+  { backend = "local", force = false, localEngine = "whisper", model, language } = {},
 ) {
   await dispatchTranscription({
     ids,

@@ -5,10 +5,12 @@ const TOOL_KEYS = {
 };
 
 export function provenanceLabel(engine = {}, createdUtc = "", t, formatTime) {
-  const backend = engine.backend ?
-    t(`ui.transcript.backend.${engine.backend}`) : t("ui.transcript.backend.unknown");
-  const tool = engine.tool ? t(TOOL_KEYS[engine.tool] ?? "ui.transcript.tool.unknown") :
-    t("ui.transcript.tool.unknown");
+  const backend = engine.backend
+    ? t(`ui.transcript.backend.${engine.backend}`)
+    : t("ui.transcript.backend.unknown");
+  const tool = engine.tool
+    ? t(TOOL_KEYS[engine.tool] ?? "ui.transcript.tool.unknown")
+    : t("ui.transcript.tool.unknown");
   return t("ui.transcript.provenance", {
     backend,
     tool,

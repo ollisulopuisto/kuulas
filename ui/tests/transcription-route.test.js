@@ -51,5 +51,8 @@ test("bulk transcription uses transcript flow and routes local requests through 
     appSource.slice(start, end),
     /transcript\.transcribe\(ids, \{ backend, localEngine \}\)/,
   );
-  assert.match(appSource, /transcribeLocal: \(ids, options\) => transcribeLocalOrColab\(ids, options\)/);
+  assert.match(
+    appSource,
+    /transcribeLocal: \(ids, options\) => transcribeLocalOrColab\(ids, options\)/,
+  );
 });
