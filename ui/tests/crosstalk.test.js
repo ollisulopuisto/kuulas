@@ -49,4 +49,43 @@ describe("cutPreview", () => {
   test("no selection, no preview", () => {
     assert.equal(cutPreview(words, [], ["anna"]), null);
   });
+
+  test("multi-track stretch: alsoWords grouped per non-owner track in scope order", () => {
+    const many = [];
+    for (let t = 0; t < 4; t += 1) {
+      const track = `spk${t}`;
+      let s = t * 2000;
+      for (let k = 0; k < 30; k += 1) {
+        many.push({ track, start: s, end: s + 400, text: `w${k}` });
+        s += 420;
+      }
+    }
+    // spk1 words 5..9 (indices 35..39) are selected; stretch covers spk0 and spk2 words inside it.
+    const preview = cutPreview(many, [35, 36, 37, 38, 39], ["spk0", "spk1", "spk2", "spk3"]);
+    assert.deepEqual(preview.range, [many[35].start, many[39].end]);
+    // alsoWords are non-selected, non-owner words overlapping the stretch, in index order.
+    const expectedAlso = [];
+    for (let i = 0; i < many.length; i += 1) {
+      if ([35, 36, 37, 38, 39].includes(i)) continue;
+      if (many[i].track === "spk1") continue;
+      if (many[i].start < many[39].end && many[i].end > many[35].start) expectedAlso.push(i);
+    }
+    assert.deepEqual(preview.alsoWords, expectedAlso);
+    // tracks appear in scope order, owners skipped, each with its own words.
+    assert.deepEqual(
+      preview.tracks.map((t) => [t.track, t.words.length]),
+      [
+        ["spk0", expectedAlso.filter((i) => many[i].track === "spk0").length],
+        ["spk2", expectedAlso.filter((i) => many[i].track === "spk2").length],
+        ["spk3", expectedAlso.filter((i) => many[i].track === "spk3").length],
+      ],
+    );
+    assert.equal(preview.nothingElse, false);
+  });
+
+  test("nothing else when scope has only the owner track", () => {
+    const preview = cutPreview(words, [1], ["anna"]);
+    assert.equal(preview.nothingElse, true);
+    assert.deepEqual(preview.tracks, []);
+  });
 });
