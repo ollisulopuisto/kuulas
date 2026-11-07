@@ -18,17 +18,27 @@ export function cutPreview(words, selected, scope, rate = 1) {
   const start = Math.min(...chosen.map((word) => word.start));
   const end = Math.max(...chosen.map((word) => word.end));
   const owners = new Set(chosen.map((word) => word.track));
+  const selectedSet = new Set(selected);
+  const scopeSet = new Set(scope);
   const alsoWords = [];
-  words.forEach((word, i) => {
-    if (owners.has(word.track) || selected.includes(i)) return;
-    if (word.start < end && word.end > start && scope.includes(word.track)) alsoWords.push(i);
-  });
-  const tracks = scope
-    .filter((track) => !owners.has(track))
-    .map((track) => ({
-      track,
-      words: alsoWords.filter((i) => words[i].track === track),
-      seconds: (end - start) / rate,
-    }));
+  for (let i = 0; i < words.length; i += 1) {
+    const word = words[i];
+    if (selectedSet.has(i) || owners.has(word.track)) continue;
+    if (word.start < end && word.end > start && scopeSet.has(word.track)) alsoWords.push(i);
+  }
+  // Group alsoWords by track in a single pass, then emit tracks in scope order
+  // (owners skipped), avoiding an O(words × scope) re-filter per track.
+  const byTrack = new Map();
+  for (const i of alsoWords) {
+    const track = words[i].track;
+    const prev = byTrack.get(track);
+    if (prev) prev.push(i);
+    else byTrack.set(track, [i]);
+  }
+  const tracks = [];
+  for (const track of scope) {
+    if (owners.has(track)) continue;
+    tracks.push({ track, words: byTrack.get(track) ?? [], seconds: (end - start) / rate });
+  }
   return { range: [start, end], alsoWords, tracks, nothingElse: tracks.length === 0 };
 }
