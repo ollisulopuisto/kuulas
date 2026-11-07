@@ -51,6 +51,8 @@ export const initialState = () => ({
   sidebarTab: "inspector",
   // The History tab's pick (a step id): what Restore (Enter) applies.
   historySelected: null,
+  // Read-only ghost clip geometry for the hovered or keyboard-focused history step.
+  historyPreview: null,
   // The step that is the current state (the head, or the step under a session marker).
   historyCurrent: null,
   // The clipboard history, newest first (GET /api/clipboard); the entry picked in the tab

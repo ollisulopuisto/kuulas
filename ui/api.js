@@ -273,6 +273,8 @@ export const getHistory = ({ limit = 100, before = null, saved = false } = {}) =
   json(
     `/api/history?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}${saved ? "&saved=1" : ""}`,
   );
+/** Read-only clip geometry for a history step: { clips: [{ track, clip, start, end }] }. */
+export const getHistoryPreview = (node) => json(`/api/history/${encodeURIComponent(node)}/preview`);
 /** Add a step equal to an older one (nothing is lost); answers like undo, plus `context`. */
 export const restore = (node) => post("/api/restore", { node });
 export const undo = () => json("/api/undo", { method: "POST" });

@@ -146,6 +146,38 @@ def test_state_shape(client):
     assert body["missing"] == []
 
 
+def test_history_step_preview_is_read_only_geometry(client, loaded, session):
+    node = session.history.head
+    clip = session.state.tracks[0].clips[0]
+    track_id = session.state.tracks[0].id
+    assert loaded["project"]["tracks"][0]["clips"][0]["id"] == clip.id
+    session.edit("move_clip", {"clip_id": clip.id, "start": 2 * RATE})
+    head = session.history.head
+    state = session.state
+    material_head = session.history.material_head
+
+    response = client.get(f"/api/history/{node}/preview")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "clips": [{"track": track_id,
+                   "clip": clip.id, "start": 0, "end": clip.length}],
+    }
+    assert session.history.head == head
+    assert session.history.material_head == material_head
+    assert session.state == state
+
+
+def test_history_preview_rejects_a_node_from_another_edit(client, loaded, session):
+    other_edit = session.history.create_edit("Other")
+    foreign_node = next(edit["head"] for edit in session.history.edits()
+                        if edit["id"] == other_edit)
+
+    response = client.get(f"/api/history/{foreign_node}/preview")
+
+    assert response.status_code == 404
+
+
 def test_edit_applies_an_op_and_returns_the_state(client, loaded):
     track = loaded["project"]["tracks"][0]["id"]
     r = client.post("/api/edit", json={"op": "set_track", "label": "quieter",

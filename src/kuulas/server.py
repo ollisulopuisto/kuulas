@@ -1529,6 +1529,10 @@ def create_app(session, engine, *, language: str | None = None,
         engine.play_preview(project, until=body.end - body.start, limit=True)
         return JSONResponse({"started": True})
 
+    @app.get("/api/history/{node}/preview")
+    def get_history_preview(node: str):
+        return JSONResponse({"clips": session.history_preview(node)})
+
     @app.get("/api/history")
     def get_history(limit: int | None = None, before: str | None = None,
                     saved: int = 0):

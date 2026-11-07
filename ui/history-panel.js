@@ -100,6 +100,9 @@ export function createHistoryPanel({
   let expanded = {}; // group and run ids the user opened (true) or closed (false)
   let rows = []; // what is drawn, from history-model.js historyRows
   const rowEls = new Map(); // id -> the drawn row
+  let hoveredStep = null;
+  let focusedStep = null;
+  let previewToken = 0;
 
   const list = el("ul", {
     class: "hist",
@@ -434,6 +437,22 @@ export function createHistoryPanel({
       .join(", ");
     if (description) node.setAttribute("aria-description", description);
     if (row.run) node.setAttribute("aria-expanded", String(row.run.expanded));
+    node.addEventListener("pointerenter", () => {
+      hoveredStep = row.id;
+      void updatePreview();
+    });
+    node.addEventListener("pointerleave", () => {
+      if (hoveredStep === row.id) hoveredStep = null;
+      void updatePreview();
+    });
+    node.addEventListener("focus", () => {
+      focusedStep = row.id;
+      void updatePreview();
+    });
+    node.addEventListener("blur", () => {
+      if (focusedStep === row.id) focusedStep = null;
+      void updatePreview();
+    });
     node.addEventListener("click", () => {
       pick(row.id);
       node.focus();
@@ -443,6 +462,24 @@ export function createHistoryPanel({
       if (row.id !== getState().historyCurrent) actions.restore(row.id);
     });
     return node;
+  }
+
+  async function updatePreview() {
+    const mine = ++previewToken;
+    const node = focusedStep ?? hoveredStep;
+    if (!node) {
+      if (getState().historyPreview !== null) setState({ historyPreview: null });
+      return;
+    }
+    try {
+      const result = await api.getHistoryPreview(node);
+      if (mine === previewToken) setState({ historyPreview: result.clips ?? [] });
+    } catch (error) {
+      if (mine === previewToken) {
+        setState({ historyPreview: null });
+        actions.showError(error);
+      }
+    }
   }
 
   /** The margin bracket from each restore row (in the current state) to its target. */
@@ -602,6 +639,18 @@ export function createHistoryPanel({
   /** Called on every state change: loads when shown, reloads when the head moved. */
   function update(state) {
     const shown = state.sidebarTab === "history" && !root.hidden && state.head;
+    if (shown && loadedHead && loadedHead !== state.head) {
+      hoveredStep = null;
+      focusedStep = null;
+      previewToken++;
+      if (state.historyPreview !== null) setState({ historyPreview: null });
+    }
+    if (!shown && (hoveredStep || focusedStep || state.historyPreview !== null)) {
+      hoveredStep = null;
+      focusedStep = null;
+      previewToken++;
+      setState({ historyPreview: null });
+    }
     if (shown && loadedHead !== state.head && requestedHead !== state.head) {
       requestedHead = state.head;
       void reload(state.head);

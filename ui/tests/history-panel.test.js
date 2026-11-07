@@ -107,9 +107,13 @@ const NODES = [
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-async function open(nodesOf = () => NODES) {
+async function open(
+  nodesOf = () => NODES,
+  { getHistoryPreview = async (node) => ({ clips: [{ clip: node }] }) } = {},
+) {
   let state = { sidebarTab: "history", head: "R", panel: "history" };
   const calls = [];
+  const actionCalls = [];
   const root = new FakeNode("section");
   const panel = createHistoryPanel({
     root,
@@ -118,12 +122,18 @@ async function open(nodesOf = () => NODES) {
         calls.push(query);
         return { nodes: query.saved ? [] : nodesOf(), more: false };
       },
+      getHistoryPreview,
     },
     getState: () => state,
     setState: (patch) => {
       state = { ...state, ...patch };
     },
-    actions: { restore() {}, undo() {}, redo() {}, showError: (e) => assert.fail(e) },
+    actions: {
+      restore: (...args) => actionCalls.push(["restore", ...args]),
+      undo: () => actionCalls.push(["undo"]),
+      redo: () => actionCalls.push(["redo"]),
+      showError: (e) => assert.fail(e),
+    },
     now: () => Date.parse("2026-10-18T17:00:00Z"),
   });
   panel.update(state);
@@ -134,7 +144,7 @@ async function open(nodesOf = () => NODES) {
   // Keys reach the panel's own listener, as they bubble up from the focused row.
   const key = (k) =>
     root.fire("keydown", { key: k, preventDefault() {}, stopPropagation() {}, target: root });
-  return { panel, root, rowsOf, row, key, calls, state: () => state };
+  return { panel, root, rowsOf, row, key, calls, actionCalls, state: () => state };
 }
 
 describe("the History tab after a Restore", () => {
@@ -238,6 +248,42 @@ describe("the History tab after a Restore", () => {
     await panel.refresh();
     assert.ok(calls.length > before);
     assert.match(row("R").text(), /Saved 14\.32/);
+  });
+
+  test("hover and keyboard focus preview a step, then clear when context ends", async () => {
+    const { row, state, panel, actionCalls } = await open();
+    row("A").fire("pointerenter");
+    await flush();
+    assert.deepEqual(state().historyPreview, [{ clip: "A" }]);
+
+    row("R").fire("focus");
+    await flush();
+    assert.deepEqual(state().historyPreview, [{ clip: "R" }]);
+
+    row("R").fire("blur");
+    row("A").fire("pointerleave");
+    assert.equal(state().historyPreview, null);
+
+    row("A").fire("focus");
+    await flush();
+    panel.update({ ...state(), sidebarTab: "inspector" });
+    assert.equal(state().historyPreview, null);
+    assert.deepEqual(actionCalls, []);
+  });
+
+  test("a slow older history preview cannot replace a newer focused step", async () => {
+    const pending = new Map();
+    const { row, state, actionCalls } = await open(() => NODES, {
+      getHistoryPreview: (node) => new Promise((resolve) => pending.set(node, resolve)),
+    });
+    row("A").fire("pointerenter");
+    row("R").fire("pointerenter");
+    pending.get("R")({ clips: [{ clip: "R" }] });
+    await flush();
+    pending.get("A")({ clips: [{ clip: "A" }] });
+    await flush();
+    assert.deepEqual(state().historyPreview, [{ clip: "R" }]);
+    assert.deepEqual(actionCalls, []);
   });
 
   test("startRename(id) picks that version and opens its name field", async () => {
