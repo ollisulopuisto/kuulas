@@ -140,6 +140,44 @@ def plan(store, project: Project) -> dict:
     }
 
 
+def consolidate_plan(store, project: Project) -> dict:
+    """Estimate the storage a used-only consolidation would retain.
+
+    The estimate scales each linked file's current size by the fraction of source
+    frames kept. Actual FLAC size varies with the audio content.
+    """
+    frames = {media_id: store.meta(media_id)["source_frames"] for media_id in store.ids()}
+    ranges = used_ranges(project, frames)
+    offline = set(store.missing())
+    media = []
+    for media_id, spans in ranges.items():
+        if not store.is_linked(media_id):
+            continue
+        meta = store.meta(media_id)
+        if media_id in offline:
+            continue
+        source_bytes = int(meta["linked_size"] or 0)
+        used_frames = sum(last - first for first, last in spans)
+        estimated_bytes = round(source_bytes * used_frames / meta["source_frames"])
+        media.append({
+            "id": media_id,
+            "name": meta["name"],
+            "ranges": [[first, last] for first, last in spans],
+            "source_bytes": source_bytes,
+            "estimated_bytes": estimated_bytes,
+            "estimated_savings_bytes": source_bytes - estimated_bytes,
+        })
+    offline_rows = [{"id": media_id, "name": store.meta(media_id)["name"]}
+                    for media_id in sorted(offline) if media_id in ranges]
+    return {
+        "media": media,
+        "handle_seconds": HANDLE_SECONDS,
+        "estimated_bytes": sum(row["estimated_bytes"] for row in media),
+        "estimated_savings_bytes": sum(row["estimated_savings_bytes"] for row in media),
+        "offline": offline_rows,
+    }
+
+
 def _write_partial(store, media_id: str, ranges: Ranges, target: Path) -> None:
     """The media at its full length, with only ``ranges`` filled in."""
     meta = store.meta(media_id)

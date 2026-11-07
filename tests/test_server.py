@@ -146,6 +146,16 @@ def test_state_shape(client):
     assert body["missing"] == []
 
 
+def test_consolidate_plan(client):
+    response = client.get("/api/media/consolidate-plan")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "media": [], "handle_seconds": 2.0, "estimated_bytes": 0,
+        "estimated_savings_bytes": 0, "offline": [],
+    }
+
+
 def test_history_step_preview_is_read_only_geometry(client, loaded, session):
     node = session.history.head
     clip = session.state.tracks[0].clips[0]

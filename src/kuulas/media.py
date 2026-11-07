@@ -51,7 +51,7 @@ import subprocess
 import tempfile
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
@@ -76,6 +76,8 @@ PEAK_FRAMES = 256
 PEAKS_ALGORITHM = "peaks@1"
 #: Decode/encode step, and the unit of the read cache.
 CHUNK_SEC = 10
+#: Maximum audio block held while writing a sparse consolidation.
+CONSOLIDATE_BLOCK = 1 << 20
 #: Decoded chunks kept in memory: 48 x 10 s of stereo float32 at 48 kHz
 #: is about 180 MB, enough for every track of a session around the playhead.
 CACHE_CHUNKS = 48
@@ -1231,7 +1233,8 @@ class MediaStore:
                          linked_series_rel=_relative(path, self.series_root))
             self._remember(self.meta(media_id)["sha256"], path)
         with self._lock:
-            old = self._handles.pop(media_id, None)
+            with self._lock:
+                old = self._handles.pop(media_id, None)
             if old:
                 old[1].close()
         return where
@@ -1446,11 +1449,28 @@ class MediaStore:
                 self._handles.pop(media_id, None)
         return found
 
-    def consolidate(self) -> list[str]:
-        """Copy every linked file into the project as lossless FLAC."""
+    def consolidate(
+        self,
+        used_ranges: Mapping[str, tuple[tuple[int, int], ...]] | None = None,
+        handle_seconds: float = 2.0,
+    ) -> list[str]:
+        """Copy linked files into the project as FLAC.
+
+        With no range map, preserve the original full, lossless consolidation path.
+        A map writes only the listed spans into a full-length file, leaving silence
+        elsewhere, and stores enough metadata to relink the original source later.
+        """
         done = []
         for media_id in self.ids():
-            if self.is_linked(media_id) and self._valid(media_id):
+            if not self.is_linked(media_id):
+                continue
+            if used_ranges is not None:
+                spans = used_ranges.get(media_id)
+                if not spans or not self._valid(media_id):
+                    continue
+                self._consolidate_used(media_id, spans, handle_seconds)
+                done.append(media_id)
+            elif self._valid(media_id):
                 self._check_writable()
                 self._linked_ok.pop(media_id, None)
                 meta = self.meta(media_id)
@@ -1462,6 +1482,72 @@ class MediaStore:
                 self.budget.discard_prefix("chunks", f"{media_id}:")
                 done.append(media_id)
         return done
+
+    def _consolidate_used(self, media_id: str, spans: tuple[tuple[int, int], ...],
+                          handle_seconds: float) -> None:
+        """Atomically replace a linked source by a full-length sparse FLAC."""
+        self._check_writable()
+        meta = self.meta(media_id)
+        total, channels = meta["source_frames"], meta["channels"]
+        clean = []
+        previous = 0
+        for first, last in spans:
+            if not isinstance(first, int) or not isinstance(last, int):
+                raise TypeError("used ranges must contain integer frame offsets")
+            if first < previous or last <= first or last > total:
+                raise ValueError(
+                    "used ranges must be sorted, non-overlapping source spans"
+                )
+            clean.append((first, last))
+            previous = last
+        if not clean:
+            return
+
+        target = self.working_file(media_id)
+        partial = target.with_name(target.name + ".partial")
+
+        def silence(out, count: int) -> None:
+            while count:
+                size = min(count, CONSOLIDATE_BLOCK)
+                out.write(np.zeros((size, channels), dtype=np.float32))
+                count -= size
+
+        try:
+            with sf.SoundFile(str(partial), "w", self.rate, channels,
+                              subtype="PCM_24", format="FLAC") as out:
+                at = 0
+                for first, last in clean:
+                    silence(out, first - at)
+                    for pos in range(first, last, CONSOLIDATE_BLOCK):
+                        count = min(CONSOLIDATE_BLOCK, last - pos)
+                        out.write(np.ascontiguousarray(self.read(media_id, pos, count).T))
+                    at = last
+                silence(out, total - at)
+
+            # The original remains authoritative until the complete FLAC is closed.
+            with self._lock:
+                old = self._handles.pop(media_id, None)
+            if old:
+                old[1].close()
+            partial.replace(target)
+            extra = json.loads(meta["extra"] or "{}")
+            extra["partial_copy"] = {
+                "ranges": [[first, last] for first, last in clean],
+                "source_size": meta["linked_size"],
+                "handle_seconds": handle_seconds,
+            }
+            self._update(
+                media_id,
+                storage="working", linked_path=None, linked_size=None,
+                linked_mtime_ns=None, linked_package_rel=None, linked_series_rel=None,
+                subtype="PCM_24", lossless=0,
+                extra=json.dumps(extra, ensure_ascii=False),
+            )
+            self._linked_ok.pop(media_id, None)
+            self._resolved_paths.pop(media_id, None)
+            self.budget.discard_prefix("chunks", f"{media_id}:")
+        finally:
+            partial.unlink(missing_ok=True)
 
     # -- reading -----------------------------------------------------------
 

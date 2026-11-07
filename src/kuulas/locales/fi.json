@@ -115,6 +115,7 @@
   "error.edit.sync_basis": "Tuntematon synkronointiperuste: {basis}.",
   "error.edit.empty_range": "Alue on tyhjä.",
   "error.edit.unknown": "Tuntematon muokkaus: {name}.",
+  "error.edit.bad_args": "Komennon argumentit eivät kelpaa.",
   "error.edit.bad_arguments": "Muokkaus {name} sai virheelliset argumentit: {detail}",
   "error.media.no_audio": "{name}:ssä ei ole äänivirtaa.",
   "error.media.decode_failed": "{name}: ffmpeg ei pystynyt purkamaan sitä: {error}",

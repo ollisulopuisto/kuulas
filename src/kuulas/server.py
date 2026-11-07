@@ -1338,6 +1338,11 @@ def create_app(session, engine, *, language: str | None = None,
         """File > Locate media… (WP39): what is missing, and what is only partly here."""
         return JSONResponse(session.media_status())
 
+    @app.get("/api/media/consolidate-plan")
+    def get_consolidate_plan():
+        """Estimate the used ranges and savings before used-only consolidation."""
+        return JSONResponse(session.consolidate_plan())
+
     @app.post("/api/media/locate")
     def post_locate_media(body: Annotated[dict[str, Any], Body()]):
         """Look under a folder for the missing media, by SHA-256; say what was found."""

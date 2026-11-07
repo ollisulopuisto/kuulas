@@ -115,6 +115,7 @@
   "error.edit.sync_basis": "Unknown sync basis: {basis}.",
   "error.edit.empty_range": "The range is empty.",
   "error.edit.unknown": "Unknown edit: {name}.",
+  "error.edit.bad_args": "The command arguments are invalid.",
   "error.edit.bad_arguments": "The edit {name} got bad arguments: {detail}",
   "error.media.no_audio": "{name} has no audio stream.",
   "error.media.decode_failed": "{name}: ffmpeg could not decode it: {error}",
