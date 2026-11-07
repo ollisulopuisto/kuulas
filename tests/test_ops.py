@@ -180,6 +180,22 @@ def test_selection_wide_edits():
     assert all(not t.clips for t in p.tracks)
 
 
+def test_delete_clips_empty_or_subset():
+    p = project_with_two_tracks()
+    assert ops.delete_clips(p, []) == p
+    p_subset = ops.delete_clips(p, ["c1"])
+    assert [c.id for c in p_subset.track("t1").clips] == []
+    assert [c.id for c in p_subset.track("t2").clips] == ["c2"]
+
+
+def test_delete_clips_unknown_clip_raises_edit_error():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.delete_clips(p, ["c1", "nonexistent"])
+    assert exc_info.value.key == "error.edit.no_clip"
+    assert exc_info.value.params == {"clip_id": "nonexistent"}
+
+
 def test_add_bus_with_track_ids_assigns_them_in_the_same_edit():
     p = ops.add_bus(project_with_two_tracks(), bus_id="b1", name="Voices",
                     track_ids=["t1", "t2"])

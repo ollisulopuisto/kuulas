@@ -924,10 +924,28 @@ def set_clips(p: Project, clip_ids, **fields) -> Project:
 
 
 def delete_clips(p: Project, clip_ids) -> Project:
-    """Delete several clips."""
-    for clip_id in clip_ids:
-        p = delete_clip(p, clip_id)
-    return p
+    """Delete several clips in a single pass without intermediate project allocations."""
+    wanted = set(clip_ids)
+    if not wanted:
+        return p
+    found: set[str] = set()
+    tracks = []
+    for t in p.tracks:
+        if any(c.id in wanted for c in t.clips):
+            new_clips = []
+            for c in t.clips:
+                if c.id in wanted:
+                    found.add(c.id)
+                else:
+                    new_clips.append(c)
+            tracks.append(replace(t, clips=tuple(new_clips)))
+        else:
+            tracks.append(t)
+    if len(found) != len(wanted):
+        for cid in clip_ids:
+            if cid not in found:
+                raise EditError("error.edit.no_clip", clip_id=cid)
+    return replace(p, tracks=tuple(tracks))
 
 
 # -- the editing keys (WP5): several clips or tracks, one undo step ----------
