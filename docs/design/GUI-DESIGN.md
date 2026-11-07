@@ -1132,8 +1132,8 @@ does the same.
 | Timecode | `.timecode` | — | `--text-xl` | tabular; Finnish comma |
 | Mode chips | `.chip.warn/.danger/.info` | hidden / shown | `--warn-*`, `--danger-*` | text, not only colour |
 | Jobs chip + popover | (planned) `jobs.js` | none, running, failed | `--accent`, `--danger-text` | cancel works by keyboard |
-| Track header | `ui/tracks.js`, `.track-header` | normal, current, compact, strip, muted, soloed, unheard, renaming | `--track-colour`, `--bus-*`, `--header-bg-current`, `--mute-on-bg`, `--solo-on-bg` | name ellipsis + tooltip; role icon has accessible name |
-| Bus header | `ui/tracks.js`, `.bus-header` | expanded, collapsed (planned in app), no members | `--bus-spine/band/text` | letter badge visible; order follows `layoutRows` |
+| Track header | `ui/tracks.js`, `.track-header` | track-colored name/M/S tab, current, compact, strip, muted, soloed, unheard, renaming; mixer flyout on hover/focus or pinned | `--track-colour`, `--bus-*`, `--header-bg-current`, `--mute-on-bg`, `--solo-on-bg` | fixed header column; flyout overlays the timeline; focus and pin state are announced |
+| Bus header | `ui/tracks.js`, `.bus-header` | compact level row, rotary pan, collapsed bus, no members | `--bus-spine/band/text` | letter badge visible; order follows `layoutRows` |
 | Bus picker | `.bus-select` (app: a native select whose option text starts with the letter, so the narrow box shows it; replace with the prototype's letter button + menu, `.bus-pick`, when menus exist) | none, bus | `--border`, `--bus-text` | shows the letter; accessible name "Track bus" |
 | Lane layout | `ui/lanes.js` | — | `--lane-h`, `--bus-h` | `lanes.test.js` |
 | Waveform layer | `ui/paint.js`, `waveform*.js` | loading tiles, drawn, current lane, bus band, zebra, clipping | track parts, `--signal-clipping`, bands | `paint.test.js`, `waveform.test.js`; < 8 ms per frame |

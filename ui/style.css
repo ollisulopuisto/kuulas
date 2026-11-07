@@ -3826,10 +3826,82 @@ input[type="text"] {
 }
 .bus-header:not(.compact) {
   display: grid;
-  grid-template-rows: 28px 36px;
+  grid-template-rows: 28px 28px;
   gap: 0;
   align-content: start;
   padding-top: 0;
+}
+
+/* The bus pan reuses the vertical range mapping of track-pan dials. */
+.bus-header .slider-control.dial {
+  display: grid;
+  grid-template: 28px / 28px;
+  flex: none;
+  width: 28px;
+  position: relative;
+}
+.bus-header .dial .slider-caption {
+  display: none;
+}
+.bus-header .dial input[type="range"] {
+  grid-area: 1 / 1;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--surface-panel) 53%,
+    var(--control-colour) 56%,
+    var(--control-colour) 63%,
+    transparent 66%
+  );
+  touch-action: none;
+  cursor: ns-resize;
+}
+.bus-header .dial input[type="range"]::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+.bus-header .dial input[type="range"]::-webkit-slider-thumb {
+  width: 0;
+  height: 0;
+  border: 0;
+  box-shadow: none;
+}
+.bus-header .dial input[type="range"]::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+.bus-header .dial input[type="range"]::-moz-range-thumb {
+  width: 0;
+  height: 0;
+  border: 0;
+}
+.bus-header .dial::after {
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 9px;
+  left: 13px;
+  top: 4px;
+  background: var(--control-colour);
+  transform-origin: 1px 10px;
+  transform: rotate(var(--dial-angle, 0deg));
+  pointer-events: none;
+}
+.bus-header .dial output {
+  display: none;
+  position: fixed;
+  min-width: 40px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  padding: 3px 6px;
+  z-index: 4;
+}
+.bus-header .dial:hover output,
+.bus-header .dial:focus-within output {
+  display: block;
 }
 
 /* The speed display is a drag handle while fast listening is on. */
@@ -6261,6 +6333,32 @@ legend.form-heading {
 .track-header.strip[data-track] .th-disclosure {
   grid-column: 3;
   width: 16px;
+  height: 16px;
+}
+.track-header[data-track] .track-tab {
+  position: relative;
+  isolation: isolate;
+  align-self: start;
+  height: 28px;
+  background: color-mix(in srgb, var(--panel-bg) 92%, var(--track-colour));
+  border-radius: 0 0 var(--radius-xs) var(--radius-xs);
+}
+.track-header[data-track] .track-tab::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - 6px);
+  bottom: -5px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 5px solid color-mix(in srgb, var(--panel-bg) 92%, var(--track-colour));
+  pointer-events: none;
+}
+.track-header.strip[data-track] .track-tab::after {
+  display: none;
+}
+.track-header.strip[data-track] .track-tab {
   height: 16px;
 }
 .track-flyout-layer {

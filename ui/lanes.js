@@ -11,9 +11,8 @@ import { placeholderAt } from "./placeholders-model.js";
 export const RULER_HEIGHT = 24;
 /** Height (px, from the lane's top) of the clip-label strip used to start a move. */
 export const MOVE_STRIP_PX = 20;
-/** tokens.css --bus-h: a bus is ONE short line (disclosure, badge, name, M, S);
- *  its levels show on hover and in the inspector (owner, 2026-10-18). Compact: 24. */
-export const BUS_HEIGHT = 68;
+/** tokens.css --bus-h: one name row and one compact level row. */
+export const BUS_HEIGHT = 56;
 /** tokens.css --group-gap: plain lane between groups, so each bus reads as a block. Compact: 6. */
 export const GROUP_GAP = 14;
 export const MIN_LANE = 24;

@@ -355,7 +355,7 @@
   --control-h-sm: 28px; /* M / S, bus picker, chips inside headers */
   --target-min: 44px; /* hit target of the main controls (WCAG 2.5.5) */
   --lane-h: 80px; /* lanes.js DEFAULT_LANE */
-  --bus-h: 68px; /* lanes.js BUS_HEIGHT: a name line and a level line */
+  --bus-h: 56px; /* lanes.js BUS_HEIGHT: a name line and a compact level line */
   --bus-collapsed-h: 40px; /* a collapsed bus: ribbons or summed waveform */
   --group-gap: 14px; /* lanes.js GROUP_GAP: plain lane between groups */
   --strip-h: 16px; /* focus-mode strips (WP28) */
@@ -406,7 +406,7 @@
   --control-h-sm: 18px;
   --target-min: 24px;
   --lane-h: 40px;
-  --bus-h: 68px;
+  --bus-h: 56px;
   --bus-collapsed-h: 32px;
   --group-gap: 6px;
   --reading-max: 72ch;
@@ -3238,8 +3238,10 @@ const HELP_FILES = {
   "cmd.app.save_named": "Save a named version",
   "cmd.app.open_earlier_version": "Open earlier version…",
   "cmd.app.backup_now": "Back up now",
-  "cmd.app.transcribe": "Transcribe the track on this computer",
-  "cmd.app.transcribe_all": "Transcribe every recording on this computer",
+  "cmd.app.transcribe": "Transcribe the track locally with Whisper · more accurate",
+  "cmd.app.transcribe_all": "Transcribe every recording locally with Whisper · more accurate",
+  "cmd.app.transcribe_orukeet": "Transcribe the track locally with Orukeet · faster",
+  "cmd.app.transcribe_all_orukeet": "Transcribe every recording locally with Orukeet · faster",
   "cmd.app.automix": "Duck the microphones (automation)",
   "cmd.app.auto_silence": "Auto-Silence",
   "cmd.palette.open": "Command palette",
@@ -3631,6 +3633,8 @@ const HELP_FILES = {
   "cmd.app.auto_silence.hint": "Closes each speech microphone where its owner is not talking (and where another microphone is louder), as one merged gate per track; the clips are not cut and the gate can be opened again with Open this stretch. One undo step.",
   "cmd.app.transcribe.hint": "Transcribes the focused track's recordings (every speech track when no track is focused) into words you can read, search and edit by text.",
   "cmd.app.transcribe_all.hint": "Transcribes every recording used on any track (music-only recordings stay untouched) into words you can read, search and edit by text.",
+  "cmd.app.transcribe_orukeet.hint": "Transcribes locally with Orukeet. It is faster; Whisper is the default and is more accurate.",
+  "cmd.app.transcribe_all_orukeet.hint": "Transcribes every recording locally with Orukeet. It is faster; Whisper is the default and is more accurate.",
   "cmd.edit.move_up.hint": "Moves the selected clips one track up, keeping their time. Anything they land on is replaced (no layers). One undo step.",
   "cmd.edit.move_down.hint": "Moves the selected clips one track down, keeping their time. Anything they land on is replaced (no layers). One undo step.",
   "cmd.export.automix_log": "Show automixer log…",
@@ -3918,8 +3922,10 @@ const HELP_FILES = {
   "cmd.app.save_named": "Tallenna nimetty versio",
   "cmd.app.open_earlier_version": "Avaa aiempi versio…",
   "cmd.app.backup_now": "Varmuuskopioi nyt",
-  "cmd.app.transcribe": "Litteroi raita tällä tietokoneella",
-  "cmd.app.transcribe_all": "Litteroi jokainen äänite tällä tietokoneella",
+  "cmd.app.transcribe": "Litteroi raita paikallisesti Whisperillä · tarkempi",
+  "cmd.app.transcribe_all": "Litteroi jokainen äänite paikallisesti Whisperillä · tarkempi",
+  "cmd.app.transcribe_orukeet": "Litteroi raita paikallisesti Orukeetilla · nopeampi",
+  "cmd.app.transcribe_all_orukeet": "Litteroi jokainen äänite paikallisesti Orukeetilla · nopeampi",
   "cmd.app.automix": "Vaimenna mikit (automaatio)",
   "cmd.app.auto_silence": "Hiljennä tauot automaattisesti",
   "cmd.palette.open": "Komentopaletti",
@@ -4311,6 +4317,8 @@ const HELP_FILES = {
   "cmd.app.auto_silence.hint": "Sulkee jokaisen puhemikrofonin kohdissa, joissa sen omistaja ei puhu (ja joissa toinen mikrofoni on voimakkaampi), yhtenä yhdistettynä porttina raitaa kohti; leikkeitä ei jaeta, ja portin voi avata uudelleen komennolla Avaa tämä kohta. Yksi kumoamisaskel.",
   "cmd.app.transcribe.hint": "Litteroi kohdistetun raidan äänitteet (kaikki puheraidat, jos mitään raitaa ei ole kohdistettu) sanoiksi, joita voi lukea, hakea ja muokata tekstinä.",
   "cmd.app.transcribe_all.hint": "Litteroi projektin jokaisen raidan äänitteet (musiikkiraitojen omat äänitteet pois lukien) sanoiksi, joita voi lukea, hakea ja muokata tekstinä.",
+  "cmd.app.transcribe_orukeet.hint": "Litteroi paikallisesti Orukeetilla. Se on nopeampi; oletuksena käytetään tarkempaa Whisperiä.",
+  "cmd.app.transcribe_all_orukeet.hint": "Litteroi kaikki äänitteet paikallisesti Orukeetilla. Se on nopeampi; oletuksena käytetään tarkempaa Whisperiä.",
   "cmd.edit.move_up.hint": "Siirtää valitut leikkeet yhden raidan ylöspäin ajan säilyessä. Mihin ne osuvat, korvautuu (ei kerroksia). Yksi kumoamisaskel.",
   "cmd.edit.move_down.hint": "Siirtää valitut leikkeet yhden raidan alaspäin ajan säilyessä. Mihin ne osuvat, korvautuu (ei kerroksia). Yksi kumoamisaskel.",
   "cmd.export.automix_log": "Näytä automixerin loki…",

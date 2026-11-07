@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   initialTrackFlyoutState,
   openTrackFlyoutId,
+  TRACK_FLYOUT_CLOSE_DELAY_MS,
   trackFlyoutReducer,
 } from "../track-header-flyout.js";
 
@@ -35,6 +36,10 @@ test("Escape closes a pinned or transient flyout", () => {
   let state = apply(initialTrackFlyoutState(), "pin");
   state = apply(state, "escape");
   assert.equal(openTrackFlyoutId(state), null);
+});
+
+test("the close delay leaves time to move from the tab into the controls", () => {
+  assert.equal(TRACK_FLYOUT_CLOSE_DELAY_MS, 140);
 });
 
 test("the explicit pin belongs to only one track at a time", () => {
