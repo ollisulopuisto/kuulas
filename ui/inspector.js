@@ -39,6 +39,18 @@ export function selectedClip(state) {
   return null;
 }
 
+/** The source and voice-chain variant for a clip's current media, if both exist. */
+export function voiceChainPair(project, media) {
+  if (!project || !media) return null;
+  const sourceId = media.variant === "voice chain" ? media.variant_of : media.id;
+  if (!sourceId) return null;
+  const source = project.media.find((item) => item.id === sourceId);
+  const variant = project.media.find(
+    (item) => item.variant_of === sourceId && item.variant === "voice chain",
+  );
+  return source && variant ? { sourceId, variantId: variant.id } : null;
+}
+
 /** Which sections start open: Track/Bus, Level and Sync; Source (one-line summary) and the rest wait to be asked for. */
 const SECTION_DEFAULTS = {
   track: true,
@@ -209,6 +221,28 @@ export function createInspector({
     length.className = "inspector-readonly";
     root.append(field(t("ui.clip.length"), length));
 
+    const voicePair = voiceChainPair(state.project, found.media);
+    let processed = null;
+    if (voicePair) {
+      processed = document.createElement("input");
+      processed.type = "checkbox";
+      processed.className = "inspector-processed";
+      processed.setAttribute("aria-label", t("ui.clip.processed"));
+      processed.addEventListener("change", () => {
+        const selected = selectedClip(latestState);
+        const pair = voiceChainPair(latestState?.project, selected?.media);
+        if (!pair || selected.clip.id !== id) return;
+        editor.change({
+          op: "use_variant",
+          args: {
+            clip_ids: [id],
+            media_id: processed.checked ? pair.variantId : pair.sourceId,
+          },
+        });
+      });
+      root.append(field(t("ui.clip.processed"), processed));
+    }
+
     let into = root;
     const number = (name, range, toModel) => {
       const input = document.createElement("input");
@@ -321,6 +355,7 @@ export function createInspector({
       fadeIn,
       fadeOut,
       muted,
+      processed,
       micOpen,
       sync,
       readout,
@@ -342,6 +377,8 @@ export function createInspector({
     // names and values are refreshed in place (typing keeps its focus).
     const next = [
       found?.clip.id ?? "",
+      found?.clip.media ?? "",
+      voiceChainPair(state.project, found?.media)?.variantId ?? "",
       target.track?.id ?? "",
       target.track?.kind ?? "",
       target.bus?.bus.id ?? "",
@@ -372,6 +409,10 @@ export function createInspector({
     setNumber(parts.fadeIn, Math.round((clip.fade_in * 1000) / parts.rate));
     setNumber(parts.fadeOut, Math.round((clip.fade_out * 1000) / parts.rate));
     parts.muted.checked = Boolean(clip.muted);
+    if (parts.processed) {
+      const pair = voiceChainPair(state.project, media);
+      parts.processed.checked = Boolean(pair && clip.media === pair.variantId);
+    }
     parts.micOpen.hidden = !clip.ungated;
     const where = group ? t("ui.clip.sync.group", { id: group.id }) : t("ui.clip.sync.none");
     const home = homeNameFor(state.project, clip, found.track.id);

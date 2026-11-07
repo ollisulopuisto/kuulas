@@ -511,6 +511,7 @@
   "ui.clip.fade_in": "Sisäänhäivytys (ms)",
   "ui.clip.fade_out": "Uloshäivytys (ms)",
   "ui.clip.muted": "Mykistä leike",
+  "ui.clip.processed": "Käsitelty",
   "ui.clip.length": "Pituus",
   "ui.focus.tracks": "Raidat",
   "ui.focus.timeline": "Aikajana",

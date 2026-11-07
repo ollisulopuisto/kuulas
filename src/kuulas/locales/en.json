@@ -515,6 +515,7 @@
   "ui.clip.fade_in": "Fade in (ms)",
   "ui.clip.fade_out": "Fade out (ms)",
   "ui.clip.muted": "Mute clip",
+  "ui.clip.processed": "Processed",
   "ui.clip.length": "Length",
   "ui.focus.tracks": "Tracks",
   "ui.focus.timeline": "Timeline",
