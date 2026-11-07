@@ -55,6 +55,7 @@ import {
 } from "./ghost-wave.js";
 import { busHues, fileMark, needsFileMark, ribbonLayout, seamKind } from "./grammar.js";
 import { groupOutlines } from "./group-outline.js";
+import { drawHistoryPreview, historyPreviewBoxes } from "./history-preview.js";
 import { detectPlatform, formatNumber, t } from "./i18n.js";
 import { ICONS } from "./icons.js";
 import { dropGhosts, dropLabel, resolveDropTarget } from "./import-drop.js";
@@ -325,6 +326,14 @@ export function createTimeline({
         if (look.veil > 0) drawVeil(row, top, width, look.veil);
       } else drawBusRow(state, row, top, groups, hues);
     }
+    drawHistoryPreview(
+      overlay,
+      historyPreviewBoxes(state.historyPreview, {
+        layout,
+        view: { ...state, width, height },
+      }),
+      theme.accent,
+    );
     drawGroupOutlines(state, layout);
     drawRuler(state, rate);
     overlay.save();

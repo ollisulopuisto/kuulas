@@ -483,6 +483,17 @@ class Session:
         finally:
             reader.close()
 
+    def history_preview(self, node: str) -> list[dict]:
+        """Clip geometry for one history step in this edit; never move its head."""
+        with self.lock:
+            project = self.history.project_at(node)
+            return [
+                {"track": track.id, "clip": clip.id, "start": clip.start,
+                 "end": clip.start + clip.length}
+                for track in project.tracks
+                for clip in track.clips
+            ]
+
     def part_preview(self, node: str, track_id: str, start: int, end: int) -> Project:
         """A temporary excerpt; preview does not commit or move the timeline."""
         with self.lock:
