@@ -57,6 +57,16 @@ def test_disposition_keeps_the_real_name():
     assert "filename*=UTF-8''P%C3%A4%C3%A4editio%20x.srt" in d
 
 
+def test_disposition_sanitizes_crlf_and_control_characters():
+    d = export_names.disposition("show\r\nInjected: evil\r\n\r\nname\x00\x1f.txt")
+    assert "\r" not in d
+    assert "\n" not in d
+    assert "\x00" not in d
+    assert "\x1f" not in d
+    assert d.startswith('attachment; filename="show--Injected: evil----name--.txt"')
+    assert "filename*=UTF-8''show--Injected%3A%20evil----name--.txt" in d
+
+
 def test_mix_export_leads_with_the_project(session, tmp_path):
     out = tmp_path / "out"
     r = export.run(session, {"kind": "mix", "folder": str(out)})

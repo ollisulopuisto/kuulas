@@ -62,6 +62,8 @@ def migrate_template(template: str) -> str:
 def disposition(name: str) -> str:
     """A Content-Disposition for a download: an ASCII fallback plus the real
     UTF-8 name (RFC 5987), since project names have ä and ö."""
-    plain = name.encode("ascii", "replace").decode()
+    # Strip CRLF and control characters to prevent HTTP header injection.
+    clean = "".join("-" if ord(c) < 32 or ord(c) == 127 else c for c in name)
+    plain = clean.encode("ascii", "replace").decode()
     plain = plain.replace("?", "_").replace('"', "_").replace("\\", "_")
-    return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name)}"
+    return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(clean)}"
