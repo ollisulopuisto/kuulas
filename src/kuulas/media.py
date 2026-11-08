@@ -51,7 +51,7 @@ import subprocess
 import tempfile
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
@@ -76,6 +76,8 @@ PEAK_FRAMES = 256
 PEAKS_ALGORITHM = "peaks@1"
 #: Decode/encode step, and the unit of the read cache.
 CHUNK_SEC = 10
+#: Maximum audio block held while writing a sparse consolidation.
+CONSOLIDATE_BLOCK = 1 << 20
 #: Decoded chunks kept in memory: 48 x 10 s of stereo float32 at 48 kHz
 #: is about 180 MB, enough for every track of a session around the playhead.
 CACHE_CHUNKS = 48
@@ -1358,6 +1360,15 @@ class MediaStore:
         info = json.loads(self.meta(media_id)["extra"] or "{}").get("partial_copy")
         return info if isinstance(info, dict) else None
 
+    def cache_identity(self, media_id: str) -> str:
+        """Hash of the audio currently stored, distinct from its full-source hash."""
+        meta = self.meta(media_id)
+        partial = self.partial_info(media_id)
+        if partial is None:
+            return meta["sha256"]
+        return caches.key([meta["sha256"]], {"ranges": partial.get("ranges")},
+                          "partial-media@1")
+
     def _adopt_full(self, media_id: str, path: Path) -> str:
         """Replace a partial copy by the whole file it was cut from, checked by
         hash. Returns the path used, or "" when the file is not that media."""
@@ -1387,11 +1398,8 @@ class MediaStore:
                 old[1].close()
         self.budget.discard_prefix("chunks", f"{media_id}:")
         self.working_file(media_id).unlink(missing_ok=True)
-        # Peaks, onsets and analysis made from the partial file are keyed by the
-        # same hash as the whole one would be, so they must go. Caches are
-        # rebuildable by definition.
-        for kind in caches.KINDS:
-            shutil.rmtree(self.cache_root / kind, ignore_errors=True)
+        # Partial-file analyses have a distinct identity; full-source caches
+        # remain valid and can be reused if the original is relinked.
         return str(path)
 
     def relink(self, search: str | Path | None = None) -> dict[str, str]:
@@ -1446,11 +1454,28 @@ class MediaStore:
                 self._handles.pop(media_id, None)
         return found
 
-    def consolidate(self) -> list[str]:
-        """Copy every linked file into the project as lossless FLAC."""
+    def consolidate(
+        self,
+        used_ranges: Mapping[str, tuple[tuple[int, int], ...]] | None = None,
+        handle_seconds: float = 2.0,
+    ) -> list[str]:
+        """Copy linked files into the project as FLAC.
+
+        With no range map, preserve the original full, lossless consolidation path.
+        A map writes only the listed spans into a full-length file, leaving silence
+        elsewhere, and stores enough metadata to relink the original source later.
+        """
         done = []
         for media_id in self.ids():
-            if self.is_linked(media_id) and self._valid(media_id):
+            if not self.is_linked(media_id):
+                continue
+            if used_ranges is not None:
+                spans = used_ranges.get(media_id)
+                if not spans or not self._valid(media_id):
+                    continue
+                self._consolidate_used(media_id, spans, handle_seconds)
+                done.append(media_id)
+            elif self._valid(media_id):
                 self._check_writable()
                 self._linked_ok.pop(media_id, None)
                 meta = self.meta(media_id)
@@ -1462,6 +1487,70 @@ class MediaStore:
                 self.budget.discard_prefix("chunks", f"{media_id}:")
                 done.append(media_id)
         return done
+
+    def _consolidate_used(self, media_id: str, spans: tuple[tuple[int, int], ...],
+                          handle_seconds: float) -> None:
+        """Atomically replace a linked source by a full-length sparse FLAC."""
+        self._check_writable()
+        meta = self.meta(media_id)
+        total, channels = meta["source_frames"], meta["channels"]
+        clean = []
+        previous = 0
+        for first, last in spans:
+            if not isinstance(first, int) or not isinstance(last, int):
+                raise TypeError
+            if first < previous or last <= first or last > total:
+                raise ValueError
+            clean.append((first, last))
+            previous = last
+        if not clean:
+            return
+
+        target = self.working_file(media_id)
+        partial = target.with_name(target.name + ".partial")
+
+        def silence(out, count: int) -> None:
+            while count:
+                size = min(count, CONSOLIDATE_BLOCK)
+                out.write(np.zeros((size, channels), dtype=np.float32))
+                count -= size
+
+        try:
+            with sf.SoundFile(str(partial), "w", self.rate, channels,
+                              subtype="PCM_24", format="FLAC") as out:
+                at = 0
+                for first, last in clean:
+                    silence(out, first - at)
+                    for pos in range(first, last, CONSOLIDATE_BLOCK):
+                        count = min(CONSOLIDATE_BLOCK, last - pos)
+                        out.write(np.ascontiguousarray(self.read(media_id, pos, count).T))
+                    at = last
+                silence(out, total - at)
+
+            # The original remains authoritative until the complete FLAC is closed.
+            with self._lock:
+                old = self._handles.pop(media_id, None)
+            if old:
+                old[1].close()
+            partial.replace(target)
+            extra = json.loads(meta["extra"] or "{}")
+            extra["partial_copy"] = {
+                "ranges": [[first, last] for first, last in clean],
+                "source_size": meta["linked_size"],
+                "handle_seconds": handle_seconds,
+            }
+            self._update(
+                media_id,
+                storage="working", linked_path=None, linked_size=None,
+                linked_mtime_ns=None, linked_package_rel=None, linked_series_rel=None,
+                subtype="PCM_24", lossless=0,
+                extra=json.dumps(extra, ensure_ascii=False),
+            )
+            self._linked_ok.pop(media_id, None)
+            self._resolved_paths.pop(media_id, None)
+            self.budget.discard_prefix("chunks", f"{media_id}:")
+        finally:
+            partial.unlink(missing_ok=True)
 
     # -- reading -----------------------------------------------------------
 
@@ -1558,7 +1647,8 @@ class MediaStore:
 
     def _base_peaks(self, media_id: str) -> np.ndarray:
         meta = self.meta(media_id)
-        where = self._peaks_path(meta["sha256"])
+        identity = self.cache_identity(media_id)
+        where = self._peaks_path(identity)
         try:
             return np.load(where)
         except (OSError, ValueError, EOFError):
@@ -1582,7 +1672,7 @@ class MediaStore:
         base = np.concatenate(peaks) if peaks else np.zeros((0, 2), np.float32)
         # A missing linked file reads as silence: show it, but never cache it.
         if not self._unreadable(media_id):
-            self._save_peaks(meta["sha256"], base)
+            self._save_peaks(identity, base)
         return base
 
     # -- caches per recording (WP36) -----------------------------------------
@@ -1604,9 +1694,8 @@ class MediaStore:
 
     def pyramid(self, media_id: str) -> dict[int, np.ndarray]:
         """``{frames per peak: (n, 2) min/max}`` for every level of the pyramid."""
-        meta = self.meta(media_id)
         try:
-            key = peak_pyramid.pyramid_key(meta["sha256"], self.rate)
+            key = peak_pyramid.pyramid_key(self.cache_identity(media_id), self.rate)
         except caches.CacheKeyError:
             log.warning(t("log.cache.no_key", kind="pyramid", media_id=media_id))
             return peak_pyramid.build(self._base_peaks(media_id))
@@ -1630,7 +1719,7 @@ class MediaStore:
     def peak_tile(self, media_id: str, level: int, index: int) -> tuple[bytes, str]:
         """One tile of one level as ``(bytes, ETag)``; WP3 serves it over HTTP."""
         levels_ = self.pyramid(media_id)
-        key = peak_pyramid.pyramid_key(self.meta(media_id)["sha256"], self.rate)
+        key = peak_pyramid.pyramid_key(self.cache_identity(media_id), self.rate)
         return peak_pyramid.tile(levels_, key, level, index)
 
     def envelope(self, media_id: str, block: int) -> np.ndarray | None:
@@ -1642,7 +1731,8 @@ class MediaStore:
         if self._unreadable(media_id):
             return None
         try:
-            key = caches.key([meta["sha256"]], {"block": block, "rate": self.rate},
+            key = caches.key([self.cache_identity(media_id)],
+                             {"block": block, "rate": self.rate},
                              levels.ALGORITHM)
         except caches.CacheKeyError:
             log.warning(t("log.cache.no_key", kind="levels", media_id=media_id))

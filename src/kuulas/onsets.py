@@ -200,7 +200,7 @@ def onsets_for_media(store: MediaStore, media_id: str) -> np.ndarray | None:
         return None
 
     try:
-        key = cache_key(meta["sha256"], store.rate)
+        key = cache_key(store.cache_identity(media_id), store.rate)
     except caches.CacheKeyError:
         log.warning(t("log.cache.no_key", kind="onsets", media_id=media_id))
         return None

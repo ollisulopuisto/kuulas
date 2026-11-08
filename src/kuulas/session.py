@@ -2071,6 +2071,17 @@ class Session:
             state = self.history.state
         return send_copy_module.plan(self.store, state)
 
+    def consolidate_plan(self) -> dict:
+        """Estimate the used ranges and space saved by used-only consolidation."""
+        with self.lock:
+            state = self.history.state
+            frames = {media_id: self.store.meta(media_id)["source_frames"]
+                      for media_id in self.store.ids()}
+            ranges = send_copy_module.consolidation_ranges(
+                state, self.history.edit_states(), frames
+            )
+        return send_copy_module.consolidate_plan(self.store, state, ranges)
+
     def send_copy(self, folder: str, media: str = "used") -> dict:
         """File > Send a copy… (WP32): write a copy of the project into ``folder`` with
         ``media`` = none | used | all. This history gets a ``sent`` checkpoint first (when
@@ -3888,9 +3899,20 @@ def _relink(s: Session, args: dict) -> Project:
     return s.history.state
 
 
-def _consolidate(s: Session, _args: dict) -> Project:
+def _consolidate(s: Session, args: dict) -> Project:
     """Copy linked media into the project. Not an edit: the project is the same."""
-    done = s.store.consolidate()
+    used_only = args.get("used_only", False)
+    if not isinstance(used_only, bool):
+        raise ops.EditError("error.edit.bad_args")
+    if used_only:
+        frames = {media_id: s.store.meta(media_id)["source_frames"]
+                  for media_id in s.store.ids()}
+        ranges = send_copy_module.consolidation_ranges(
+            s.history.state, s.history.edit_states(), frames
+        )
+        done = s.store.consolidate(ranges, send_copy_module.HANDLE_SECONDS)
+    else:
+        done = s.store.consolidate()
     log.info(t("log.session.consolidated", count=len(done)))
     return s.history.state
 

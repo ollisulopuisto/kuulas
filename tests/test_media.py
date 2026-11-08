@@ -1,6 +1,7 @@
 import os
 import struct
 import subprocess
+import threading
 from types import SimpleNamespace
 
 import numpy as np
@@ -306,6 +307,29 @@ def test_transcription_uses_verified_resolved_path_after_project_move(tmp_path):
     old.rename(moved)
     assert store._accept_path(media.id, moved / "voice.wav", persist=False)
     assert store.transcription_path(media.id) == moved / "voice.wav"
+
+
+def test_relinking_a_moved_file_closes_an_open_handle_without_hanging(tmp_path):
+    src = tmp_path / "voice.wav"
+    write_int16(src, np.full((1, 4800), 0.25, dtype=np.float32), 48000)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src)
+    store.read(media.id, 0, 10)  # Make the store hold an open SoundFile handle.
+    moved = tmp_path / "moved"
+    moved.mkdir()
+    new_path = moved / src.name
+    src.rename(new_path)
+
+    result = []
+    worker = threading.Thread(
+        target=lambda: result.append(store._accept_path(media.id, new_path)), daemon=True
+    )
+    worker.start()
+    worker.join(timeout=1)
+
+    assert not worker.is_alive(), "relink should release its handle without deadlocking"
+    assert result == [str(new_path.resolve())]
+    assert store.read(media.id, 0, 10).any()
 
 def test_a_linked_file_that_changed_is_not_played(tmp_path):
     src = tmp_path / "voice.wav"

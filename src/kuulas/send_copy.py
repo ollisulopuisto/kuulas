@@ -27,7 +27,7 @@ import os
 import secrets
 import shutil
 import sqlite3
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 
 import numpy as np
@@ -85,6 +85,39 @@ def used_ranges(project: Project, frames: Mapping[str, int],
     return out
 
 
+def used_ranges_for_projects(projects: Iterable[Project], frames: Mapping[str, int],
+                             handle_seconds: float = HANDLE_SECONDS) -> dict[str, Ranges]:
+    """Union the source ranges used by saved project states.
+
+    Used-only consolidation changes shared media. Keep ranges used by any undo
+    snapshot or alternate edit, not just the edit currently on screen.
+    """
+    spans_by_media: dict[str, list[tuple[int, int]]] = {}
+    for project in projects:
+        for media_id, spans in used_ranges(project, frames, handle_seconds).items():
+            spans_by_media.setdefault(media_id, []).extend(spans)
+
+    out: dict[str, Ranges] = {}
+    for media_id, spans in spans_by_media.items():
+        merged: list[tuple[int, int]] = []
+        for first, last in sorted(spans):
+            if merged and first <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], last))
+            else:
+                merged.append((first, last))
+        out[media_id] = tuple(merged)
+    return out
+
+
+def consolidation_ranges(project: Project, saved_projects: Iterable[Project],
+                         frames: Mapping[str, int],
+                         handle_seconds: float = HANDLE_SECONDS) -> dict[str, Ranges]:
+    """Ranges a used-only operation may discard, scoped to current media use."""
+    current = used_ranges(project, frames, handle_seconds)
+    reachable = used_ranges_for_projects(saved_projects, frames, handle_seconds)
+    return {media_id: reachable[media_id] for media_id in current}
+
+
 def _file_size(path: Path) -> int:
     try:
         return path.stat().st_size
@@ -137,6 +170,47 @@ def plan(store, project: Project) -> dict:
                 "media": len(sorted_["own"]) + len(sorted_["linked"])},
         "offline": [{"id": m, "name": store.meta(m)["name"]} for m in sorted_["offline"]],
         "handle_seconds": HANDLE_SECONDS,
+    }
+
+
+def consolidate_plan(store, project: Project,
+                     ranges: Mapping[str, Ranges] | None = None) -> dict:
+    """Estimate the storage a used-only consolidation would retain.
+
+    The estimate scales each linked file's current size by the fraction of source
+    frames kept. Actual FLAC size varies with the audio content.
+    """
+    if ranges is None:
+        frames = {media_id: store.meta(media_id)["source_frames"]
+                  for media_id in store.ids()}
+        ranges = used_ranges(project, frames)
+    offline = set(store.missing())
+    media = []
+    for media_id, spans in ranges.items():
+        if not store.is_linked(media_id):
+            continue
+        meta = store.meta(media_id)
+        if media_id in offline:
+            continue
+        source_bytes = int(meta["linked_size"] or 0)
+        used_frames = sum(last - first for first, last in spans)
+        estimated_bytes = round(source_bytes * used_frames / meta["source_frames"])
+        media.append({
+            "id": media_id,
+            "name": meta["name"],
+            "ranges": [[first, last] for first, last in spans],
+            "source_bytes": source_bytes,
+            "estimated_bytes": estimated_bytes,
+            "estimated_savings_bytes": source_bytes - estimated_bytes,
+        })
+    offline_rows = [{"id": media_id, "name": store.meta(media_id)["name"]}
+                    for media_id in sorted(offline) if media_id in ranges]
+    return {
+        "media": media,
+        "handle_seconds": HANDLE_SECONDS,
+        "estimated_bytes": sum(row["estimated_bytes"] for row in media),
+        "estimated_savings_bytes": sum(row["estimated_savings_bytes"] for row in media),
+        "offline": offline_rows,
     }
 
 
