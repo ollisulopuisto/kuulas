@@ -63,12 +63,32 @@ def test_consolidate_plan_reports_used_ranges_and_estimated_savings(session, tmp
     assert plan["estimated_savings_bytes"] == row["estimated_savings_bytes"]
 
 
+def test_consolidate_plan_matches_history_aware_ranges_written_by_command(
+    session, tmp_path,
+):
+    source = tmp_path / "voice.wav"
+    want = source_wav(source)
+    session.import_media([str(source)])
+    clip = session.state.tracks[0].clips[0]
+    media_id = clip.media
+    session.edit("trim_clip", {"clip_id": clip.id, "start": 5 * RATE})
+
+    plan = session.consolidate_plan()
+    row = next(item for item in plan["media"] if item["id"] == media_id)
+    session.command("consolidate", {"used_only": True})
+
+    assert row["ranges"] == [[0, len(want)]]
+    assert row["estimated_bytes"] == row["source_bytes"]
+    assert row["estimated_savings_bytes"] == 0
+    assert session.store.partial_info(media_id)["ranges"] == row["ranges"]
+
+
 def test_used_only_consolidation_preserves_timeline_audio_and_full_source_relink(
     session, tmp_path,
 ):
     source = tmp_path / "voice.wav"
     want = source_wav(source)
-    media = import_source(session, source)
+    media = session.store.import_file(source)
     add_used_clip(session, media.id)
     state = session.state
     history = session.history.nodes()
@@ -79,9 +99,11 @@ def test_used_only_consolidation_preserves_timeline_audio_and_full_source_relink
     assert session.history.nodes() == history
     assert not session.store.is_linked(media.id)
     info = session.store.partial_info(media.id)
-    assert info["ranges"] == [[0, len(want)]]
+    assert info["ranges"] == [[2 * RATE, 7 * RATE]]
     got = session.store.read(media.id, 0, len(want))
-    np.testing.assert_allclose(got, want.T)
+    np.testing.assert_array_equal(got[:, :2 * RATE], 0)
+    np.testing.assert_allclose(got[:, 2 * RATE:7 * RATE], want[2 * RATE:7 * RATE].T)
+    np.testing.assert_array_equal(got[:, 7 * RATE:], 0)
 
     assert session.store.relink(tmp_path) == {media.id: str(source)}
     assert session.store.partial_info(media.id) is None

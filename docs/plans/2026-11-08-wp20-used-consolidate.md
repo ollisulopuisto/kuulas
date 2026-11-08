@@ -4,7 +4,7 @@
 
 **Goal:** Let callers preview and run an opt-in consolidation that keeps only the ranges used by timeline clips, with two-second handles, while preserving clip positions and the ability to relink the complete source.
 
-**Architecture:** Reuse WP20's existing used-range calculation from `send_copy.py`. `MediaStore` writes a full-length sparse FLAC with silence outside those ranges and records the original size/ranges so relinking can restore the verified original. `Session` exposes a conservative proportional byte estimate and opts in through `consolidate({used_only: true})`; the existing default remains full consolidation.
+**Architecture:** Reuse WP20's existing used-range calculation from `send_copy.py`. Before writing shared media, union the ranges reachable in every saved edit state, including undo branches, then restrict that union to media used in the active edit. The plan uses the same effective ranges as the operation. `MediaStore` writes a full-length sparse FLAC with silence outside those ranges and records the original size/ranges so relinking can restore the verified original. `Session` exposes a conservative proportional byte estimate and opts in through `consolidate({used_only: true})`; the existing default remains full consolidation.
 
 **Tech Stack:** Python, NumPy, SoundFile, SQLite, pytest, existing Session command API.
 

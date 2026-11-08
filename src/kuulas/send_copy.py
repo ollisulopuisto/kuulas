@@ -109,6 +109,15 @@ def used_ranges_for_projects(projects: Iterable[Project], frames: Mapping[str, i
     return out
 
 
+def consolidation_ranges(project: Project, saved_projects: Iterable[Project],
+                         frames: Mapping[str, int],
+                         handle_seconds: float = HANDLE_SECONDS) -> dict[str, Ranges]:
+    """Ranges a used-only operation may discard, scoped to current media use."""
+    current = used_ranges(project, frames, handle_seconds)
+    reachable = used_ranges_for_projects(saved_projects, frames, handle_seconds)
+    return {media_id: reachable[media_id] for media_id in current}
+
+
 def _file_size(path: Path) -> int:
     try:
         return path.stat().st_size
@@ -164,14 +173,17 @@ def plan(store, project: Project) -> dict:
     }
 
 
-def consolidate_plan(store, project: Project) -> dict:
+def consolidate_plan(store, project: Project,
+                     ranges: Mapping[str, Ranges] | None = None) -> dict:
     """Estimate the storage a used-only consolidation would retain.
 
     The estimate scales each linked file's current size by the fraction of source
     frames kept. Actual FLAC size varies with the audio content.
     """
-    frames = {media_id: store.meta(media_id)["source_frames"] for media_id in store.ids()}
-    ranges = used_ranges(project, frames)
+    if ranges is None:
+        frames = {media_id: store.meta(media_id)["source_frames"]
+                  for media_id in store.ids()}
+        ranges = used_ranges(project, frames)
     offline = set(store.missing())
     media = []
     for media_id, spans in ranges.items():
