@@ -1227,9 +1227,11 @@ def _align_sync_group(p: Project, media_a: str, media_b: str,
     group_a, group_b = p.sync_group(media_a), p.sync_group(media_b)
 
     if group_a is None and group_b is None:
-        return replace(p, sync_groups=(*p.sync_groups, SyncGroup(
+        group = SyncGroup(
             id=new_id("g"), main=media_a,
-            members=tuple(sorted({media_a: 0, media_b: delta}.items())))))
+            members=tuple(sorted({media_a: 0, media_b: delta}.items())))
+        group = _with_live_sync_main(p, group, media_b)
+        return replace(p, sync_groups=(*p.sync_groups, group))
 
     if group_a is None:
         # Keep B's clock and main; A's frame zero is delta before B's.
@@ -1239,6 +1241,7 @@ def _align_sync_group(p: Project, media_a: str, media_b: str,
         members[media_b] = origin_b
         members[media_a] = origin_b - delta
         joined = replace(group_b, members=tuple(sorted(members.items())))
+        joined = _with_live_sync_main(p, joined, media_b)
         return replace(p, sync_groups=tuple(
             joined if group.id == group_b.id else group for group in p.sync_groups))
 
@@ -1261,10 +1264,26 @@ def _align_sync_group(p: Project, media_a: str, media_b: str,
         members_a[media_b] = origin_b
 
     joined = replace(group_a, members=tuple(sorted(members_a.items())))
+    joined = _with_live_sync_main(p, joined, media_b)
     groups = tuple(group for group in p.sync_groups
                    if group.id not in {group_a.id,
                                        group_b.id if group_b is not None else None})
     return replace(p, sync_groups=(*groups, joined))
+
+
+def _with_live_sync_main(p: Project, group: SyncGroup,
+                         fallback_media: str) -> SyncGroup:
+    """Keep a live main recording and express every origin relative to it."""
+    live_media = {clip.media for track in p.tracks for clip in track.clips}
+    main = group.main
+    if main not in live_media and fallback_media in live_media:
+        main = fallback_media
+    origins = dict(group.members)
+    origins.setdefault(main, 0)
+    shift = origins[main]
+    return replace(group, main=main,
+                   members=tuple(sorted((media, origin - shift)
+                                        for media, origin in origins.items())))
 
 
 def mark_in_sync(p: Project, clip_ids, main: str, group_id: str | None = None,

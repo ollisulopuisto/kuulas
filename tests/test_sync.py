@@ -180,6 +180,40 @@ def test_align_points_materializes_legacy_track_gate_before_moving_clip():
     assert q.clip("cv").auto_silence == ((0, RATE // 10),)
 
 
+def test_aligning_group_main_keeps_its_origin_when_changing_anchor_and_resyncing():
+    p, _store = room(offset_frames=0)
+    p = ops.mark_in_sync(p, ["ca", "cv"], main="cv", group_id="g")
+
+    q = ops.align_points(p, "ca", 2 * RATE, "cv", 0)
+
+    assert dict(q.sync_group("v").members)["v"] == 0
+    q = ops.set_sync_anchor(q, "ca")
+    q = ops.move_clip(q, "cv", start=9 * RATE)
+    q = ops.resync(q, ["cv"])
+    assert q.clip("cv").start == 2 * RATE
+
+
+def test_align_points_preserves_resync_when_it_overwrites_the_anchor_clip():
+    p, _store = room(offset_frames=0)
+    p = ops.move_clip(p, "ca", start=2 * RATE)
+    p = ops.trim_clip(p, "ca", end=3 * RATE)
+    p = ops.add_media(p, Media(id="c", name="c.wav", channels=1,
+                               frames=30 * RATE))
+    p = ops.add_track(p, track_id="C", name="C")
+    p = ops.add_clip(p, track_id="C", media_id="c", clip_id="cc", start=4 * RATE)
+    p = ops.mark_in_sync(p, ["ca", "cc"], main="ca", group_id="g")
+    p = ops.trim_clip(p, "cv", end=3 * RATE)
+    p = ops.move_clip(p, "cv", start=0, track_id="A")
+
+    q = ops.align_points(p, "ca", 0, "cv", 0)
+
+    assert all(clip.id != "ca" for track in q.tracks for clip in track.clips)
+    assert q.sync_group("c").main == "v"
+    q = ops.move_clip(q, "cc", start=10 * RATE)
+    q = ops.resync(q, ["cc"])
+    assert q.clip("cc").start == 4 * RATE
+
+
 def test_align_points_rejects_sync_frames_outside_the_clip():
     p, _store = room(offset_frames=0)
 
