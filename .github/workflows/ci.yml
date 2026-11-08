@@ -34,7 +34,7 @@ jobs:
       - run: uv run --no-project --with pyyaml python -m unittest discover -s scripts/tests -p test_draft_release_workflow.py -v
       - name: Native dummy-keychain transport smoke check
         if: runner.os == 'macOS'
-        run: python3 scripts/tests/test_macos_keychain_transport.py -v
+        run: python3 tests/manual/test_macos_keychain_transport.py -v
 
   changes:
     name: Check changed paths

@@ -36,13 +36,13 @@ class NativeKeychainTransportTests(unittest.TestCase):
             env = {"KEYCHAIN_PATH": str(keychain), "CERTIFICATE_PATH": str(bundle),
                    "KEYCHAIN_PASSWORD": value, "P12_PASSWORD": value}
             # Only a throwaway, self-signed identity. Its passphrase is dummy data.
-            subprocess.run(
+            subprocess.run(  # noqa: S603 - fixed executable, generated fixture paths only
                 ["/usr/bin/openssl", "req", "-x509", "-newkey", "rsa:2048",
                  "-nodes", "-keyout", str(key), "-out", str(cert), "-days", "1",
                  "-subj", "/CN=Kuulas transport smoke test"],
                 capture_output=True, check=True,
             )
-            subprocess.run(
+            subprocess.run(  # noqa: S603 - fixed executable, generated fixture paths only
                 ["/usr/bin/openssl", "pkcs12", "-export", "-inkey", str(key),
                  "-in", str(cert), "-out", str(bundle), "-passout",
                  "file:" + str(password_file)], capture_output=True, check=True,
@@ -50,7 +50,7 @@ class NativeKeychainTransportTests(unittest.TestCase):
             try:
                 with patch.dict(os.environ, env):
                     HELPER.import_certificate()
-                result = subprocess.run(
+                result = subprocess.run(  # noqa: S603 - fixed certificate lookup
                     ["/usr/bin/security", "find-certificate", "-c",
                      "Kuulas transport smoke test", str(keychain)],
                     capture_output=True, check=True,
