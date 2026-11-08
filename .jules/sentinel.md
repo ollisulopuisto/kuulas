@@ -1,3 +1,8 @@
+## 2026-11-08 - HTTP response header injection in content disposition handling
+**Vulnerability:** Filenames generated from user-controlled project or edit names were placed into HTTP `Content-Disposition` response headers without stripping CRLF or control characters, allowing response header injection / HTTP response splitting.
+**Learning:** Quoted strings in HTTP headers (such as `attachment; filename="..."`) must not contain raw CRLF or ASCII control characters. Even when RFC 5987 percent-encoding is applied to the extended filename parameter, the fallback quoted-string parameter can break the header framing if control characters are not sanitized first.
+**Prevention:** Sanitize filenames before constructing HTTP headers by stripping or replacing ASCII control characters (< 32, 127) including carriage return (`\r`) and newline (`\n`).
+
 ## 2026-11-07 - Unbounded path length in project initialization and process spawning
 **Vulnerability:** New project path planning and project window launching routines accepted user-supplied directory paths without length bounds before passing them to OS filesystem and subprocess APIs.
 **Learning:** Functions that validate paths for directory creation or working directories must explicitly bound string length (<= 4096 characters) before performing filesystem calls or passing them to child process startup to avoid OS-level buffer and path resolution errors.
