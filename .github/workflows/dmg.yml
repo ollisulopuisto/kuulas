@@ -63,12 +63,8 @@ jobs:
           KEYCHAIN_PATH="$RUNNER_TEMP/kuulas-signing.keychain-db"
           CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
           printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 -D -o "$CERTIFICATE_PATH"
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -T /usr/bin/codesign -k "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          export KEYCHAIN_PATH CERTIFICATE_PATH
+          python3 kuulas/scripts/macos_ci_credentials.py import-certificate
           rm -f "$CERTIFICATE_PATH"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -F 'Developer ID Application: Olli Sulopuisto (LWSR8T5392)'
       # ffmpeg comes from a third-party host that was down for hours on 2026-10-21 (521) and
@@ -105,14 +101,15 @@ jobs:
             echo "::warning::No notarisation credentials: this artifact is signed but not notarised."
             exit 0
           fi
+          export KEYCHAIN_PATH="$RUNNER_TEMP/kuulas-signing.keychain-db"
+          python3 kuulas/scripts/macos_ci_credentials.py store-notary-credentials
           for dmg in "$RUNNER_TEMP"/dist/*.dmg; do
-            result=$(xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
-              --password "$APPLE_APP_PASSWORD" --wait --timeout 45m --output-format json) || true
+            result=$(xcrun notarytool submit "$dmg" --keychain-profile kuulas-ci-notary --keychain "$KEYCHAIN_PATH" --wait --timeout 45m --output-format json) || true
             echo "$result"
             id=$(printf '%s' "$result" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
             status=$(printf '%s' "$result" | python3 -c 'import json,sys; print(json.load(sys.stdin)["status"])')
             if [ "$status" != Accepted ]; then
-              xcrun notarytool log "$id" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+              xcrun notarytool log "$id" --keychain-profile kuulas-ci-notary --keychain "$KEYCHAIN_PATH"
               exit 1
             fi
             xcrun stapler staple "$dmg"
@@ -136,7 +133,8 @@ jobs:
       - name: What was built
         run: |
           ls -la "$RUNNER_TEMP/dist"
-          shasum -a 256 "$RUNNER_TEMP/dist"/*.dmg | tee "$RUNNER_TEMP/dist/SHA256.txt"
+          (cd "$RUNNER_TEMP/dist" && shasum -a 256 ./*.dmg | sed 's|  ./|  |' > SHA256.txt && shasum -a 256 -c SHA256.txt)
+          cat "$RUNNER_TEMP/dist/SHA256.txt"
       - uses: actions/upload-artifact@v7
         with:
           name: Kuulas-dmg
@@ -203,12 +201,8 @@ jobs:
         KEYCHAIN_PATH="$RUNNER_TEMP/kuulas-signing.keychain-db"
         CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
         printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 -D -o "$CERTIFICATE_PATH"
-        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-        security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -T /usr/bin/codesign -k "$KEYCHAIN_PATH"
-        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-        security list-keychains -d user -s "$KEYCHAIN_PATH"
+        export KEYCHAIN_PATH CERTIFICATE_PATH
+        python3 kuulas/scripts/macos_ci_credentials.py import-certificate
         rm -f "$CERTIFICATE_PATH"
         security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -F 'Developer ID Application: Olli Sulopuisto (LWSR8T5392)'
     - name: Build the .dmg
@@ -229,14 +223,15 @@ jobs:
         set -euo pipefail
         test -n "$APPLE_ID"
         test -n "$APPLE_APP_PASSWORD"
+        export KEYCHAIN_PATH="$RUNNER_TEMP/kuulas-signing.keychain-db"
+        python3 kuulas/scripts/macos_ci_credentials.py store-notary-credentials
         for dmg in "$RUNNER_TEMP"/dist/*.dmg; do
-          result=$(xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
-            --password "$APPLE_APP_PASSWORD" --wait --timeout 45m --output-format json) || true
+          result=$(xcrun notarytool submit "$dmg" --keychain-profile kuulas-ci-notary --keychain "$KEYCHAIN_PATH" --wait --timeout 45m --output-format json) || true
           echo "$result"
           id=$(printf '%s' "$result" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
           status=$(printf '%s' "$result" | python3 -c 'import json,sys; print(json.load(sys.stdin)["status"])')
           if [ "$status" != Accepted ]; then
-            xcrun notarytool log "$id" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+            xcrun notarytool log "$id" --keychain-profile kuulas-ci-notary --keychain "$KEYCHAIN_PATH"
             exit 1
           fi
           xcrun stapler staple "$dmg"
@@ -249,7 +244,8 @@ jobs:
     - name: What was built
       run: |
         ls -la "$RUNNER_TEMP/dist"
-        shasum -a 256 "$RUNNER_TEMP/dist"/*.dmg | tee "$RUNNER_TEMP/dist/SHA256.txt"
+        (cd "$RUNNER_TEMP/dist" && shasum -a 256 ./*.dmg | sed 's|  ./|  |' > SHA256.txt && shasum -a 256 -c SHA256.txt)
+        cat "$RUNNER_TEMP/dist/SHA256.txt"
     - name: Publish draft Release directly
       env:
         GH_TOKEN: ${{ github.token }}
