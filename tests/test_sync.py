@@ -8,6 +8,7 @@ from dataclasses import replace
 from itertools import pairwise
 
 import numpy as np
+import pytest
 
 from kuulas import ops
 from kuulas.clock import frames_to_flicks
@@ -70,6 +71,45 @@ def marked_room():
     p = ops.split_clip(p, "cv", at=10 * RATE, new_id="cv2")
     p = ops.split_clip(p, "cv2", at=20 * RATE, new_id="cv3")
     return p, store
+
+
+def test_align_points_moves_candidate_and_marks_the_recordings_in_sync():
+    p, _store = room(offset_frames=int(0.3 * RATE))
+
+    q = ops.align_points(p, "ca", 12 * RATE, "cv", 9 * RATE)
+
+    assert q.clip("cv").start == 3 * RATE
+    assert group(q, "ca") == group(q, "cv")
+    assert q.sync_group("a").main == "a"
+    assert dict(q.sync_group("a").members)["v"] == frames_to_flicks(3 * RATE, RATE)
+    assert p.clip("cv").start == int(0.3 * RATE)
+
+
+def test_align_points_rejects_sync_frames_outside_the_clip():
+    p, _store = room(offset_frames=0)
+
+    with pytest.raises(ops.EditError) as error:
+        ops.align_points(p, "ca", 30 * RATE, "cv", 5 * RATE)
+
+    assert error.value.key == "error.edit.sync_point_outside"
+
+
+def test_align_points_refuses_to_move_before_timeline_start():
+    p, _store = room(offset_frames=0)
+
+    with pytest.raises(ops.EditError) as error:
+        ops.align_points(p, "ca", RATE, "cv", 2 * RATE)
+
+    assert error.value.key == "error.edit.sync_before_start"
+
+
+def test_align_points_requires_integer_source_frames():
+    p, _store = room(offset_frames=0)
+
+    with pytest.raises(ops.EditError) as error:
+        ops.align_points(p, "ca", True, "cv", RATE)
+
+    assert error.value.key == "error.edit.bad_arguments"
 
 
 def test_resync_puts_moved_clips_back_by_their_timestamps():

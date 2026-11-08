@@ -279,6 +279,7 @@ DESCRIBERS: dict[str, Describer] = {
     "shift_clips": _on_clips,
     "set_clips": _clips_settings,
     "delete_clips": _on_clips,
+    "align_points": _plain,
     "mark_in_sync": _on_clips,
     "resync": _on_clips,
     "set_free": _on_clips,

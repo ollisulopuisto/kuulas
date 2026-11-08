@@ -113,6 +113,9 @@
   "error.edit.clip_no_fields": "The clip has no such fields: {fields}.",
   "error.edit.no_selection": "No clips are selected.",
   "error.edit.sync_basis": "Unknown sync basis: {basis}.",
+  "error.edit.sync_point_outside": "The sync point must fall inside its clip.",
+  "error.edit.sync_before_start": "That sync point would move the clip before the start of the timeline.",
+  "error.edit.sync_same_media": "Choose two clips from different recordings to align them.",
   "error.edit.empty_range": "The range is empty.",
   "error.edit.unknown": "Unknown edit: {name}.",
   "error.edit.bad_arguments": "The edit {name} got bad arguments: {detail}",
@@ -390,6 +393,7 @@
     "one": "Delete {count} clip: {where}",
     "other": "Delete {count} clips: {where}"
   },
+  "history.op.align_points": "Align clips by sync points",
   "history.op.mark_in_sync": {
     "one": "Mark {count} clip in sync",
     "other": "Mark {count} clips in sync"
@@ -884,7 +888,6 @@
   "cmd.sync.mark": "Mark in sync (first selected is the anchor)",
   "cmd.sync.resync": "Sync selected clips to the anchor",
   "cmd.sync.point1": "Set the first sync point",
-  "cmd.sync.point2": "Set the second sync point",
   "cmd.sync.resync_end": "Resync to the end, all tracks",
   "cmd.candidate.mark_range": "Candidate from in to out",
   "cmd.candidate.next": "Next candidate",
@@ -2814,6 +2817,7 @@
   "cmd.sync.send_home": "Put back on its original track",
   "cmd.sync.send_home.hint": "Moves the selected clips back to the track they were dragged away from, at the same time position. Resync only fixes time, never the track. It says what it will move first and waits for confirmation or cancellation; View > Confirm before re-syncing switches that off.",
   "ui.sync.history.anchor": "Make the sync anchor",
+  "ui.sync.history.align_points": "Align clips by sync points",
   "ui.sync.history.send_home": "Put back on the original track",
   "ui.sync.toast.anchor": "{name} is now the sync anchor",
   "ui.sync.toast.sent_home": {
@@ -2821,6 +2825,9 @@
     "other": "{count} clips are back on their original tracks"
   },
   "ui.sync.toast.marked": "Marked in sync. The anchor is {name}",
+  "ui.sync.point_set": "Sync point set on {name}. Put the playhead on the same sound in another clip and press {key:sync.point1}.",
+  "ui.sync.point_aligned": "Aligned {name} to the sync point and marked the recordings in sync.",
+  "ui.sync.point_no_clip": "Put the playhead inside a clip on the focused track to set a sync point.",
   "ui.sync.history.mark": "Mark in sync",
   "ui.sync.anchor_tag": "anchor",
   "ui.sync.anchor_title": "Sync anchor: the clips of this sync group are kept in sync relative to this one.",

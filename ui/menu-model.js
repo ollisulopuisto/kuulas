@@ -188,7 +188,6 @@ const SYNC = submenu("menu.sync", [
   item("sync.mark"),
   item("sync.set_anchor"),
   item("sync.point1"),
-  item("sync.point2"),
   item("sync.resync_end"),
   SEP,
   item("sync.drift_next"),

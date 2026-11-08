@@ -1185,6 +1185,33 @@ def adjust_clip_gain(p: Project, clip_ids, delta_db: float) -> Project:
 # -- sync groups -------------------------------------------------------------
 
 
+def align_points(p: Project, clip_a: str, point_a: int,
+                 clip_b: str, point_b: int) -> Project:
+    """Move ``clip_b`` so its marked source frame meets ``clip_a``'s, then sync them.
+
+    Points are absolute source frames. The move and sync-group update are one pure
+    edit so undo restores both the prior position and group membership.
+    """
+    a, _ = _find_clip(p, clip_a)
+    b, _ = _find_clip(p, clip_b)
+    if a.id == b.id or a.media == b.media:
+        raise EditError("error.edit.sync_same_media")
+    if any(isinstance(point, bool) or not isinstance(point, int)
+           for point in (point_a, point_b)):
+        raise EditError("error.edit.bad_arguments", name="align_points",
+                         detail="source frame")
+    if not (a.offset <= point_a < a.offset + a.length
+            and b.offset <= point_b < b.offset + b.length):
+        raise EditError("error.edit.sync_point_outside")
+    start = a.start + point_a - a.offset - (point_b - b.offset)
+    if start < 0:
+        raise EditError("error.edit.sync_before_start")
+    p = _replace_clip(p, replace(b, start=start, free=False))
+    if a.free:
+        p = _replace_clip(p, replace(a, free=False))
+    return mark_in_sync(p, (a.id, b.id), main=a.id)
+
+
 def mark_in_sync(p: Project, clip_ids, main: str, group_id: str | None = None,
                  basis: str = "timeline") -> Project:
     """Declare these clips in sync with ``main``.
@@ -1778,7 +1805,8 @@ OPS = {
         set_marker_kind,
         add_placeholder, edit_placeholder_text, set_placeholder_length,
         move_placeholder, delete_placeholder, replace_placeholder,
-        shift_clips, set_clips, delete_clips, mark_in_sync, resync, set_free,
+        shift_clips, set_clips, delete_clips, align_points, mark_in_sync,
+        resync, set_free,
         send_home, set_sync_anchor,
         split_clips, mute_range, cut_range, nudge_clips, move_clips_to_track,
         trim_clips, adjust_clip_gain,

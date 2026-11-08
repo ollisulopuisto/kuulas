@@ -26,6 +26,7 @@ function setup(selection) {
     previews: [],
     asked: [],
     notices: [],
+    patches: [],
     driftToggles: 0,
   };
   const config = {
@@ -39,7 +40,10 @@ function setup(selection) {
     t: (key, values = {}) => `${key}${JSON.stringify(values)}`,
     app: {
       getState: () => state,
-      patch: () => {},
+      patch: (value) => {
+        calls.patches.push(value);
+        Object.assign(state, value);
+      },
       seek: (frame) => calls.seeks.push(frame),
       jump: (frame) => calls.jumps.push(frame),
       edit: (change) => {
@@ -168,6 +172,61 @@ describe("keys", () => {
     assert.equal(find("sync.set_anchor").keys.other, "Shift+Y");
     assert.equal(find("sync.send_home").keys.other, "Shift+U");
     assert.equal(find("sync.set_anchor").context, "timeline");
+  });
+});
+
+describe("sync point alignment", () => {
+  const pointProject = {
+    sync_groups: [],
+    tracks: [
+      {
+        id: "a",
+        name: "Zoom",
+        clips: [{ id: "ca", media: "ma", start: 100, offset: 20, length: 500 }],
+      },
+      {
+        id: "b",
+        name: "Local",
+        clips: [{ id: "cb", media: "mb", start: 500, offset: 50, length: 500 }],
+      },
+    ],
+  };
+
+  test("the first point is temporary, and the next aligns both clips in one edit", () => {
+    const { registry, calls, state } = setup([]);
+    Object.assign(state, { project: pointProject, focusTrack: "a", playhead: 160 });
+
+    registry.run("sync.point1", null, state);
+    assert.deepEqual(state.syncPendingPoint, {
+      clip_id: "ca",
+      media_id: "ma",
+      source_frame: 80,
+      timeline_frame: 160,
+      track_id: "a",
+    });
+
+    Object.assign(state, { focusTrack: "b", playhead: 620 });
+    registry.run("sync.point1", null, state);
+
+    assert.equal(calls.edits.at(-1).op, "align_points");
+    assert.deepEqual(calls.edits.at(-1).args, {
+      clip_a: "ca",
+      point_a: 80,
+      clip_b: "cb",
+      point_b: 170,
+    });
+    assert.equal(state.syncPendingPoint, null);
+    assert.match(calls.toasts.at(-1)[0], /^ui\.sync\.point_aligned/);
+  });
+
+  test("a point needs a clip under the playhead on the focused track", () => {
+    const { registry, calls, state } = setup([]);
+    Object.assign(state, { project: pointProject, focusTrack: "a", playhead: 900 });
+
+    registry.run("sync.point1", null, state);
+
+    assert.deepEqual(calls.patches, []);
+    assert.match(calls.notices.at(-1), /^ui\.sync\.point_no_clip/);
   });
 });
 

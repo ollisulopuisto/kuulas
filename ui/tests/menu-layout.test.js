@@ -130,7 +130,6 @@ describe("Edit", () => {
       "sync.mark",
       "sync.set_anchor",
       "sync.point1",
-      "sync.point2",
       "sync.resync_end",
       "sync.drift_next",
       "sync.drift_previous",
