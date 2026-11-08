@@ -188,6 +188,8 @@ jobs:
     - uses: astral-sh/setup-uv@v7
       with:
         version: 0.13.6
+        enable-cache: false
+        save-cache: false
     - name: Import Developer ID certificate
       env:
         BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}

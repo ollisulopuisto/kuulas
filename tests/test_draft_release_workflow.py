@@ -25,6 +25,9 @@ class DraftReleaseTests(unittest.TestCase):
         for step in self.draft["steps"]:
             assert "actions/cache" not in step.get("uses", "")
             assert "upload-artifact" not in step.get("uses", "")
+        uv = next(s for s in self.draft["steps"] if "setup-uv" in s.get("uses", ""))
+        assert uv["with"]["enable-cache"] is False
+        assert uv["with"]["save-cache"] is False
         assert self.draft["steps"][1]["with"]["ref"] == "${{ steps.source.outputs.sha }}"
 
     def test_notarization_required_and_draft_target(self):
