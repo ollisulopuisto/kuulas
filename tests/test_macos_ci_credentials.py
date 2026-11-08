@@ -53,7 +53,7 @@ def test_import_keeps_all_passwords_off_argv(tmp_path):
         HELPER.subprocess, "run", return_value=subprocess.CompletedProcess([], 0),
     ) as run:
         HELPER.import_certificate()
-    assert len(run.call_args_list) == 6
+    assert len(run.call_args_list) == 8
     for call in run.call_args_list:
         assert call.args[0] == ["/usr/bin/security", "-i"]
         assert "dummy-keychain" not in str(call.args)
@@ -81,3 +81,22 @@ def test_notary_password_uses_private_tty_not_argv_or_environment(tmp_path):
     with patch.dict(os.environ, env):
         HELPER.store_notary_credentials()
     assert marker.read_text() == "passed"
+
+
+def test_security_stderr_command_failure_with_zero_process_exit():
+    with patch.object(HELPER.subprocess, "run", return_value=(
+        subprocess.CompletedProcess([], 0, "", "unlock-keychain: returned -25293\n")
+    )), pytest.raises(RuntimeError, match="output withheld"):
+        HELPER.security("unlock-keychain", "-p", "dummy", "/dummy/keychain")
+
+
+def test_import_preserves_original_and_new_search_paths():
+    env = {"KEYCHAIN_PATH": "/dummy/new", "CERTIFICATE_PATH": "/dummy/cert",
+           "KEYCHAIN_PASSWORD": "dummy", "P12_PASSWORD": "dummy"}
+    with patch.dict(os.environ, env), patch.object(HELPER, "security", side_effect=[
+        '"/original with spaces"\n', "", "", "", "", "",
+        '"/concurrent"\n', "",
+    ]) as run:
+        HELPER.import_certificate()
+    assert run.call_args.args == ("list-keychains", "-d", "user", "-s",
+                                  "/original with spaces", "/concurrent", "/dummy/new")
