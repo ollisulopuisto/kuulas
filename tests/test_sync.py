@@ -214,6 +214,29 @@ def test_align_points_preserves_resync_when_it_overwrites_the_anchor_clip():
     assert q.clip("cc").start == 4 * RATE
 
 
+def test_align_points_uses_candidate_when_anchor_piece_is_overwritten():
+    p, _store = room(offset_frames=0)
+    p = ops.add_media(p, Media(id="c", name="c.wav", channels=1,
+                               frames=30 * RATE))
+    p = ops.add_track(p, track_id="C", name="C")
+    p = ops.add_clip(p, track_id="C", media_id="c", clip_id="cc", start=0)
+    p = ops.mark_in_sync(p, ["ca", "cc"], main="cc", group_id="g")
+    p = ops.delete_clip(p, "cc")
+    p = ops.split_clip(p, "ca", at=3 * RATE, new_id="ca-later")
+    p = ops.trim_clip(p, "ca", start=2 * RATE)
+    p = ops.move_clip(p, "ca-later", start=8 * RATE)
+    p = ops.trim_clip(p, "cv", end=3 * RATE)
+    p = ops.move_clip(p, "cv", start=0, track_id="A")
+
+    q = ops.align_points(p, "ca", 2 * RATE, "cv", 0)
+
+    assert q.clip("cv").start == 2 * RATE
+    assert q.sync_group("v").main == "v"
+    q = ops.move_clip(q, "cv", start=12 * RATE)
+    q = ops.resync(q, ["cv"])
+    assert q.clip("cv").start == 12 * RATE
+
+
 def test_align_points_does_not_readd_a_main_moved_to_another_group():
     p, _store = room(offset_frames=0)
     p = ops.add_media(p, Media(id="c", name="c.wav", channels=1,
