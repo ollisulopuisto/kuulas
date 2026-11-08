@@ -85,6 +85,101 @@ def test_align_points_moves_candidate_and_marks_the_recordings_in_sync():
     assert p.clip("cv").start == int(0.3 * RATE)
 
 
+def test_align_points_keeps_existing_anchor_group_partners():
+    p, _store = room(offset_frames=0)
+    p = ops.add_media(p, Media(id="c", name="c.wav", channels=1,
+                               frames=30 * RATE))
+    p = ops.add_track(p, track_id="C", name="C")
+    p = ops.add_clip(p, track_id="C", media_id="c", clip_id="cc", start=RATE)
+    p = ops.mark_in_sync(p, ["ca", "cc"], main="ca", group_id="g-a")
+
+    q = ops.align_points(p, "ca", 2 * RATE, "cv", 0)
+
+    assert len(q.sync_groups) == 1
+    assert group(q, "ca") == group(q, "cc") == group(q, "cv") == "g-a"
+    assert q.sync_group("a").main == "a"
+    assert dict(q.sync_group("a").members) == {
+        "a": 0,
+        "c": frames_to_flicks(RATE, RATE),
+        "v": frames_to_flicks(2 * RATE, RATE),
+    }
+
+
+def test_align_points_merges_candidate_group_and_rebases_its_partners():
+    p, _store = room(offset_frames=RATE // 2)
+    for media_id, track_id, clip_id, start in (
+        ("c", "C", "cc", RATE),
+        ("d", "D", "cd", 4 * RATE),
+    ):
+        p = ops.add_media(p, Media(id=media_id, name=f"{media_id}.wav", channels=1,
+                                   frames=30 * RATE))
+        p = ops.add_track(p, track_id=track_id, name=track_id)
+        p = ops.add_clip(p, track_id=track_id, media_id=media_id,
+                         clip_id=clip_id, start=start)
+    p = ops.mark_in_sync(p, ["ca", "cc"], main="ca", group_id="g-a")
+    p = ops.mark_in_sync(p, ["cv", "cd"], main="cv", group_id="g-b")
+
+    q = ops.align_points(p, "ca", 2 * RATE, "cv", 0)
+
+    assert len(q.sync_groups) == 1
+    assert group(q, "ca") == group(q, "cc") == group(q, "cv") == group(q, "cd") == "g-a"
+    assert q.sync_group("a").main == "a"
+    assert dict(q.sync_group("a").members) == {
+        "a": 0,
+        "c": frames_to_flicks(RATE, RATE),
+        "v": frames_to_flicks(2 * RATE, RATE),
+        "d": frames_to_flicks(11 * RATE // 2, RATE),
+    }
+
+
+def test_align_points_reuses_candidate_group_when_anchor_has_no_group():
+    p, _store = room(offset_frames=RATE // 2)
+    p = ops.add_media(p, Media(id="d", name="d.wav", channels=1,
+                               frames=30 * RATE))
+    p = ops.add_track(p, track_id="D", name="D")
+    p = ops.add_clip(p, track_id="D", media_id="d", clip_id="cd", start=4 * RATE)
+    p = ops.mark_in_sync(p, ["cv", "cd"], main="cv", group_id="g-b")
+
+    q = ops.align_points(p, "ca", 2 * RATE, "cv", 0)
+
+    assert len(q.sync_groups) == 1
+    assert group(q, "ca") == group(q, "cv") == group(q, "cd") == "g-b"
+    assert q.sync_group("v").main == "v"
+    assert dict(q.sync_group("v").members) == {
+        "a": frames_to_flicks(-2 * RATE, RATE),
+        "v": 0,
+        "d": frames_to_flicks(7 * RATE // 2, RATE),
+    }
+
+
+def test_align_points_overwrites_audio_on_the_anchor_track():
+    p, _store = room(offset_frames=4 * RATE)
+    p = ops.trim_clip(p, "ca", end=RATE)
+    p = ops.move_clip(p, "cv", start=4 * RATE, track_id="A")
+    p = ops.trim_clip(p, "cv", end=5 * RATE)
+
+    q = ops.align_points(p, "ca", 3 * RATE // 4, "cv", RATE // 4)
+
+    track = q.track("A")
+    assert q.clip("cv").start == RATE // 2
+    assert [(clip.id, clip.start, clip.end) for clip in track.clips] == [
+        ("ca", 0, RATE // 2),
+        ("cv", RATE // 2, 3 * RATE // 2),
+    ]
+
+
+def test_align_points_materializes_legacy_track_gate_before_moving_clip():
+    p, _store = room(offset_frames=4 * RATE)
+    p = ops.trim_clip(p, "cv", end=5 * RATE)
+    p = ops.set_gate(p, "V", [(4 * RATE, 4 * RATE + RATE // 10)])
+
+    q = ops.align_points(p, "ca", 2 * RATE, "cv", 0)
+
+    assert q.clip("cv").start == 2 * RATE
+    assert q.track("V").gate == ()
+    assert q.clip("cv").auto_silence == ((0, RATE // 10),)
+
+
 def test_align_points_rejects_sync_frames_outside_the_clip():
     p, _store = room(offset_frames=0)
 

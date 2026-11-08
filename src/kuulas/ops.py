@@ -1192,8 +1192,10 @@ def align_points(p: Project, clip_a: str, point_a: int,
     Points are absolute source frames. The move and sync-group update are one pure
     edit so undo restores both the prior position and group membership.
     """
+    _, track_b = _find_clip(p, clip_b)
+    p = _materialize_legacy_gates(p, {track_b.id})
     a, _ = _find_clip(p, clip_a)
-    b, _ = _find_clip(p, clip_b)
+    b, track_b = _find_clip(p, clip_b)
     if a.id == b.id or a.media == b.media:
         raise EditError("error.edit.sync_same_media")
     if any(isinstance(point, bool) or not isinstance(point, int)
@@ -1206,10 +1208,63 @@ def align_points(p: Project, clip_a: str, point_a: int,
     start = a.start + point_a - a.offset - (point_b - b.offset)
     if start < 0:
         raise EditError("error.edit.sync_before_start")
+    delta = frames_to_flicks(point_a - point_b, p.rate)
+    before = p
     p = _replace_clip(p, replace(b, start=start, free=False))
     if a.free:
         p = _replace_clip(p, replace(a, free=False))
-    return mark_in_sync(p, (a.id, b.id), main=a.id)
+    p = _overwrite_under(before, p, only={b.id})
+    return _align_sync_group(p, a.media, b.media, delta)
+
+
+def _align_sync_group(p: Project, media_a: str, media_b: str,
+                      delta: int) -> Project:
+    """Join B to A's recording clock, keeping and rebasing existing partners.
+
+    A's group wins when both recordings already belong to different groups.
+    If only B has a group, keep that group and its main recording.
+    """
+    group_a, group_b = p.sync_group(media_a), p.sync_group(media_b)
+
+    if group_a is None and group_b is None:
+        return replace(p, sync_groups=(*p.sync_groups, SyncGroup(
+            id=new_id("g"), main=media_a,
+            members=tuple(sorted({media_a: 0, media_b: delta}.items())))))
+
+    if group_a is None:
+        # Keep B's clock and main; A's frame zero is delta before B's.
+        members = dict(group_b.members)
+        member_b = p.sync_member(media_b)
+        origin_b = members.get(media_b, member_b[1] if member_b else 0)
+        members[media_b] = origin_b
+        members[media_a] = origin_b - delta
+        joined = replace(group_b, members=tuple(sorted(members.items())))
+        return replace(p, sync_groups=tuple(
+            joined if group.id == group_b.id else group for group in p.sync_groups))
+
+    members_a = dict(group_a.members)
+    member_a = p.sync_member(media_a)
+    origin_a = members_a.get(media_a, member_a[1] if member_a else 0)
+    origin_b = origin_a + delta
+    members_a[media_a] = origin_a
+
+    if group_b is not None and group_b.id != group_a.id:
+        members_b = dict(group_b.members)
+        member_b = p.sync_member(media_b)
+        old_origin_b = members_b.get(media_b, member_b[1] if member_b else 0)
+        shift = origin_b - old_origin_b
+        members_a.update({media: origin + shift
+                          for media, origin in members_b.items()
+                          if media != media_a})
+        members_a[media_b] = origin_b
+    else:
+        members_a[media_b] = origin_b
+
+    joined = replace(group_a, members=tuple(sorted(members_a.items())))
+    groups = tuple(group for group in p.sync_groups
+                   if group.id not in {group_a.id,
+                                       group_b.id if group_b is not None else None})
+    return replace(p, sync_groups=(*groups, joined))
 
 
 def mark_in_sync(p: Project, clip_ids, main: str, group_id: str | None = None,
