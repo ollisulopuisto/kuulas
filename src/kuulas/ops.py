@@ -1264,22 +1264,27 @@ def _align_sync_group(p: Project, media_a: str, media_b: str,
         members_a[media_b] = origin_b
 
     joined = replace(group_a, members=tuple(sorted(members_a.items())))
-    joined = _with_live_sync_main(p, joined, media_b)
+    joined = _with_live_sync_main(p, joined, media_b, preferred_media=media_a)
     groups = tuple(group for group in p.sync_groups
                    if group.id not in {group_a.id,
                                        group_b.id if group_b is not None else None})
     return replace(p, sync_groups=(*groups, joined))
 
 
-def _with_live_sync_main(p: Project, group: SyncGroup,
-                         fallback_media: str) -> SyncGroup:
+def _with_live_sync_main(p: Project, group: SyncGroup, fallback_media: str,
+                         preferred_media: str | None = None) -> SyncGroup:
     """Keep a live main recording and express every origin relative to it."""
     live_media = {clip.media for track in p.tracks for clip in track.clips}
-    main = group.main
-    if main not in live_media and fallback_media in live_media:
-        main = fallback_media
     origins = dict(group.members)
-    origins.setdefault(main, 0)
+    main = group.main
+    if main not in origins or main not in live_media:
+        candidates = (preferred_media, fallback_media, *origins)
+        replacement = next((media for media in candidates
+                            if media in origins and media in live_media), None)
+        if replacement is None:
+            replacement = next((media for media in candidates if media in origins), None)
+        if replacement is not None:
+            main = replacement
     shift = origins[main]
     return replace(group, main=main,
                    members=tuple(sorted((media, origin - shift)

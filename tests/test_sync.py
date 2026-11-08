@@ -214,6 +214,31 @@ def test_align_points_preserves_resync_when_it_overwrites_the_anchor_clip():
     assert q.clip("cc").start == 4 * RATE
 
 
+def test_align_points_does_not_readd_a_main_moved_to_another_group():
+    p, _store = room(offset_frames=0)
+    p = ops.add_media(p, Media(id="c", name="c.wav", channels=1,
+                               frames=30 * RATE))
+    p = ops.add_media(p, Media(id="d", name="d.wav", channels=1,
+                               frames=30 * RATE))
+    p = ops.add_track(p, track_id="C", name="C")
+    p = ops.add_track(p, track_id="D", name="D")
+    p = ops.add_clip(p, track_id="C", media_id="c", clip_id="cc", start=0)
+    p = ops.add_clip(p, track_id="D", media_id="d", clip_id="cd", start=0)
+    p = ops.mark_in_sync(p, ["ca", "cv"], main="ca", group_id="g-av")
+    p = ops.mark_in_sync(p, ["ca", "cc"], main="cc", group_id="g-ac")
+
+    q = ops.align_points(p, "cv", 0, "cd", 0)
+
+    group_av = q.sync_group("v")
+    assert group_av.id == "g-av"
+    assert group_av.main == "v"
+    assert dict(group_av.members) == {"d": 0, "v": 0}
+    assert q.sync_group("a").id == "g-ac"
+    assert {group.id for group in q.sync_groups if "a" in dict(group.members)} == {
+        "g-ac"
+    }
+
+
 def test_align_points_rejects_sync_frames_outside_the_clip():
     p, _store = room(offset_frames=0)
 
