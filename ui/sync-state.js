@@ -78,6 +78,24 @@ export function anchorIds(anchors) {
   return new Set((anchors ?? []).map((anchor) => anchor.clip_id));
 }
 
+/** The clip and absolute source frame under the playhead on the current track. */
+export function syncPointAt(project, trackId, playhead) {
+  if (!Number.isFinite(playhead)) return null;
+  const frame = Math.round(playhead);
+  const track = project?.tracks?.find((item) => item.id === trackId);
+  const clip = track?.clips?.find(
+    (item) => item.start <= frame && frame < item.start + item.length,
+  );
+  if (!clip) return null;
+  return {
+    clip_id: clip.id,
+    media_id: clip.media,
+    source_frame: clip.offset + frame - clip.start,
+    timeline_frame: frame,
+    track_id: track.id,
+  };
+}
+
 /** The track the anchor of this clip's sync group sits on, by name; "" when it has no group. */
 export function anchorNameFor(project, anchors, clip) {
   const group = project?.sync_groups?.find((g) => clip.media in g.members);

@@ -1228,6 +1228,115 @@ def adjust_clip_gain(p: Project, clip_ids, delta_db: float) -> Project:
 # -- sync groups -------------------------------------------------------------
 
 
+def align_points(p: Project, clip_a: str, point_a: int,
+                 clip_b: str, point_b: int) -> Project:
+    """Move ``clip_b`` so its marked source frame meets ``clip_a``'s, then sync them.
+
+    Points are absolute source frames. The move and sync-group update are one pure
+    edit so undo restores both the prior position and group membership.
+    """
+    _, track_b = _find_clip(p, clip_b)
+    p = _materialize_legacy_gates(p, {track_b.id})
+    a, _ = _find_clip(p, clip_a)
+    b, track_b = _find_clip(p, clip_b)
+    if a.id == b.id or a.media == b.media:
+        raise EditError("error.edit.sync_same_media")
+    if any(isinstance(point, bool) or not isinstance(point, int)
+           for point in (point_a, point_b)):
+        raise EditError("error.edit.bad_arguments", name="align_points",
+                         detail="source frame")
+    if not (a.offset <= point_a < a.offset + a.length
+            and b.offset <= point_b < b.offset + b.length):
+        raise EditError("error.edit.sync_point_outside")
+    start = a.start + point_a - a.offset - (point_b - b.offset)
+    if start < 0:
+        raise EditError("error.edit.sync_before_start")
+    delta = frames_to_flicks(point_a - point_b, p.rate)
+    before = p
+    p = _replace_clip(p, replace(b, start=start, free=False))
+    if a.free:
+        p = _replace_clip(p, replace(a, free=False))
+    p = _overwrite_under(before, p, only={b.id})
+    anchor_survived = any(c.id == a.id for track in p.tracks for c in track.clips)
+    return _align_sync_group(p, a.media, b.media, delta, anchor_survived)
+
+
+def _align_sync_group(p: Project, media_a: str, media_b: str,
+                      delta: int, anchor_survived: bool) -> Project:
+    """Join B to A's recording clock, keeping and rebasing existing partners.
+
+    A's group wins when both recordings already belong to different groups.
+    If only B has a group, keep that group and its main recording.
+    """
+    group_a, group_b = p.sync_group(media_a), p.sync_group(media_b)
+
+    if group_a is None and group_b is None:
+        group = SyncGroup(
+            id=new_id("g"), main=media_a,
+            members=tuple(sorted({media_a: 0, media_b: delta}.items())))
+        group = _with_live_sync_main(p, group, media_b)
+        return replace(p, sync_groups=(*p.sync_groups, group))
+
+    if group_a is None:
+        # Keep B's clock and main; A's frame zero is delta before B's.
+        members = dict(group_b.members)
+        member_b = p.sync_member(media_b)
+        origin_b = members.get(media_b, member_b[1] if member_b else 0)
+        members[media_b] = origin_b
+        members[media_a] = origin_b - delta
+        joined = replace(group_b, members=tuple(sorted(members.items())))
+        joined = _with_live_sync_main(p, joined, media_b)
+        return replace(p, sync_groups=tuple(
+            joined if group.id == group_b.id else group for group in p.sync_groups))
+
+    members_a = dict(group_a.members)
+    member_a = p.sync_member(media_a)
+    origin_a = members_a.get(media_a, member_a[1] if member_a else 0)
+    origin_b = origin_a + delta
+    members_a[media_a] = origin_a
+
+    if group_b is not None and group_b.id != group_a.id:
+        members_b = dict(group_b.members)
+        member_b = p.sync_member(media_b)
+        old_origin_b = members_b.get(media_b, member_b[1] if member_b else 0)
+        shift = origin_b - old_origin_b
+        members_a.update({media: origin + shift
+                          for media, origin in members_b.items()
+                          if media != media_a})
+        members_a[media_b] = origin_b
+    else:
+        members_a[media_b] = origin_b
+
+    joined = replace(group_a, members=tuple(sorted(members_a.items())))
+    preferred_main = media_a if anchor_survived else media_b
+    joined = _with_live_sync_main(p, joined, media_b,
+                                  preferred_media=preferred_main)
+    groups = tuple(group for group in p.sync_groups
+                   if group.id not in {group_a.id,
+                                       group_b.id if group_b is not None else None})
+    return replace(p, sync_groups=(*groups, joined))
+
+
+def _with_live_sync_main(p: Project, group: SyncGroup, fallback_media: str,
+                         preferred_media: str | None = None) -> SyncGroup:
+    """Keep a live main recording and express every origin relative to it."""
+    live_media = {clip.media for track in p.tracks for clip in track.clips}
+    origins = dict(group.members)
+    main = group.main
+    if main not in origins or main not in live_media:
+        candidates = (preferred_media, fallback_media, *origins)
+        replacement = next((media for media in candidates
+                            if media in origins and media in live_media), None)
+        if replacement is None:
+            replacement = next((media for media in candidates if media in origins), None)
+        if replacement is not None:
+            main = replacement
+    shift = origins[main]
+    return replace(group, main=main,
+                   members=tuple(sorted((media, origin - shift)
+                                        for media, origin in origins.items())))
+
+
 def mark_in_sync(p: Project, clip_ids, main: str, group_id: str | None = None,
                  basis: str = "timeline") -> Project:
     """Declare these clips in sync with ``main``.
@@ -1821,7 +1930,8 @@ OPS = {
         set_marker_kind,
         add_placeholder, edit_placeholder_text, set_placeholder_length,
         move_placeholder, delete_placeholder, replace_placeholder,
-        shift_clips, set_clips, delete_clips, mark_in_sync, resync, set_free,
+        shift_clips, set_clips, delete_clips, align_points, mark_in_sync,
+        resync, set_free,
         send_home, set_sync_anchor,
         split_clips, mute_range, cut_range, nudge_clips, move_clips_to_track,
         trim_clips, adjust_clip_gain,

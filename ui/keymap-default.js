@@ -1201,12 +1201,6 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.sync.point1",
   },
   {
-    id: "sync.point2",
-    keys: { mac: "Alt+Mod+2", other: "Alt+Mod+2" },
-    context: "timeline",
-    labelKey: "cmd.sync.point2",
-  },
-  {
     id: "sync.resync_end",
     keys: { mac: "Shift+Alt+Mod+R", other: "Shift+Alt+Mod+R" },
     context: "timeline",

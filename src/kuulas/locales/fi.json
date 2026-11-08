@@ -113,6 +113,9 @@
   "error.edit.clip_no_fields": "Leikkeellä ei ole tällaisia kenttiä: {fields}.",
   "error.edit.no_selection": "Yhtään leikettä ei ole valittu.",
   "error.edit.sync_basis": "Tuntematon synkronointiperuste: {basis}.",
+  "error.edit.sync_point_outside": "Synkkauspisteen on oltava leikkeen sisällä.",
+  "error.edit.sync_before_start": "Tämä synkkauspiste siirtäisi leikkeen aikajanan alun ohi.",
+  "error.edit.sync_same_media": "Valitse kaksi eri äänitteistä tehtyä leikettä.",
   "error.edit.empty_range": "Alue on tyhjä.",
   "error.edit.unknown": "Tuntematon muokkaus: {name}.",
   "error.edit.bad_args": "Komennon argumentit eivät kelpaa.",
@@ -387,6 +390,7 @@
     "one": "{count} leikkeen poisto: {where}",
     "other": "{count} leikkeen poisto: {where}"
   },
+  "history.op.align_points": "Leikkeiden kohdistus synkkauspisteillä",
   "history.op.mark_in_sync": {
     "one": "{count} leike merkitty synkkaan",
     "other": "{count} leikettä merkitty synkkaan"
@@ -881,7 +885,6 @@
   "cmd.sync.mark": "Merkitse synkkaan (ensimmäinen valittu on ankkuri)",
   "cmd.sync.resync": "Synkkaa valitut leikkeet ankkuriin",
   "cmd.sync.point1": "Aseta ensimmäinen synkkapiste",
-  "cmd.sync.point2": "Aseta toinen synkkapiste",
   "cmd.sync.resync_end": "Synkkaa loppuun, kaikki raidat",
   "cmd.candidate.mark_range": "Ehdokas alku- ja loppupisteen väliltä",
   "cmd.candidate.next": "Seuraava ehdokas",
@@ -2815,6 +2818,7 @@
   "cmd.sync.send_home": "Palauta alkuperäiselle raidalle",
   "cmd.sync.send_home.hint": "Siirtää valitut leikkeet takaisin raidalle, jolta ne vedettiin pois, samaan aikakohtaan. Synkkaus korjaa vain ajan, ei koskaan raitaa. Se kertoo ensin, mitä siirtää, ja odottaa vahvistusta tai peruutusta; Näytä-valikon kohta Vahvista ennen synkkausta kytkee sen pois.",
   "ui.sync.history.anchor": "Synkan ankkuriksi",
+  "ui.sync.history.align_points": "Kohdista leikkeet synkkauspisteillä",
   "ui.sync.history.send_home": "Palautettu alkuperäiselle raidalle",
   "ui.sync.toast.anchor": "{name} on nyt synkan ankkuri",
   "ui.sync.toast.sent_home": {
@@ -2822,6 +2826,9 @@
     "other": "{count} leikettä on takaisin alkuperäisillä raidoillaan"
   },
   "ui.sync.toast.marked": "Merkitty synkkaan. Ankkuri on {name}",
+  "ui.sync.point_set": "Synkkauspiste asetettu raidalle {name}. Siirrä kohdistin samaan ääneen toisessa leikkeessä ja paina {key:sync.point1}.",
+  "ui.sync.point_aligned": "Raita {name} kohdistettiin synkkauspisteeseen ja äänitteet merkittiin synkkaan.",
+  "ui.sync.point_no_clip": "Aseta kohdistin aktiivisen raidan leikkeen sisään, kun haluat merkitä synkkauspisteen.",
   "ui.sync.history.mark": "Merkitty synkkaan",
   "ui.sync.anchor_tag": "ankkuri",
   "ui.sync.anchor_title": "Synkan ankkuri: tämän tahdistusryhmän leikkeet pidetään synkassa tähän nähden.",

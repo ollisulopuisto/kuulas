@@ -1727,7 +1727,35 @@ export function createTimeline({
     }
     drawCandidateFlags(state);
     drawMarkerFlags(state);
+    drawPendingSyncPoint(state);
     drawLeftOffFlag(state);
+  }
+
+  // The first manual sync point stays visible while the user finds the same sound
+  // in another recording. It is UI state, not a project marker or history step.
+  function drawPendingSyncPoint(state) {
+    const point = state.syncPendingPoint;
+    if (!point) return;
+    const x = Math.round(frameToX(point.timeline_frame, state.scroll, state.zoom));
+    if (x < -6 || x > size.width + 6) return;
+    overlay.strokeStyle = theme.accent;
+    overlay.fillStyle = theme.accent;
+    overlay.lineWidth = 1.5;
+    overlay.setLineDash([3, 2]);
+    overlay.beginPath();
+    overlay.moveTo(x + 0.5, MARKER_FLAG_H);
+    overlay.lineTo(x + 0.5, RULER_HEIGHT - 1);
+    overlay.stroke();
+    overlay.setLineDash([]);
+    overlay.beginPath();
+    overlay.moveTo(x - MARKER_NOTCH_PX, 0);
+    overlay.lineTo(x + MARKER_NOTCH_PX, 0);
+    overlay.lineTo(x, MARKER_FLAG_H);
+    overlay.closePath();
+    overlay.fill();
+    overlay.font = `600 ${MARK_FONT_PX}px ${theme.font}`;
+    overlay.textBaseline = "middle";
+    overlay.fillText("1", x + MARKER_NOTCH_PX + 2, RULER_HEIGHT / 2 + 1);
   }
 
   // The automatic "left off" flag (left-off.js; not a project marker): a dashed pole and a

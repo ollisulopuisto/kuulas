@@ -8,7 +8,7 @@
 // shows it in a confirm dialog, and only then applies it as one undo step. Nothing to move: a
 // notice, no dialog. Freeing moves nothing and stays instant. "Confirm before re-syncing" (View)
 // switches the dialog off.
-import { driftInRange, driftRows, stepDrift } from "./sync-state.js";
+import { driftInRange, driftRows, stepDrift, syncPointAt } from "./sync-state.js";
 
 const hasProject = (state) => Boolean(state?.project);
 
@@ -72,6 +72,53 @@ export function registerSyncCommands(registry, { app, t }) {
   // A preference, not an edit: whether the commands above show their dialog first.
   def("sync.confirm", () => app.toggleConfirmSync());
   def("sync.show_drift", () => app.toggleShowSyncDrift());
+
+  // Alt+Mod+1: capture a sound on the focused clip, then capture the same sound
+  // in another recording. The second capture moves that clip and records the
+  // sync group in one undo step.
+  def(
+    "sync.point1",
+    () => {
+      const state = app.getState();
+      const point = syncPointAt(state.project, state.focusTrack, state.playhead);
+      if (!point) {
+        app.notice(t("ui.sync.point_no_clip"));
+        return;
+      }
+      const pending = state.syncPendingPoint;
+      if (!pending || pending.clip_id === point.clip_id) {
+        app.patch({ syncPendingPoint: point });
+        app.toast(t("ui.sync.point_set", { name: trackName(state, point.clip_id) }), {
+          undo: false,
+        });
+        return;
+      }
+      if (pending.media_id === point.media_id) {
+        app.notice(t("error.edit.sync_same_media"));
+        return;
+      }
+      app.edit({
+        op: "align_points",
+        args: {
+          clip_a: pending.clip_id,
+          point_a: pending.source_frame,
+          clip_b: point.clip_id,
+          point_b: point.source_frame,
+        },
+        label: t("ui.sync.history.align_points"),
+        done: () => {
+          app.patch({ syncPendingPoint: null });
+          app.toast(
+            t("ui.sync.point_aligned", {
+              name: trackName(state, point.clip_id),
+            }),
+            { undo: true },
+          );
+        },
+      });
+    },
+    hasProject,
+  );
 
   function setFree(ids, free, label, message) {
     app.edit({

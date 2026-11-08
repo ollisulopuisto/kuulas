@@ -13,6 +13,7 @@ import {
   stepDrift,
   syncIndex,
   syncMark,
+  syncPointAt,
 } from "../sync-state.js";
 
 const RATE = 48000;
@@ -31,6 +32,23 @@ describe("syncMark", () => {
     assert.deepEqual(syncMark(row("f", 0, 0, "free"), true), { kind: "free", tint: "muted" });
     assert.equal(syncMark(row("s", 0, 0, "in_sync"), true), null);
     assert.equal(syncMark(null, true), null);
+  });
+});
+
+describe("syncPointAt", () => {
+  test("returns the recording frame under the playhead on the current track", () => {
+    const project = {
+      tracks: [{ id: "t", clips: [{ id: "c", media: "m", start: 100, offset: 40, length: 200 }] }],
+    };
+    assert.deepEqual(syncPointAt(project, "t", 150), {
+      clip_id: "c",
+      media_id: "m",
+      source_frame: 90,
+      timeline_frame: 150,
+      track_id: "t",
+    });
+    assert.equal(syncPointAt(project, "other", 150), null);
+    assert.equal(syncPointAt(project, "t", 300), null);
   });
 });
 

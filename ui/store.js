@@ -44,6 +44,8 @@ export const initialState = () => ({
   cutPreview: null,
   collateral: null,
   focusTrack: null,
+  // The first sound point of a two-recording manual alignment (WP5 sync point).
+  syncPendingPoint: null,
   // A bus row is the current row (the inspector shows its Bus section); else null.
   focusBus: null,
   panel: "timeline",
