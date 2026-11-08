@@ -35,7 +35,7 @@ import json
 import socket
 import sqlite3
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -692,6 +692,19 @@ class History:
                            (node, self.edit)).fetchone() is None:
             raise HistoryError("error.history.no_step", node=node)
         return self._load(node)
+
+    def edit_states(self) -> Iterator[Project]:
+        """Yield each distinct saved state across all edits and history branches.
+
+        Shared media operations use this to preserve source ranges any edit can
+        restore. The states are loaded one at a time so a long history stays
+        within the decoded-state cache budget.
+        """
+        nodes = [row[0] for row in self.db.execute(
+            "select min(id) from nodes group by state order by min(id)"
+        )]
+        for node in nodes:
+            yield self._load(node)
 
     def restored_step(self, node: str) -> dict | None:
         """The step whose state ``node`` holds: ``node`` itself, or, while it is a

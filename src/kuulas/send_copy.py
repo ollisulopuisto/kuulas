@@ -27,7 +27,7 @@ import os
 import secrets
 import shutil
 import sqlite3
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 
 import numpy as np
@@ -82,6 +82,30 @@ def used_ranges(project: Project, frames: Mapping[str, int],
         if limit is not None:
             merged = [(a, min(b, limit)) for a, b in merged]
         out[media_id] = tuple((a, b) for a, b in merged if b > a)
+    return out
+
+
+def used_ranges_for_projects(projects: Iterable[Project], frames: Mapping[str, int],
+                             handle_seconds: float = HANDLE_SECONDS) -> dict[str, Ranges]:
+    """Union the source ranges used by saved project states.
+
+    Used-only consolidation changes shared media. Keep ranges used by any undo
+    snapshot or alternate edit, not just the edit currently on screen.
+    """
+    spans_by_media: dict[str, list[tuple[int, int]]] = {}
+    for project in projects:
+        for media_id, spans in used_ranges(project, frames, handle_seconds).items():
+            spans_by_media.setdefault(media_id, []).extend(spans)
+
+    out: dict[str, Ranges] = {}
+    for media_id, spans in spans_by_media.items():
+        merged: list[tuple[int, int]] = []
+        for first, last in sorted(spans):
+            if merged and first <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], last))
+            else:
+                merged.append((first, last))
+        out[media_id] = tuple(merged)
     return out
 
 

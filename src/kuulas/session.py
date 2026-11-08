@@ -3902,7 +3902,11 @@ def _consolidate(s: Session, args: dict) -> Project:
     if used_only:
         frames = {media_id: s.store.meta(media_id)["source_frames"]
                   for media_id in s.store.ids()}
-        ranges = send_copy_module.used_ranges(s.history.state, frames)
+        current = send_copy_module.used_ranges(s.history.state, frames)
+        reachable = send_copy_module.used_ranges_for_projects(
+            s.history.edit_states(), frames
+        )
+        ranges = {media_id: reachable[media_id] for media_id in current}
         done = s.store.consolidate(ranges, send_copy_module.HANDLE_SECONDS)
     else:
         done = s.store.consolidate()
