@@ -132,6 +132,12 @@ jobs:
           key: ffmpeg-macos-arm64-${{ github.run_id }}
       - name: What was built
         run: |
+          # GitHub sanitizes spaces in asset names. Rename before checksumming.
+          for dmg in "$RUNNER_TEMP"/dist/*.dmg; do
+            name="${dmg##*/}"
+            destination="${dmg%/*}/${name// /.}"
+            if [[ "$destination" != "$dmg" ]]; then mv "$dmg" "$destination"; fi
+          done
           ls -la "$RUNNER_TEMP/dist"
           (cd "$RUNNER_TEMP/dist" && shasum -a 256 ./*.dmg | sed 's|  ./|  |' > SHA256.txt && shasum -a 256 -c SHA256.txt)
           cat "$RUNNER_TEMP/dist/SHA256.txt"
@@ -243,6 +249,12 @@ jobs:
       run: security delete-keychain "$RUNNER_TEMP/kuulas-signing.keychain-db" || true
     - name: What was built
       run: |
+        # GitHub sanitizes spaces in asset names. Rename before checksumming.
+        for dmg in "$RUNNER_TEMP"/dist/*.dmg; do
+          name="${dmg##*/}"
+          destination="${dmg%/*}/${name// /.}"
+          if [[ "$destination" != "$dmg" ]]; then mv "$dmg" "$destination"; fi
+        done
         ls -la "$RUNNER_TEMP/dist"
         (cd "$RUNNER_TEMP/dist" && shasum -a 256 ./*.dmg | sed 's|  ./|  |' > SHA256.txt && shasum -a 256 -c SHA256.txt)
         cat "$RUNNER_TEMP/dist/SHA256.txt"
