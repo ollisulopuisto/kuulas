@@ -21,14 +21,20 @@ permissions:
 
 jobs:
   release-workflow-guards:
-    name: Release workflow guards
-    runs-on: ubuntu-latest
+    name: Release workflow guards (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: false
       - run: uv run --no-project --with pyyaml python -m unittest discover -s scripts/tests -p test_draft_release_workflow.py -v
+      - name: Native dummy-keychain transport smoke check
+        if: runner.os == 'macOS'
+        run: python3 scripts/tests/test_macos_keychain_transport.py -v
 
   changes:
     name: Check changed paths
