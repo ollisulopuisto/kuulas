@@ -1,5 +1,7 @@
 # kuulas implementation plan
 
+**Release v26.11.8.1:** Manual sync-point clip alignment with preserved sync partners and standard destination overwrite behavior.
+
 **Release v26.11.7.1:** Background voice-chain variants with undoable source switching; compact cross-project paste excerpts; faster clip deletion, scalar gain and block-level cutting; accessible theme toggle. Includes all earlier changes listed below.
 
 **Release v26.11.6.2:** Faster clip expansion, faster timeline candidate overlays, hardened control discovery, and accessible notice-chip labels. The release includes v26.11.4.4's LLM/MCP controls and all earlier changes listed below.

@@ -1,3 +1,7 @@
+## [v26.11.8.1] - 2026-11-08
+
+- **Align recordings from a shared sound point.** Mark the same source frame in two recordings to move one clip into sync and record their shared timing in one undoable edit. Existing sync partners stay together, and destination clips follow normal overwrite behavior.
+
 ## [v26.11.7.1] - 2026-11-07
 
 - **Voice-chain processing keeps the source.** Background processing stores an alternate media variant, and switching clips between the source and variant is undoable. The Inspector control remains planned.
