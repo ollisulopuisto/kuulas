@@ -2,6 +2,7 @@
 
 import pathlib
 import subprocess
+import tempfile
 import unittest
 
 import yaml
@@ -59,9 +60,26 @@ class DraftReleaseTests(unittest.TestCase):
             require("macos_ci_credentials.py store-notary-credentials" in runs)
             require("shasum -a 256 -c SHA256.txt" in runs)
 
+    def test_checksum_filename_matches_sanitized_release_asset(self):
+        for job in self.jobs.values():
+            step = next(s for s in job["steps"] if s.get("name") == "What was built")
+            with tempfile.TemporaryDirectory() as directory:
+                dist = pathlib.Path(directory) / "dist"
+                dist.mkdir()
+                (dist / "Kuulas 26.11.8.1.dmg").write_bytes(b"dummy disk image")
+                # Execute the owned workflow step only against a dummy image.
+                subprocess.run(  # noqa: S603
+                    ["/bin/bash", "-euc", step["run"]],
+                    env={"PATH": "/usr/bin:/bin", "RUNNER_TEMP": directory},
+                    check=True, capture_output=True,
+                )
+                require("  Kuulas.26.11.8.1.dmg" in (dist / "SHA256.txt").read_text())
+                require((dist / "Kuulas.26.11.8.1.dmg").is_file())
+
     def test_shell_syntax(self):
         for step in self.draft["steps"]:
             if "run" in step:
+                # Execute the owned workflow step only against a dummy image.
                 subprocess.run(
                     ["/bin/bash", "-n"], input=step["run"], text=True, check=True
                 )
