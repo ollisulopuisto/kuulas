@@ -186,6 +186,12 @@ def test_full_disk_stops_with_everything_written_flushed(tmp_path, monkeypatch):
     c.start()
     src.emit(5)
     assert c.wait_drained()
+    # Ring consumption precedes the disk write. Wait for the five successful
+    # blocks to finish before replacing os.write with the ENOSPC fixture.
+    deadline = time.monotonic() + 5
+    while c.files[0].frames < 5 * BLOCK and time.monotonic() < deadline:
+        time.sleep(0.001)
+    assert c.files[0].frames == 5 * BLOCK
     fd = c.files[0].fileno()
     real_write = os.write
 
