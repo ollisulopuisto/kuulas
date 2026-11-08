@@ -100,3 +100,10 @@ def test_import_preserves_original_and_new_search_paths():
         HELPER.import_certificate()
     assert run.call_args.args == ("list-keychains", "-d", "user", "-s",
                                   "/original with spaces", "/concurrent", "/dummy/new")
+
+
+def test_search_list_preserves_literal_quotes_and_backslashes():
+    value = '/dummy/work "2026" \\ keychain.keychain-db'
+    assert HELPER.keychain_paths('    "' + value + '"\n') == [value]
+    with pytest.raises(RuntimeError, match="Unexpected keychain"):
+        HELPER.keychain_paths('security> "/dummy/path"\n')
