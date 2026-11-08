@@ -954,10 +954,53 @@ def shift_clips(p: Project, clip_ids, delta: int) -> Project:
 
 
 def set_clips(p: Project, clip_ids, **fields) -> Project:
-    """Change fields of several clips at once (given as keyword arguments)."""
-    for clip_id in clip_ids:
-        p = set_clip(p, clip_id, **fields)
-    return p
+    """Change fields of several clips at once in a single pass over tracks and clips."""
+    unknown = set(fields) - CLIP_FIELDS
+    if unknown:
+        raise EditError("error.edit.clip_no_fields", fields=", ".join(sorted(unknown)))
+    clip_ids = tuple(clip_ids)
+    wanted = set(clip_ids)
+    if not wanted:
+        return p
+    # Validate and normalize fields that are independent of clip length once upfront.
+    if "pan" in fields:
+        fields["pan"] = max(-1.0, min(1.0, float(fields["pan"])))
+    if "name" in fields:
+        fields["name"] = str(fields["name"]).strip()[:200]
+    has_fade_in = "fade_in" in fields
+    has_fade_out = "fade_out" in fields
+    fade_in_val = fields.get("fade_in")
+    fade_out_val = fields.get("fade_out")
+
+    remaining = set(wanted)
+    tracks = []
+    for t in p.tracks:
+        found_here: set[str] = set()
+        new_clips = None
+        for index, c in enumerate(t.clips):
+            if c.id in remaining:
+                remaining.remove(c.id)
+                found_here.add(c.id)
+            if c.id in found_here:
+                f = dict(fields)
+                if has_fade_in:
+                    f["fade_in"] = max(0, min(c.length, int(fade_in_val)))
+                if has_fade_out:
+                    f["fade_out"] = max(0, min(c.length, int(fade_out_val)))
+                changed = replace(c, **f)
+                if new_clips is None:
+                    new_clips = list(t.clips[:index])
+                new_clips.append(changed)
+            elif new_clips is not None:
+                new_clips.append(c)
+        if new_clips is None:
+            tracks.append(t)
+        else:
+            tracks.append(replace(t, clips=_sorted(new_clips)))
+    if remaining:
+        missing = next(cid for cid in clip_ids if cid in remaining)
+        raise EditError("error.edit.no_clip", clip_id=missing)
+    return replace(p, tracks=tuple(tracks))
 
 
 def delete_clips(p: Project, clip_ids) -> Project:

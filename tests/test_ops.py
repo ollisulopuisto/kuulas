@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from kuulas import ops
@@ -178,6 +180,79 @@ def test_selection_wide_edits():
     assert p.clip("c1").gain_db == p.clip("c2").gain_db == -3.0
     p = ops.delete_clips(p, ["c1", "c2"])
     assert all(not t.clips for t in p.tracks)
+
+
+def test_set_clips_empty_returns_unchanged():
+    p = project_with_two_tracks()
+    assert ops.set_clips(p, [], gain_db=-3.0) == p
+
+
+def test_set_clips_unknown_clip_raises_edit_error():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.set_clips(p, ["c1", "nonexistent"], gain_db=-3.0)
+    assert exc_info.value.key == "error.edit.no_clip"
+
+
+def test_set_clips_rejects_a_missing_id_from_a_one_shot_iterator():
+    p = project_with_two_tracks()
+    clip_ids = (clip_id for clip_id in ("c1", "missing"))
+
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.set_clips(p, clip_ids, muted=True)
+
+    assert exc_info.value.key == "error.edit.no_clip"
+
+
+def test_set_clips_changes_only_the_first_track_with_a_duplicate_id():
+    p = project_with_two_tracks()
+    p = ops.add_clip(p, track_id="t2", media_id="m2", clip_id="c1")
+
+    q = ops.set_clips(p, ["c1"], muted=True)
+
+    assert p.track("t1").clips[0].muted is False
+    assert q.track("t1").clips[0].muted is True
+    assert next(c for c in q.track("t2").clips if c.id == "c1").muted is False
+
+
+def test_set_clips_sorts_changed_track_clips():
+    p = project_with_two_tracks()
+    p = ops.add_clip(p, track_id="t1", media_id="m1", clip_id="late",
+                     start=5 * RATE)
+    p = replace(p, tracks=(replace(p.track("t1"),
+                                  clips=tuple(reversed(p.track("t1").clips))),
+                           p.track("t2")))
+
+    q = ops.set_clips(p, ["late"], name="renamed")
+
+    assert [(clip.id, clip.start) for clip in q.track("t1").clips] == [
+        ("c1", 0), ("late", 5 * RATE)
+    ]
+
+
+def test_set_clips_invalid_field_raises_edit_error():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.set_clips(p, ["c1"], invalid_field=123)
+    assert exc_info.value.key == "error.edit.clip_no_fields"
+
+
+def test_set_clips_clamps_and_normalizes_fields():
+    p = project_with_two_tracks()
+    p2 = ops.set_clips(
+        p,
+        ["c1", "c2"],
+        pan=-2.5,
+        fade_in=999999999,
+        fade_out=-50,
+        name="  Test Clip  ",
+    )
+    for cid in ("c1", "c2"):
+        c = p2.clip(cid)
+        assert c.pan == -1.0
+        assert c.fade_in == c.length
+        assert c.fade_out == 0
+        assert c.name == "Test Clip"
 
 
 def test_delete_clips_empty_or_subset():
