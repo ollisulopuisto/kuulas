@@ -10,6 +10,15 @@ name: dmg
 
 on:
   workflow_dispatch:
+    inputs:
+      draft_release:
+        description: 'Build current merged main directly to a notarized draft Release without Actions storage writes'
+        type: boolean
+        default: false
+      source_sha:
+        description: 'Expected main SHA for a draft release'
+        type: string
+        required: false
   push:
     tags: ["v*"]
 
@@ -19,6 +28,7 @@ permissions:
 jobs:
   dmg:
     name: build the .dmg (macOS, Apple silicon)
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.draft_release) }}
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -141,3 +151,128 @@ jobs:
             --title "Kuulas ${GITHUB_REF_NAME}" \
             --notes "Test build for Apple-silicon Macs, Developer ID signed and notarised. See docs/TESTERS.md. Checksums in SHA256.txt." \
             "$RUNNER_TEMP"/dist/*.dmg "$RUNNER_TEMP"/dist/SHA256.txt
+
+  draft-release:
+    name: build direct draft .dmg (macOS, Apple silicon)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.draft_release }}
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+    - name: Resolve latest merged main
+      id: source
+      env:
+        GH_TOKEN: ${{ github.token }}
+        EXPECTED_SHA: ${{ inputs.source_sha }}
+      run: |
+        set -euo pipefail
+        SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)
+        [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
+        if [[ -n "$EXPECTED_SHA" && "$EXPECTED_SHA" != "$SHA" ]]; then
+          echo 'Main changed after dispatch; request a fresh build.' >&2
+          exit 1
+        fi
+        echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+        echo "BUILD_SHA=$SHA" >> "$GITHUB_ENV"
+    - uses: actions/checkout@v7
+      with:
+        path: kuulas
+        ref: ${{ steps.source.outputs.sha }}
+    - uses: actions/checkout@v7
+      with:
+        repository: ollisulopuisto/podcast
+        ref: 45c5c2b927a2f4fb8c3c40108f7379bf185c0bab
+        path: podcast
+        sparse-checkout: |
+          packages
+          apps
+    - uses: astral-sh/setup-uv@v7
+      with:
+        version: 0.13.6
+    - name: Import Developer ID certificate
+      env:
+        BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      run: |
+        set -euo pipefail
+        test -n "$BUILD_CERTIFICATE_BASE64"
+        test -n "$P12_PASSWORD"
+        test -n "$KEYCHAIN_PASSWORD"
+        KEYCHAIN_PATH="$RUNNER_TEMP/kuulas-signing.keychain-db"
+        CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+        printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 -D -o "$CERTIFICATE_PATH"
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -T /usr/bin/codesign -k "$KEYCHAIN_PATH"
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security list-keychains -d user -s "$KEYCHAIN_PATH"
+        rm -f "$CERTIFICATE_PATH"
+        security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -F 'Developer ID Application: Olli Sulopuisto (LWSR8T5392)'
+    - name: Build the .dmg
+      working-directory: kuulas
+      env:
+        PODCAST_SRC: ${{ github.workspace }}/podcast
+        KUULAS_FFMPEG_CACHE: ${{ runner.temp }}/ffmpeg-cache
+        APPLE_SIGNING_IDENTITY: 'Developer ID Application: Olli Sulopuisto (LWSR8T5392)'
+      run: |
+        rm -f "$KUULAS_FFMPEG_CACHE/.fresh"
+        scripts/build_dmg.sh --out "$RUNNER_TEMP/dist"
+    - name: Notarise and staple the .dmg
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        APPLE_TEAM_ID: LWSR8T5392
+      run: |
+        set -euo pipefail
+        test -n "$APPLE_ID"
+        test -n "$APPLE_APP_PASSWORD"
+        for dmg in "$RUNNER_TEMP"/dist/*.dmg; do
+          result=$(xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" --wait --timeout 45m --output-format json) || true
+          echo "$result"
+          id=$(printf '%s' "$result" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+          status=$(printf '%s' "$result" | python3 -c 'import json,sys; print(json.load(sys.stdin)["status"])')
+          if [ "$status" != Accepted ]; then
+            xcrun notarytool log "$id" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+            exit 1
+          fi
+          xcrun stapler staple "$dmg"
+          xcrun stapler validate "$dmg"
+          spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+        done
+    - name: Remove signing keychain
+      if: always()
+      run: security delete-keychain "$RUNNER_TEMP/kuulas-signing.keychain-db" || true
+    - name: What was built
+      run: |
+        ls -la "$RUNNER_TEMP/dist"
+        shasum -a 256 "$RUNNER_TEMP/dist"/*.dmg | tee "$RUNNER_TEMP/dist/SHA256.txt"
+    - name: Publish draft Release directly
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        VERSION=$(python3 -c 'import tomllib; print(tomllib.load(open("kuulas/pyproject.toml","rb"))["project"]["version"])')
+        [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)+$ ]]
+        TAG="v${VERSION}-test.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}"
+        python3 - "$VERSION" <<'PYNOTES' > "$RUNNER_TEMP/release-notes.md"
+        import pathlib, re, sys
+        text = pathlib.Path("kuulas/CHANGELOG.md").read_text()
+        heading = re.search(r"(?m)^## \[v" + re.escape(sys.argv[1]) + r"\].*$", text)
+        if not heading:
+            raise SystemExit("Current version has no changelog heading")
+        section = text[heading.end():].split("\n## ", 1)[0].strip()
+        print(section)
+        PYNOTES
+        cat >> "$RUNNER_TEMP/release-notes.md" <<EOFNOTES
+
+        Apple-silicon test build from merged main $BUILD_SHA.
+        App version: $VERSION. Test build: $TAG.
+        Developer ID signed and notarized; packaged app selftest passed.
+        Native feature/UI acceptance is still pending. This is a draft test release.
+        EOFNOTES
+        gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$BUILD_SHA" \
+          --draft --prerelease --title "Kuulas $VERSION arm64 TEST $GITHUB_RUN_ID" \
+          --notes-file "$RUNNER_TEMP/release-notes.md" \
+          "$RUNNER_TEMP"/dist/*.dmg "$RUNNER_TEMP"/dist/SHA256.txt
