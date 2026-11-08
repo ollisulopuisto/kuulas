@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from kuulas import ops
@@ -190,6 +192,42 @@ def test_set_clips_unknown_clip_raises_edit_error():
     with pytest.raises(ops.EditError) as exc_info:
         ops.set_clips(p, ["c1", "nonexistent"], gain_db=-3.0)
     assert exc_info.value.key == "error.edit.no_clip"
+
+
+def test_set_clips_rejects_a_missing_id_from_a_one_shot_iterator():
+    p = project_with_two_tracks()
+    clip_ids = (clip_id for clip_id in ("c1", "missing"))
+
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.set_clips(p, clip_ids, muted=True)
+
+    assert exc_info.value.key == "error.edit.no_clip"
+
+
+def test_set_clips_changes_only_the_first_track_with_a_duplicate_id():
+    p = project_with_two_tracks()
+    p = ops.add_clip(p, track_id="t2", media_id="m2", clip_id="c1")
+
+    q = ops.set_clips(p, ["c1"], muted=True)
+
+    assert p.track("t1").clips[0].muted is False
+    assert q.track("t1").clips[0].muted is True
+    assert next(c for c in q.track("t2").clips if c.id == "c1").muted is False
+
+
+def test_set_clips_sorts_changed_track_clips():
+    p = project_with_two_tracks()
+    p = ops.add_clip(p, track_id="t1", media_id="m1", clip_id="late",
+                     start=5 * RATE)
+    p = replace(p, tracks=(replace(p.track("t1"),
+                                  clips=tuple(reversed(p.track("t1").clips))),
+                           p.track("t2")))
+
+    q = ops.set_clips(p, ["late"], name="renamed")
+
+    assert [(clip.id, clip.start) for clip in q.track("t1").clips] == [
+        ("c1", 0), ("late", 5 * RATE)
+    ]
 
 
 def test_set_clips_invalid_field_raises_edit_error():

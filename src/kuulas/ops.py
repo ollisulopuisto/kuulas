@@ -958,6 +958,7 @@ def set_clips(p: Project, clip_ids, **fields) -> Project:
     unknown = set(fields) - CLIP_FIELDS
     if unknown:
         raise EditError("error.edit.clip_no_fields", fields=", ".join(sorted(unknown)))
+    clip_ids = tuple(clip_ids)
     wanted = set(clip_ids)
     if not wanted:
         return p
@@ -971,29 +972,34 @@ def set_clips(p: Project, clip_ids, **fields) -> Project:
     fade_in_val = fields.get("fade_in")
     fade_out_val = fields.get("fade_out")
 
-    found: set[str] = set()
+    remaining = set(wanted)
     tracks = []
     for t in p.tracks:
-        if any(c.id in wanted for c in t.clips):
-            new_clips = []
-            for c in t.clips:
-                if c.id in wanted:
-                    found.add(c.id)
-                    f = dict(fields)
-                    if has_fade_in:
-                        f["fade_in"] = max(0, min(c.length, int(fade_in_val)))
-                    if has_fade_out:
-                        f["fade_out"] = max(0, min(c.length, int(fade_out_val)))
-                    new_clips.append(replace(c, **f))
-                else:
-                    new_clips.append(c)
-            tracks.append(replace(t, clips=tuple(new_clips)))
-        else:
+        found_here: set[str] = set()
+        new_clips = None
+        for index, c in enumerate(t.clips):
+            if c.id in remaining:
+                remaining.remove(c.id)
+                found_here.add(c.id)
+            if c.id in found_here:
+                f = dict(fields)
+                if has_fade_in:
+                    f["fade_in"] = max(0, min(c.length, int(fade_in_val)))
+                if has_fade_out:
+                    f["fade_out"] = max(0, min(c.length, int(fade_out_val)))
+                changed = replace(c, **f)
+                if new_clips is None:
+                    new_clips = list(t.clips[:index])
+                new_clips.append(changed)
+            elif new_clips is not None:
+                new_clips.append(c)
+        if new_clips is None:
             tracks.append(t)
-    if len(found) != len(wanted):
-        for cid in clip_ids:
-            if cid not in found:
-                raise EditError("error.edit.no_clip", clip_id=cid)
+        else:
+            tracks.append(replace(t, clips=_sorted(new_clips)))
+    if remaining:
+        missing = next(cid for cid in clip_ids if cid in remaining)
+        raise EditError("error.edit.no_clip", clip_id=missing)
     return replace(p, tracks=tuple(tracks))
 
 
