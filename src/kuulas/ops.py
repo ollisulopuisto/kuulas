@@ -954,10 +954,47 @@ def shift_clips(p: Project, clip_ids, delta: int) -> Project:
 
 
 def set_clips(p: Project, clip_ids, **fields) -> Project:
-    """Change fields of several clips at once (given as keyword arguments)."""
-    for clip_id in clip_ids:
-        p = set_clip(p, clip_id, **fields)
-    return p
+    """Change fields of several clips at once in a single pass over tracks and clips."""
+    unknown = set(fields) - CLIP_FIELDS
+    if unknown:
+        raise EditError("error.edit.clip_no_fields", fields=", ".join(sorted(unknown)))
+    wanted = set(clip_ids)
+    if not wanted:
+        return p
+    # Validate and normalize fields that are independent of clip length once upfront.
+    if "pan" in fields:
+        fields["pan"] = max(-1.0, min(1.0, float(fields["pan"])))
+    if "name" in fields:
+        fields["name"] = str(fields["name"]).strip()[:200]
+    has_fade_in = "fade_in" in fields
+    has_fade_out = "fade_out" in fields
+    fade_in_val = fields.get("fade_in")
+    fade_out_val = fields.get("fade_out")
+
+    found: set[str] = set()
+    tracks = []
+    for t in p.tracks:
+        if any(c.id in wanted for c in t.clips):
+            new_clips = []
+            for c in t.clips:
+                if c.id in wanted:
+                    found.add(c.id)
+                    f = dict(fields)
+                    if has_fade_in:
+                        f["fade_in"] = max(0, min(c.length, int(fade_in_val)))
+                    if has_fade_out:
+                        f["fade_out"] = max(0, min(c.length, int(fade_out_val)))
+                    new_clips.append(replace(c, **f))
+                else:
+                    new_clips.append(c)
+            tracks.append(replace(t, clips=tuple(new_clips)))
+        else:
+            tracks.append(t)
+    if len(found) != len(wanted):
+        for cid in clip_ids:
+            if cid not in found:
+                raise EditError("error.edit.no_clip", clip_id=cid)
+    return replace(p, tracks=tuple(tracks))
 
 
 def delete_clips(p: Project, clip_ids) -> Project:

@@ -180,6 +180,43 @@ def test_selection_wide_edits():
     assert all(not t.clips for t in p.tracks)
 
 
+def test_set_clips_empty_returns_unchanged():
+    p = project_with_two_tracks()
+    assert ops.set_clips(p, [], gain_db=-3.0) == p
+
+
+def test_set_clips_unknown_clip_raises_edit_error():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.set_clips(p, ["c1", "nonexistent"], gain_db=-3.0)
+    assert exc_info.value.key == "error.edit.no_clip"
+
+
+def test_set_clips_invalid_field_raises_edit_error():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.set_clips(p, ["c1"], invalid_field=123)
+    assert exc_info.value.key == "error.edit.clip_no_fields"
+
+
+def test_set_clips_clamps_and_normalizes_fields():
+    p = project_with_two_tracks()
+    p2 = ops.set_clips(
+        p,
+        ["c1", "c2"],
+        pan=-2.5,
+        fade_in=999999999,
+        fade_out=-50,
+        name="  Test Clip  ",
+    )
+    for cid in ("c1", "c2"):
+        c = p2.clip(cid)
+        assert c.pan == -1.0
+        assert c.fade_in == c.length
+        assert c.fade_out == 0
+        assert c.name == "Test Clip"
+
+
 def test_delete_clips_empty_or_subset():
     p = project_with_two_tracks()
     assert ops.delete_clips(p, []) == p
