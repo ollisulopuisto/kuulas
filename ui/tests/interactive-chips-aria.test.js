@@ -106,3 +106,20 @@ test("theme button in index.html and app.js sets aria-label matching its title",
     "applyTheme in app.js sets aria-label matching title",
   );
 });
+
+test("follow button in index.html and app.js sets aria-label matching its title", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const code = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+
+  assert.match(
+    html,
+    /id="follow"[^>]*data-i18n-aria-label="ui\.view\.follow_title"/,
+    "follow button in index.html has data-i18n-aria-label matching ui.view.follow_title",
+  );
+
+  assert.match(
+    code,
+    /\$\("follow"\)\.setAttribute\("aria-label",\s*\$\("follow"\)\.title\)/,
+    "app.js sets aria-label matching title on follow button",
+  );
+});
