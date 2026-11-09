@@ -6,7 +6,7 @@
 import { registerAppCommands } from "./app-commands.js";
 import { registerCandidateCommands } from "./candidate-commands.js";
 import { cheatSheetData, createCheatSheet } from "./cheatsheet.js";
-import { commandRecords, searchAll } from "./command-search.js";
+import { commandRecords, isRepeatable, searchAll } from "./command-search.js";
 import { createCommandSearch, createSearchPanel } from "./command-search-ui.js";
 import { synonymsFor } from "./command-synonyms.js";
 import { createRegistry } from "./commands.js";
@@ -293,7 +293,9 @@ export function setupKeyboard({
     getRows: rows,
     t,
     run(id) {
-      palette.close();
+      // Repeatable commands keep the palette open (palette.js); the rest close it first,
+      // so the command runs with focus back where it was.
+      if (!isRepeatable(id)) palette.close();
       return registry.run(id, null, app.getState());
     },
   });

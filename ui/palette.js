@@ -2,7 +2,7 @@
 // scrim, the timeline stays live (GUI-DESIGN 3.9). Rows are pure data (tested);
 // the DOM part below only draws them.
 
-import { matchCommand } from "./command-search.js";
+import { isRepeatable, matchCommand } from "./command-search.js";
 import { fuzzyMatch } from "./fuzzy.js";
 
 /**
@@ -67,6 +67,7 @@ export function paletteRows({
       group: planned ? 2 : enabled ? 0 : 1,
       order,
       recent: recentRank.has(entry.id) || undefined,
+      repeatable: isRepeatable(entry.id) || undefined,
       rank: recentRank.get(entry.id),
     });
   });
@@ -178,6 +179,12 @@ export function createPalette({ getRows, run, t, root = document.body }) {
     if (!row) return;
     if (run(row.id) === false) {
       note.textContent = t(row.planned ? "ui.palette.planned" : "ui.palette.unavailable");
+      return;
+    }
+    // Repeatable commands (step, zoom, speed, track) leave the palette open: Enter again repeats.
+    if (row.repeatable) {
+      draw();
+      input.focus();
       return;
     }
     close();

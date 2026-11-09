@@ -102,3 +102,28 @@ describe("hold-to-play state machine", () => {
     assert.deepEqual(log, [["start", "l"], ["stop"], ["start", "j"]]);
   });
 });
+
+describe("menu-triggered slow listening", () => {
+  test("a second menu pick replaces the first, in the chosen direction", () => {
+    const { hold, log } = rig();
+    hold.press("l", "menu");
+    hold.press("j", "menu");
+    assert.deepEqual(log, [
+      ["start", "l"],
+      ["start", "j"],
+    ]);
+    assert.equal(hold.isHeld(), true);
+  });
+  test("a held key is never replaced by a menu pick", () => {
+    const { hold, log } = rig();
+    hold.press("l", "KeyL");
+    hold.press("j", "menu");
+    assert.deepEqual(log, [["start", "l"]]);
+  });
+  test("a menu listen is not replaced by a key press", () => {
+    const { hold, log } = rig();
+    hold.press("l", "menu");
+    hold.press("j", "KeyJ");
+    assert.deepEqual(log, [["start", "l"]]);
+  });
+});
