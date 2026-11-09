@@ -316,3 +316,42 @@ def test_add_track_rejects_duplicate_id():
         ops.add_track(p, track_id="t1", name="Duplicate Track")
     assert exc_info.value.key == "error.edit.track_exists"
     assert exc_info.value.params == {"track_id": "t1"}
+
+
+def test_adjust_clip_gain_batch_updates_and_clamps():
+    p = project_with_two_tracks()
+    # Add a third clip on t1 that is NOT selected
+    p = ops.add_clip(p, track_id="t1", clip_id="c3", media_id="m1", start=12 * RATE)
+    p = ops.adjust_clip_gain(p, ["c1", "c2"], 3.5)
+    assert p.clip("c1").gain_db == 3.5
+    assert p.clip("c2").gain_db == 3.5
+    assert p.clip("c3").gain_db == 0.0
+
+    # Test clamping to CLIP_GAIN_RANGE (-60.0, 12.0)
+    p_high = ops.adjust_clip_gain(p, ["c1"], 100.0)
+    assert p_high.clip("c1").gain_db == 12.0
+    p_low = ops.adjust_clip_gain(p, ["c1"], -100.0)
+    assert p_low.clip("c1").gain_db == -60.0
+
+
+def test_adjust_clip_gain_empty_raises_error():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.adjust_clip_gain(p, [], 1.0)
+    assert exc_info.value.key == "error.edit.no_selection"
+
+
+def test_adjust_clip_gain_unknown_clip_raises_error():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.adjust_clip_gain(p, ["c1", "nonexistent"], 1.0)
+    assert exc_info.value.key == "error.edit.no_clip"
+    assert exc_info.value.params == {"clip_id": "nonexistent"}
+
+
+def test_adjust_clip_gain_accepts_one_shot_iterator():
+    p = project_with_two_tracks()
+    one_shot = (cid for cid in ["c1", "c2"])
+    p_res = ops.adjust_clip_gain(p, one_shot, -2.5)
+    assert p_res.clip("c1").gain_db == -2.5
+    assert p_res.clip("c2").gain_db == -2.5
