@@ -2,7 +2,7 @@
 // scrim, the timeline stays live (GUI-DESIGN 3.9). Rows are pure data (tested);
 // the DOM part below only draws them.
 
-import { matchCommand } from "./command-search.js";
+import { isRepeatable, matchCommand } from "./command-search.js";
 import { fuzzyMatch } from "./fuzzy.js";
 
 /**
@@ -67,6 +67,7 @@ export function paletteRows({
       group: planned ? 2 : enabled ? 0 : 1,
       order,
       recent: recentRank.has(entry.id) || undefined,
+      repeatable: isRepeatable(entry.id) || undefined,
       rank: recentRank.get(entry.id),
     });
   });
@@ -117,11 +118,16 @@ export function createPalette({ getRows, run, t, root = document.body }) {
 
   let rows = [];
   let selected = 0;
+  // The selection follows the command, not the row number: a command used from an empty query
+  // moves into "Recent", and the next Enter must still run that same command.
+  let selectedId = null;
   let returnTo = null;
 
   function draw() {
     rows = getRows(input.value);
-    selected = Math.min(selected, Math.max(0, rows.length - 1));
+    const followed = selectedId === null ? -1 : rows.findIndex((row) => row.id === selectedId);
+    selected = followed >= 0 ? followed : Math.min(selected, Math.max(0, rows.length - 1));
+    selectedId = rows[selected]?.id ?? null;
     list.replaceChildren();
     // The "Recent" heading; the rest follows under none (the first recent row comes first).
     if (rows[0]?.recent) {
@@ -163,6 +169,7 @@ export function createPalette({ getRows, run, t, root = document.body }) {
       li.addEventListener("pointerdown", (event) => {
         event.preventDefault(); // keep focus in the field
         selected = index;
+        selectedId = row.id;
         accept();
       });
       list.append(li);
@@ -180,6 +187,12 @@ export function createPalette({ getRows, run, t, root = document.body }) {
       note.textContent = t(row.planned ? "ui.palette.planned" : "ui.palette.unavailable");
       return;
     }
+    // Repeatable commands (step, zoom, speed, track) leave the palette open: Enter again repeats.
+    if (row.repeatable) {
+      draw();
+      input.focus();
+      return;
+    }
     close();
   }
 
@@ -188,6 +201,7 @@ export function createPalette({ getRows, run, t, root = document.body }) {
     panel.hidden = false;
     input.value = "";
     selected = 0;
+    selectedId = null;
     draw();
     input.focus();
   }
@@ -201,6 +215,7 @@ export function createPalette({ getRows, run, t, root = document.body }) {
 
   input.addEventListener("input", () => {
     selected = 0;
+    selectedId = null;
     draw();
   });
   input.addEventListener("keydown", (event) => {
@@ -217,6 +232,7 @@ export function createPalette({ getRows, run, t, root = document.body }) {
     } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       take();
       selected = moveSelection(selected, event.key === "ArrowDown" ? 1 : -1, rows.length);
+      selectedId = rows[selected]?.id ?? null;
       draw();
     }
   });

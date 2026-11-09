@@ -24,6 +24,30 @@ export const TOPIC_LIMIT = 3;
 
 // Tiers, best first. A tier is only ever compared with another tier, never mixed into a
 // fuzzy score, so "exact name beats a hint match" holds whatever the lengths are.
+/**
+ * Commands you run again and again (step, zoom, speed, next track). The palette stays open after
+ * one of these, so a second press is one more Enter, not a reopen (an input in a palette should
+ * not close it). Everything else closes the palette.
+ */
+const REPEATABLE = new Set([
+  "nav.back",
+  "nav.forward",
+  "nav.back_far",
+  "nav.forward_far",
+  "nav.back_fine",
+  "nav.forward_fine",
+  "view.zoom_in",
+  "view.zoom_out",
+  "transport.speed_up",
+  "transport.speed_down",
+  "transport.slow_back",
+  "transport.slow_forward",
+  "track.prev",
+  "track.next",
+]);
+
+export const isRepeatable = (id) => REPEATABLE.has(id);
+
 const T_EXACT = 100;
 const T_PREFIX = 80;
 const T_NAME_WORD = 60;
@@ -164,6 +188,7 @@ export function commandRecords({
       synonyms: synonymsFor(entry.id),
       keys,
       noKey: keys.length === 0,
+      repeatable: isRepeatable(entry.id),
       path,
       where: path ? [...path, names[0]].join(" > ") : null,
       paletteOnly: path === null,

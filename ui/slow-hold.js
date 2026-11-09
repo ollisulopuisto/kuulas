@@ -30,7 +30,13 @@ export function createSlowHold({ canStart, start, stop }) {
     isHeld: () => held !== null,
     /** A keydown (auto-repeats included). `code` is the physical key. */
     press(direction, code) {
-      if (held !== null || !canStart()) return;
+      if (held !== null) {
+        // A timed menu listen (code "menu") is replaced by the next menu command, so a second
+        // pick, or the opposite direction, takes effect. A held key is never replaced.
+        if (code !== "menu" || held.code !== "menu") return;
+      } else if (!canStart()) {
+        return;
+      }
       held = { direction, code };
       start(direction);
     },
