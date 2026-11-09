@@ -4689,6 +4689,8 @@ function render(state, patch, previous = null) {
     $("follow").textContent = t(
       state.followMode === "page" ? "ui.view.follow_page" : "ui.view.follow_continuous",
     );
+    $("follow").title = t("ui.view.follow_title");
+    $("follow").setAttribute("aria-label", $("follow").title);
     $("follow").setAttribute("aria-pressed", String(state.followPaused));
   }
   if (touched("showGates")) $("show-gates").checked = state.showGates;
