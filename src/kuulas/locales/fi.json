@@ -976,6 +976,7 @@
   "ui.search.footer": "Suorita valittu tulos · Näytä se valikossa · Sulje haku",
   "ui.search.show_in_menu": "Näytä valikossa",
   "ui.search.not_in_menu": "Tämä komento on vain komentopaletissa.",
+  "ui.search.ran": "Suoritettu: “{name}”. Suorita uudelleen toistaaksesi.",
   "ui.search.reason.planned": "Ei vielä käytössä",
   "ui.search.reason.no_project": "Avaa ensin projekti",
   "ui.search.reason.unavailable": "Ei sovellu juuri nyt",

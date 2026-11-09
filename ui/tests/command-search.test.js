@@ -359,3 +359,21 @@ describe("searchAll", () => {
     assert.equal(fewTopics.commands.length, 12);
   });
 });
+
+describe("repeatable commands (the palette stays open after them)", () => {
+  test("stepping, zooming, speed and track moves are repeatable; one-off commands are not", async () => {
+    const { isRepeatable } = await import("../command-search.js");
+    for (const id of [
+      "nav.forward",
+      "nav.back_fine",
+      "view.zoom_in",
+      "transport.speed_up",
+      "track.next",
+    ]) {
+      assert.equal(isRepeatable(id), true, id);
+    }
+    for (const id of ["app.save", "app.new", "edit.delete", "palette.open"]) {
+      assert.equal(isRepeatable(id), false, id);
+    }
+  });
+});

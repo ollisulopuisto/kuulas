@@ -980,6 +980,7 @@
   "ui.search.footer": "Run the selected result · Reveal it in its menu · Close search",
   "ui.search.show_in_menu": "Show in menu",
   "ui.search.not_in_menu": "This command is only in the command palette.",
+  "ui.search.ran": "Ran “{name}”. Run it again to repeat it.",
   "ui.search.reason.planned": "Not available yet",
   "ui.search.reason.no_project": "Open a project first",
   "ui.search.reason.unavailable": "Does not apply right now",

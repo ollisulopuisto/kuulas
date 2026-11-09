@@ -229,6 +229,15 @@ export function createCommandSearch({ t, search, run, reveal, openTopic, hooks =
       note.textContent = entry.row.reason ?? t("ui.search.reason.unavailable");
       return;
     }
+    if (entry.row.repeatable) {
+      // Stays open and keeps focus in the field: run it again to repeat it.
+      const ran = run(entry.row.id);
+      note.textContent =
+        ran === false
+          ? t("ui.search.reason.unavailable")
+          : t("ui.search.ran", { name: entry.row.name });
+      return;
+    }
     callHooks().close?.({ restoreFocus: false });
     run(entry.row.id);
   }
