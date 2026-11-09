@@ -47,7 +47,7 @@ const ENTRIES = [
   { id: "edit.split", labelKey: "cmd.split", raw: ["B"] },
 ];
 
-function build() {
+function build({ entries = ENTRIES, trackRecent = false } = {}) {
   globalThis.document = {
     createElement: (tag) => new FakeNode(tag),
     activeElement: null,
@@ -60,22 +60,25 @@ function build() {
     hintKey: () => null,
   };
   const ran = [];
+  const recent = [];
 
   const names = { "cmd.zoom_in": "Zoom in", "cmd.split": "Split" };
   const palette = createPalette({
     t: (key) => key,
     getRows: (query) =>
       paletteRows({
-        entries: ENTRIES,
+        entries,
         registry,
         state: {},
         query,
+        recent,
         label: (key) => names[key] ?? key,
         format: (raw) => raw,
         platform: "other",
       }),
     run(id) {
       ran.push(id);
+      if (trackRecent) recent.unshift(id);
       return true;
     },
   });
@@ -118,5 +121,30 @@ describe("palette: repeatable commands", () => {
     press(input, "Enter");
     assert.deepEqual(ran, ["edit.split"]);
     assert.equal(palette.isOpen(), false);
+  });
+
+  test("empty query: the selection follows the command into Recent, so Enter repeats it", () => {
+    // Split is listed first, zoom in second. Select zoom in, run it: it moves to the top
+    // of Recent, and the old row number now points at Split (an edit). Enter must still
+    // run zoom in.
+    const entries = [ENTRIES[1], ENTRIES[0]];
+    const { palette, input, ran } = build({ entries, trackRecent: true });
+    palette.open();
+    press(input, "ArrowDown");
+    press(input, "Enter");
+    press(input, "Enter");
+    press(input, "Enter");
+    assert.deepEqual(ran, ["view.zoom_in", "view.zoom_in", "view.zoom_in"]);
+    assert.equal(palette.isOpen(), true);
+  });
+
+  test("typing a new query resets the selection to the first match", () => {
+    const { palette, input, ran } = build({ trackRecent: true });
+    palette.open();
+    press(input, "ArrowDown");
+    input.value = "split";
+    for (const fn of input.listeners.input) fn();
+    press(input, "Enter");
+    assert.deepEqual(ran, ["edit.split"]);
   });
 });
