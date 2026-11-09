@@ -1214,15 +1214,40 @@ def trim_clips(p: Project, clip_ids, start: int | None = None,
 
 
 def adjust_clip_gain(p: Project, clip_ids, delta_db: float) -> Project:
-    """Add ``delta_db`` to each clip's gain, within the inspector's range."""
-    clip_ids = list(clip_ids)
-    if not clip_ids:
+    """Add ``delta_db`` to each clip's gain in a single pass without repeated lookups."""
+    clip_ids = tuple(clip_ids)
+    wanted = set(clip_ids)
+    if not wanted:
         raise EditError("error.edit.no_selection")
     low, high = CLIP_GAIN_RANGE
-    for clip_id in clip_ids:
-        gain = _find_clip(p, clip_id)[0].gain_db + float(delta_db)
-        p = set_clip(p, clip_id, gain_db=round(max(low, min(high, gain)), 2))
-    return p
+    delta = float(delta_db)
+    remaining = set(wanted)
+    tracks = []
+    # Batch clip gain mutations in a single pass to avoid O(K * T * N) project scans
+    # and intermediate Project allocations.
+    for t in p.tracks:
+        found_here: set[str] = set()
+        new_clips = None
+        for index, c in enumerate(t.clips):
+            if c.id in remaining:
+                remaining.remove(c.id)
+                found_here.add(c.id)
+            if c.id in found_here:
+                gain = round(max(low, min(high, c.gain_db + delta)), 2)
+                changed = replace(c, gain_db=gain)
+                if new_clips is None:
+                    new_clips = list(t.clips[:index])
+                new_clips.append(changed)
+            elif new_clips is not None:
+                new_clips.append(c)
+        if new_clips is None:
+            tracks.append(t)
+        else:
+            tracks.append(replace(t, clips=tuple(new_clips)))
+    if remaining:
+        missing = next(cid for cid in clip_ids if cid in remaining)
+        raise EditError("error.edit.no_clip", clip_id=missing)
+    return replace(p, tracks=tuple(tracks))
 
 
 # -- sync groups -------------------------------------------------------------
