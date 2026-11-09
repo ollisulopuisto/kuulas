@@ -1483,8 +1483,10 @@ def create_app(session, engine, *, language: str | None = None,
         content = session.narration_script_text(format)
         media_type = ("text/plain; charset=utf-8" if format == "txt"
                       else "text/markdown; charset=utf-8")
-        return Response(content=content, media_type=media_type, headers={
-            "Content-Disposition": f'attachment; filename="narration-script.{format}"'})
+        disposition = export_names.disposition(
+            session.download_name(f"narration-script.{format}"))
+        return Response(content=content, media_type=media_type,
+                        headers={"Content-Disposition": disposition})
 
     @app.post("/api/cut-preview")
     def post_cut_preview(body: CutPreviewBody):

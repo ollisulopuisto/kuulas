@@ -5,7 +5,7 @@ import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
-from kuulas import messages, mixer
+from kuulas import export_names, messages, mixer
 from kuulas.clock import FLICKS
 from kuulas.server import create_app
 from kuulas.session import Session
@@ -119,10 +119,12 @@ def test_get_narration_script_txt_and_md_are_attachments(client, session):
     assert r.status_code == 200
     assert "Äiti sanoi" in r.text
     disposition = r.headers["content-disposition"]
-    assert disposition == 'attachment; filename="narration-script.txt"'
+    expected_txt = export_names.disposition(session.download_name("narration-script.txt"))
+    assert disposition == expected_txt
     r = client.get("/api/narration-script", params={"format": "md"})
     disposition = r.headers["content-disposition"]
-    assert disposition == 'attachment; filename="narration-script.md"'
+    expected_md = export_names.disposition(session.download_name("narration-script.md"))
+    assert disposition == expected_md
 
 
 def test_get_narration_script_bad_format_is_a_translated_400(client):
