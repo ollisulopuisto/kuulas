@@ -3,7 +3,7 @@ from dataclasses import replace
 import pytest
 
 from kuulas import ops
-from kuulas.model import Media, Project
+from kuulas.model import Clip, Media, Project, Track
 
 RATE = 48000
 
@@ -406,3 +406,75 @@ def test_trim_clips_accepts_one_shot_iterator():
     p_res = ops.trim_clips(p, one_shot, start=RATE)
     assert p_res.clip("c1").start == RATE
     assert p_res.clip("c2").start == RATE
+
+
+def project_with_duplicate_clip_id_on_two_tracks():
+    # Imported or merged projects can carry the same clip id on separate tracks.
+    p = project_with_two_tracks()
+    return ops.add_clip(p, track_id="t2", clip_id="c1", media_id="m2", start=0)
+
+
+def test_trim_clips_trims_a_duplicated_id_on_the_first_track_only():
+    p = project_with_duplicate_clip_id_on_two_tracks()
+    out = ops.trim_clips(p, ["c1"], start=2 * RATE)
+    first = next(t for t in out.tracks if t.id == "t1")
+    second = next(t for t in out.tracks if t.id == "t2")
+    assert [c.start for c in first.clips if c.id == "c1"] == [2 * RATE]
+    assert [c.start for c in second.clips if c.id == "c1"] == [0]
+
+
+def test_trim_clips_reports_a_missing_id_before_an_invalid_trim():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.trim_clips(p, ["missing", "c1"], start=11 * RATE)
+    assert exc_info.value.key == "error.edit.no_clip"
+    assert exc_info.value.params == {"clip_id": "missing"}
+
+
+def test_trim_clips_stops_at_the_first_error_in_caller_order():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.trim_clips(p, ["c1", "missing"], start=11 * RATE)
+    assert exc_info.value.key == "error.edit.trim_empty"
+
+
+def test_adjust_clip_gain_applies_a_repeated_id_once_per_occurrence():
+    p = project_with_two_tracks()
+    out = ops.adjust_clip_gain(p, ["c1", "c1", "c2"], 1.5)
+    assert out.clip("c1").gain_db == 3.0
+    assert out.clip("c2").gain_db == 1.5
+
+
+def test_adjust_clip_gain_restores_timeline_order_on_an_unsorted_track():
+    p = project_with_two_tracks()
+    p = ops.add_clip(p, track_id="t1", clip_id="c3", media_id="m1", start=12 * RATE)
+    track = p.tracks[0]
+    shuffled = replace(track, clips=tuple(reversed(track.clips)))
+    p = replace(p, tracks=(shuffled, *p.tracks[1:]))
+    out = ops.adjust_clip_gain(p, ["c1"], 1.0)
+    starts = [c.start for c in out.tracks[0].clips]
+    assert starts == sorted(starts)
+
+
+def test_trim_large_batch_visits_track_only_a_constant_number_of_times():
+    class CountedClips(tuple):
+        visits = 0
+
+        def __iter__(self):
+            for clip in super().__iter__():
+                type(self).visits += 1
+                yield clip
+
+    clips = CountedClips(
+        Clip(id=f"c{i}", media="m", start=i * RATE, offset=0, length=RATE)
+        for i in range(1200)
+    )
+    project = Project(
+        rate=RATE,
+        media=(Media(id="m", name="large.wav", channels=1, frames=2 * RATE),),
+        tracks=(Track(id="t", name="Batch", clips=clips),),
+    )
+    CountedClips.visits = 0
+    out = ops.trim_clips(project, [f"c{i}" for i in range(600)], end=1200 * RATE)
+    assert len(out.tracks[0].clips) == 1200
+    assert CountedClips.visits <= 4 * len(clips)
