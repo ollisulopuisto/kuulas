@@ -168,6 +168,7 @@
   "error.package.exists": "Kansiossa {path} on jo kuulas-projekti.",
   "error.package.not_found": "Kansiota {path} ei ole.",
   "error.package.not_a_project": "{path} ei ole kuulas-projekti.",
+  "error.package.corrupt_manifest": "Projektin {path} tiedot ovat vioittuneet ({error}); projektia ei avattu.",
   "error.package.too_new": "Projekti on tehty uudemmalla kuulaksella ({written_by}); päivitä kuulas avataksesi sen.",
   "error.package.needs_migration": "Projekti on vanhemmassa muodossa, ja se pitää avata projektikansiona, jotta se voidaan päivittää.",
   "error.package.upgrade_locked": "Projekti on vanhemmassa muodossa ja auki koneella {host}; sen voi päivittää, kun se on suljettu siellä.",
@@ -237,6 +238,9 @@
   "log.package.restored": "Projekti palautettiin varmuuskopiosta {name}; tietokanta sellaisena kuin se oli on tiedostossa {safety}.",
   "log.desktop.position_unknown": "Toistokohtaa ei voitu lukea ikkunaa suljettaessa ({error}); viimeksi tallennettu kohta jää voimaan.",
   "log.desktop.opening": "Avataan projekti {path}",
+  "log.desktop.open_event": "macOS pyysi kuulasta avaamaan: {paths}",
+  "log.desktop.open_none": "macOS:n lähettämissä poluissa ei ole projektia: {paths}",
+  "log.desktop.open_failed": "Finderista avaaminen epäonnistui: {error}",
   "log.desktop.open_hook_failed": "Projektien avaaminen Finderista ei ole käytettävissä ({error}); käytä ikkunan Avaa-toimintoa.",
   "log.session.subscriber_failed": "Projektin muutoksia kuunteleva osa kaatui; itse muutos tallennettiin.",
   "log.session.relinked": {

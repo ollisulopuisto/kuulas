@@ -697,3 +697,19 @@ def test_close_leaves_a_complete_main_file_and_no_wal_content(tmp_path):
     assert db.execute("pragma integrity_check").fetchone()[0] == "ok"
     db.close()
     assert not (tmp_path / "alone.sqlite-wal").exists()
+
+
+def test_read_manifest_raises_a_package_error_on_damaged_json(tmp_path):
+    folder = tmp_path / "A.kuulas"
+    folder.mkdir()
+    (folder / "manifest.json").write_text("{not json", encoding="utf-8")
+    with pytest.raises(package.PackageError):
+        package.read_manifest(folder)
+
+
+def test_open_package_on_a_damaged_manifest_is_a_package_error(tmp_path):
+    folder = tmp_path / "A.kuulas"
+    folder.mkdir()
+    (folder / "manifest.json").write_text("", encoding="utf-8")
+    with pytest.raises(package.PackageError):
+        package.open_package(folder)
