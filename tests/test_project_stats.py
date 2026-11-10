@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from test_history import heavy_hour, register
 
-from kuulas import cli, messages, ops, project_stats
+from kuulas import cli, export_names, messages, ops, project_stats
 from kuulas.clock import FLICKS
 from kuulas.model import Media, Project
 from kuulas.server import create_app
@@ -354,6 +354,12 @@ def test_stats_endpoint(tmp_path):
                        for g in body["groups"] for row in g["rows"])
             assert "Runtime" in body["text"]
             assert c.get("/api/stats?format=text").text == body["text"]
+            file_res = c.get("/api/stats?format=file")
+            assert file_res.status_code == 200
+            expected_disposition = export_names.disposition(
+                s.download_name("statistics.json")
+            )
+            assert file_res.headers["content-disposition"] == expected_disposition
     finally:
         s.close()
 

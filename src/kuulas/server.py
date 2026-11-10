@@ -1419,8 +1419,11 @@ def create_app(session, engine, *, language: str | None = None,
             return PlainTextResponse(described["text"])
         if format == "file":
             # "Save as JSON": the numbers alone, as a file.
+            disposition = export_names.disposition(
+                session.download_name("statistics.json")
+            )
             return JSONResponse(described["stats"], headers={
-                "Content-Disposition": 'attachment; filename="statistics.json"'})
+                "Content-Disposition": disposition})
         return JSONResponse(described)
 
     @app.get("/api/music-report")
