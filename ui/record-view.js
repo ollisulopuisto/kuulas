@@ -1026,7 +1026,7 @@ export function createRecordView({
       }
       delete recordButton.dataset.state;
       recordButton.title = t("cmd.transport.record.hint");
-      recordButton.removeAttribute("aria-label");
+      recordButton.setAttribute("aria-label", t("ui.transport.record"));
     }
   }
 

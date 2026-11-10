@@ -123,3 +123,11 @@ test("follow button in index.html and app.js sets aria-label matching its title"
     "app.js sets aria-label matching title on follow button",
   );
 });
+
+test("record button in index.html and record-view.js provides aria-label in idle state", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const code = readFileSync(new URL("../record-view.js", import.meta.url), "utf8");
+
+  assert.match(html, /id="record"[^>]*data-i18n-aria-label="ui\.transport\.record"/);
+  assert.match(code, /recordButton\.setAttribute\("aria-label",\s*t\("ui\.transport\.record"\)\)/);
+});
