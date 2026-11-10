@@ -7,6 +7,7 @@ them, by name, so the whitelist ``OPS`` is the edit vocabulary.
 from __future__ import annotations
 
 import uuid
+from collections import Counter
 from dataclasses import replace
 
 from . import curves, edit_scope, fx, narration
@@ -1261,6 +1262,8 @@ def adjust_clip_gain(p: Project, clip_ids, delta_db: float) -> Project:
     """Add ``delta_db`` to each clip's gain in a single pass without repeated lookups."""
     clip_ids = tuple(clip_ids)
     wanted = set(clip_ids)
+    # An id given twice gets its increment twice, as repeated single edits did.
+    times = Counter(clip_ids)
     if not wanted:
         raise EditError("error.edit.no_selection")
     low, high = CLIP_GAIN_RANGE
@@ -1277,7 +1280,9 @@ def adjust_clip_gain(p: Project, clip_ids, delta_db: float) -> Project:
                 remaining.remove(c.id)
                 found_here.add(c.id)
             if c.id in found_here:
-                gain = round(max(low, min(high, c.gain_db + delta)), 2)
+                gain = c.gain_db
+                for _ in range(times[c.id]):
+                    gain = round(max(low, min(high, gain + delta)), 2)
                 changed = replace(c, gain_db=gain)
                 if new_clips is None:
                     new_clips = list(t.clips[:index])
@@ -1287,7 +1292,7 @@ def adjust_clip_gain(p: Project, clip_ids, delta_db: float) -> Project:
         if new_clips is None:
             tracks.append(t)
         else:
-            tracks.append(replace(t, clips=tuple(new_clips)))
+            tracks.append(replace(t, clips=_sorted(new_clips)))
     if remaining:
         missing = next(cid for cid in clip_ids if cid in remaining)
         raise EditError("error.edit.no_clip", clip_id=missing)

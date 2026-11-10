@@ -436,3 +436,21 @@ def test_trim_clips_stops_at_the_first_error_in_caller_order():
     with pytest.raises(ops.EditError) as exc_info:
         ops.trim_clips(p, ["c1", "missing"], start=11 * RATE)
     assert exc_info.value.key == "error.edit.trim_empty"
+
+
+def test_adjust_clip_gain_applies_a_repeated_id_once_per_occurrence():
+    p = project_with_two_tracks()
+    out = ops.adjust_clip_gain(p, ["c1", "c1", "c2"], 1.5)
+    assert out.clip("c1").gain_db == 3.0
+    assert out.clip("c2").gain_db == 1.5
+
+
+def test_adjust_clip_gain_restores_timeline_order_on_an_unsorted_track():
+    p = project_with_two_tracks()
+    p = ops.add_clip(p, track_id="t1", clip_id="c3", media_id="m1", start=12 * RATE)
+    track = p.tracks[0]
+    shuffled = replace(track, clips=tuple(reversed(track.clips)))
+    p = replace(p, tracks=(shuffled, *p.tracks[1:]))
+    out = ops.adjust_clip_gain(p, ["c1"], 1.0)
+    starts = [c.start for c in out.tracks[0].clips]
+    assert starts == sorted(starts)
