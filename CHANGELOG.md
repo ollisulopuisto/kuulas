@@ -1,7 +1,3 @@
-## Unreleased
-
-- Aligning a clip no longer makes another drifted piece of that recording impossible to resync when an unchanged piece of the original anchor still survives. A displaced anchor piece does not replace the reference clock.
-
 ## [v26.11.8.1] - 2026-11-08
 
 - **Align recordings from a shared sound point.** Mark the same source frame in two recordings to move one clip into sync and record their shared timing in one undoable edit. Existing sync partners stay together, and destination clips follow normal overwrite behavior.
