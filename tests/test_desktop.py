@@ -243,3 +243,12 @@ def test_webview_start_options_persist_and_only_what_is_accepted(tmp_path, monke
     assert desktop.webview_start_options(new) == {
         "private_mode": False, "storage_path": str(tmp_path / "webview")}
     assert desktop.webview_start_options(old) == {}
+
+
+def test_launcher_page_open_button_has_mod_o_shortcut():
+    page = desktop.launcher_html(['/x/A.kuulas'])
+    assert 'id="open"' in page
+    assert 'aria-keyshortcuts="Meta+O Control+O"' in page
+    # the key does exactly what the button does: click it, no copy of the action
+    assert 'getElementById("open").click()' in page
+    assert 'event.key === "o"' in page

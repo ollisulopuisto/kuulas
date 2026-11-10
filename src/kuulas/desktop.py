@@ -46,6 +46,17 @@ from .recent_projects import (
 
 log = logging.getLogger("kuulas.desktop")
 
+def _after_return(fn) -> None:
+    """Run ``fn`` just after the calling ``js_api`` method has returned its value.
+
+    pywebview delivers the return value by evaluating a script on the page that
+    called in; a page navigation inside the method would replace that page first
+    and lose the callback. A short timer lets the return land before we navigate.
+    """
+    timer = threading.Timer(0.05, fn)
+    timer.daemon = True
+    timer.start()
+
 #: Most recent first; older entries fall off.
 MAX_RECENT = 20
 
@@ -631,10 +642,17 @@ class Bridge:
             target=set_recent_metadata, args=(self._recents, folder),
             kwargs=running.summary(), name="kuulas-recents", daemon=True).start()
         previous, self._project = self._project, running
-        self._window.set_title(window_title(folder))
-        self._window.load_url(running.url)
-        if previous is not None:
-            previous.stop()
+
+        def navigate() -> None:
+            self._window.set_title(window_title(folder))
+            self._window.load_url(running.url)
+            if previous is not None:
+                previous.stop()
+
+        # pywebview resolves this method's JS promise with a script on the current
+        # page; navigating here would replace the page first and lose the callback
+        # ("_returnValuesCallbacks[...] is not a function"). Navigate right after.
+        _after_return(navigate)
         return True
 
     def open_recent_in_window(self, folder: str) -> bool:
@@ -789,7 +807,17 @@ def make_open_files_method(callback):
 
     def open_files(_self, nsapp, files):
         paths = [str(f) for f in files]
-        threading.Thread(target=callback, args=(paths,), name="kuulas-open",
+        # Logged synchronously: the event itself must be visible in the log even
+        # when the worker thread or the open fails later.
+        log.info(t("log.desktop.open_event", paths=", ".join(paths)))
+
+        def guarded() -> None:
+            try:
+                callback(paths)
+            except Exception as e:  # a dead thread tells nobody
+                log.error(t("log.desktop.open_failed", error=str(e)), exc_info=True)
+
+        threading.Thread(target=guarded, name="kuulas-open",
                          daemon=True).start()
         nsapp.replyToOpenOrPrint_(_REPLY_SUCCESS)
 
@@ -894,6 +922,8 @@ class WindowApp:
     def open_paths(self, paths) -> None:
         """Open the projects among ``paths`` (any thread)."""
         projects = project_paths(paths)
+        if not projects:
+            log.info(t("log.desktop.open_none", paths=", ".join(str(p) for p in paths)))
         with self._lock:
             if not self._ready:
                 self._pending.extend(projects)

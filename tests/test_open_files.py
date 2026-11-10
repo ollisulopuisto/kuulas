@@ -5,7 +5,9 @@ No window and no Cocoa: a fake web view records what the app asked of it.
 
 from __future__ import annotations
 
+import logging
 import threading
+import time
 from pathlib import Path
 from typing import ClassVar
 
@@ -46,6 +48,17 @@ def test_duplicates_collapse_and_order_is_kept(tmp_path):
     a, b = project(tmp_path, "A.kuulas"), project(tmp_path, "B.kuulas")
     got = project_paths([a, b, a])
     assert got == [str(Path(a).resolve()), str(Path(b).resolve())]
+
+
+
+def wait_until(predicate, timeout=2.0):
+    """Poll ``predicate`` (navigation is deferred past the js_api return now)."""
+    deadline = time.monotonic() + timeout
+    while not predicate():
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(0.01)
+    return True
 
 
 # -- the app that receives them --------------------------------------
@@ -127,7 +140,8 @@ def test_an_event_before_the_app_is_ready_waits_and_opens_in_the_first_window(
     app.open_paths([folder])
     assert webview.windows[0].urls == []  # the window is not up yet
     app.ready()
-    assert webview.windows[0].urls == [f"http://127.0.0.1/{Path(folder).name}"]
+    assert wait_until(lambda: webview.windows[0].urls
+                      == [f"http://127.0.0.1/{Path(folder).name}"])
     assert len(webview.windows) == 1
     assert webview.windows[0].title == desktop.window_title(str(Path(folder).resolve()))
     assert first.recent() == [str(Path(folder).resolve())]
@@ -139,9 +153,9 @@ def test_a_second_project_opens_in_a_second_window(tmp_path, monkeypatch):
     a, b = project(tmp_path, "A.kuulas"), project(tmp_path, "B.kuulas")
     app.open_paths([a])
     app.open_paths([b])
-    assert len(webview.windows) == 2
-    assert webview.windows[0].urls == ["http://127.0.0.1/A.kuulas"]
-    assert webview.windows[1].urls == ["http://127.0.0.1/B.kuulas"]
+    assert wait_until(lambda: len(webview.windows) == 2)
+    assert wait_until(lambda: webview.windows[0].urls == ["http://127.0.0.1/A.kuulas"])
+    assert wait_until(lambda: webview.windows[1].urls == ["http://127.0.0.1/B.kuulas"])
 
 
 def test_a_project_that_is_already_open_is_brought_forward_not_opened_twice(
@@ -152,7 +166,7 @@ def test_a_project_that_is_already_open_is_brought_forward_not_opened_twice(
     app.open_paths([folder])
     app.open_paths([folder])
     assert len(webview.windows) == 1
-    assert webview.windows[0].urls == ["http://127.0.0.1/A.kuulas"]
+    assert wait_until(lambda: webview.windows[0].urls == ["http://127.0.0.1/A.kuulas"])
     assert webview.windows[0].shown >= 1
 
 
@@ -160,8 +174,8 @@ def test_several_projects_in_one_event_open_one_window_each(tmp_path, monkeypatc
     app, webview, _first = make_app(tmp_path, monkeypatch)
     app.ready()
     app.open_paths([project(tmp_path, "A.kuulas"), project(tmp_path, "B.kuulas")])
-    assert [w.urls for w in webview.windows] == [
-        ["http://127.0.0.1/A.kuulas"], ["http://127.0.0.1/B.kuulas"]]
+    assert wait_until(lambda: [w.urls for w in webview.windows] == [
+        ["http://127.0.0.1/A.kuulas"], ["http://127.0.0.1/B.kuulas"]])
 
 
 def test_something_that_is_not_a_project_opens_nothing(tmp_path, monkeypatch):
@@ -260,3 +274,45 @@ def test_the_start_page_of_another_window_does_not_open_a_project_twice(
     assert second.project_folder is None  # still the start page
     assert len(FakeRunning.stopped) == 0
     assert webview.windows[0].shown >= 1  # the window that has it came forward
+
+
+# -- the diagnostics: the event and a rejection land in the log ---------------
+
+
+def test_an_open_files_event_is_logged(caplog):
+    calls = []
+    method = desktop.make_open_files_method(calls.append)
+
+    class NSApp:
+        def replyToOpenOrPrint_(self, _reply):  # noqa: N802 - the Cocoa selector
+            pass
+
+    with caplog.at_level(logging.INFO, logger="kuulas.desktop"):
+        method(None, NSApp(), ["/nonexistent/X.kuulas"])
+    assert any("/nonexistent/X.kuulas" in r.getMessage() for r in caplog.records)
+
+
+def test_paths_without_a_project_are_logged(tmp_path, monkeypatch, caplog):
+    app, _webview, _first = make_app(tmp_path, monkeypatch)
+    app.ready()
+    with caplog.at_level(logging.INFO, logger="kuulas.desktop"):
+        app.open_paths([tmp_path / "docs"])
+    assert any("docs" in r.getMessage() for r in caplog.records)
+
+
+def test_an_open_files_callback_error_is_logged_not_raised(caplog):
+    def boom(_paths):
+        raise RuntimeError("worker exploded")
+
+    method = desktop.make_open_files_method(boom)
+
+    class NSApp:
+        def replyToOpenOrPrint_(self, _reply):  # noqa: N802 - the Cocoa selector
+            pass
+
+    with caplog.at_level(logging.INFO, logger="kuulas.desktop"):
+        method(None, NSApp(), ["/nonexistent/X.kuulas"])
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline and "worker exploded" not in caplog.text:
+            time.sleep(0.01)
+    assert "worker exploded" in caplog.text

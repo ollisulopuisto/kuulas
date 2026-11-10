@@ -168,6 +168,7 @@
   "error.package.exists": "{path} already holds a kuulas project.",
   "error.package.not_found": "{path} does not exist.",
   "error.package.not_a_project": "{path} is not a kuulas project.",
+  "error.package.corrupt_manifest": "The project information in {path} is damaged ({error}); the project was not opened.",
   "error.package.too_new": "This project was made by a newer kuulas ({written_by}); update kuulas to open it.",
   "error.package.needs_migration": "This project is in an older format and must be opened as a project folder to be upgraded.",
   "error.package.upgrade_locked": "This project is in an older format and is open on {host}; it can be upgraded once it is closed there.",
@@ -241,6 +242,9 @@
   "log.package.restored": "Restored the project from the backup {name}; the database as it was is in {safety}.",
   "log.desktop.position_unknown": "The playhead could not be read when the window closed ({error}); the last saved position stays.",
   "log.desktop.opening": "Opening project {path}",
+  "log.desktop.open_event": "macOS asked kuulas to open: {paths}",
+  "log.desktop.open_none": "No project among the paths macOS sent: {paths}",
+  "log.desktop.open_failed": "Opening from Finder failed: {error}",
   "log.desktop.open_hook_failed": "Opening projects from Finder is not available ({error}); use Open in the window instead.",
   "log.session.subscriber_failed": "A listener for project changes failed; the change itself was saved.",
   "log.session.relinked": {

@@ -175,6 +175,12 @@ def read_manifest(folder: str | Path) -> dict | None:
         return json.loads((Path(folder) / "manifest.json").read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        # A truncated or conflicted manifest (an interrupted write, a sync tool's
+        # half-downloaded placeholder) must not escape as a bare ValueError: callers
+        # report PackageError to the user, a JSON error would crash the open thread.
+        raise PackageError("error.package.corrupt_manifest",
+                           path=str(folder), error=str(e)) from e
 
 
 def _new_manifest(project_id: str, created_utc: str) -> dict:

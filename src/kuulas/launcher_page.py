@@ -297,6 +297,14 @@ function render() {
 render();
 
 document.addEventListener("keydown", (event) => {
+  // Cmd/Ctrl+O is the Open button's action, as on the project
+  // page's File > Open project (the key does not reach this page from there).
+  if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey
+      && (event.key === "o" || event.key === "O")) {
+    event.preventDefault();
+    document.getElementById("open").click();
+    return;
+  }
   const at = rowForKey(event, platform, models.length);
   if (at === null) return;
   event.preventDefault();
@@ -402,7 +410,8 @@ def launcher_html(recent: list) -> str:
 <h1><img class="mark" alt="" width="40" height="40"
 src="data:image/svg+xml;base64,{mark}"> kuulas</h1>
 <div class="actions">
-<button type="button" class="button primary" id="open">{open_}</button>
+<button type="button" class="button primary" id="open"
+aria-keyshortcuts="Meta+O Control+O">{open_}</button>
 <button type="button" class="button" id="new">{new}</button>
 <button type="button" class="button" id="import-nhsx">{import_nhsx}</button>
 </div>
