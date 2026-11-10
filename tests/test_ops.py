@@ -3,7 +3,7 @@ from dataclasses import replace
 import pytest
 
 from kuulas import ops
-from kuulas.model import Media, Project
+from kuulas.model import Clip, Media, Project, Track
 
 RATE = 48000
 
@@ -454,3 +454,27 @@ def test_adjust_clip_gain_restores_timeline_order_on_an_unsorted_track():
     out = ops.adjust_clip_gain(p, ["c1"], 1.0)
     starts = [c.start for c in out.tracks[0].clips]
     assert starts == sorted(starts)
+
+
+def test_trim_large_batch_visits_track_only_a_constant_number_of_times():
+    class CountedClips(tuple):
+        visits = 0
+
+        def __iter__(self):
+            for clip in super().__iter__():
+                type(self).visits += 1
+                yield clip
+
+    clips = CountedClips(
+        Clip(id=f"c{i}", media="m", start=i * RATE, offset=0, length=RATE)
+        for i in range(1200)
+    )
+    project = Project(
+        rate=RATE,
+        media=(Media(id="m", name="large.wav", channels=1, frames=2 * RATE),),
+        tracks=(Track(id="t", name="Batch", clips=clips),),
+    )
+    CountedClips.visits = 0
+    out = ops.trim_clips(project, [f"c{i}" for i in range(600)], end=1200 * RATE)
+    assert len(out.tracks[0].clips) == 1200
+    assert CountedClips.visits <= 4 * len(clips)

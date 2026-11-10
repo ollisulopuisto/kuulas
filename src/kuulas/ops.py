@@ -1219,10 +1219,11 @@ def trim_clips(p: Project, clip_ids, start: int | None = None,
     target_end = int(end) if end is not None else None
     media_map = {m.id: m for m in p.media}
     owner: dict[str, int] = {}
+    entries: dict[str, list[tuple[int, Clip]]] = {}
     for ti, t in enumerate(p.tracks):
-        for c in t.clips:
-            if c.id in wanted:
-                owner.setdefault(c.id, ti)
+        for index, c in enumerate(t.clips):
+            if c.id in wanted and owner.setdefault(c.id, ti) == ti:
+                entries.setdefault(c.id, []).append((index, c))
     # Validate in the caller's order before changing anything, so a missing id is
     # reported as such even when a later one would not trim.
     trimmed: dict[tuple[int, int], Clip] = {}
@@ -1230,9 +1231,7 @@ def trim_clips(p: Project, clip_ids, start: int | None = None,
         if cid not in owner:
             raise EditError("error.edit.no_clip", clip_id=cid)
         ti = owner[cid]
-        for index, c in enumerate(p.tracks[ti].clips):
-            if c.id != cid:
-                continue
+        for index, c in entries[cid]:
             media = media_map.get(c.media) or p.media_item(c.media)
             new_start, new_end = c.start, c.end
             if target_start is not None:
@@ -1249,8 +1248,9 @@ def trim_clips(p: Project, clip_ids, start: int | None = None,
                 xfade_in=c.xfade_in if new_start == c.start else 0,
                 xfade_out=c.xfade_out if new_end == c.end else 0)
     tracks = []
+    touched_tracks = {ti for ti, _ in trimmed}
     for ti, t in enumerate(p.tracks):
-        if not any(key[0] == ti for key in trimmed):
+        if ti not in touched_tracks:
             tracks.append(t)
             continue
         clips = [trimmed.get((ti, index), c) for index, c in enumerate(t.clips)]
