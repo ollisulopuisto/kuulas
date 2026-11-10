@@ -107,7 +107,7 @@ test("theme button in index.html and app.js sets aria-label matching its title",
   );
 });
 
-test("follow button in index.html and app.js sets aria-label matching its title", () => {
+test("follow button includes the selected mode in its accessible name", () => {
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const code = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 
@@ -119,7 +119,7 @@ test("follow button in index.html and app.js sets aria-label matching its title"
 
   assert.match(
     code,
-    /\$\("follow"\)\.setAttribute\("aria-label",\s*\$\("follow"\)\.title\)/,
+    /\$\("follow"\)\.setAttribute\("aria-label",\s*`\$\{\$\("follow"\)\.textContent\}\. \$\{\$\("follow"\)\.title\}`\)/,
     "app.js sets aria-label matching title on follow button",
   );
 });
@@ -130,4 +130,18 @@ test("record button in index.html and record-view.js provides aria-label in idle
 
   assert.match(html, /id="record"[^>]*data-i18n-aria-label="ui\.transport\.record"/);
   assert.match(code, /recordButton\.setAttribute\("aria-label",\s*t\("ui\.transport\.record"\)\)/);
+});
+
+test("follow mode changes update the actual rendered accessible name", () => {
+  const code = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+  const start = code.indexOf('  if (touched("followMode", "followPaused")) {');
+  const end = code.indexOf('  if (touched("showGates"))', start);
+  const render = new Function("state", "$", "touched", "t", code.slice(start, end));
+  const button = { textContent: "", title: "", attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } };
+  const translations = { "ui.view.follow_page": "Follow page", "ui.view.follow_continuous": "Follow continuously", "ui.view.follow_title": "Choose follow mode" };
+  render({ followMode: "page", followPaused: false }, () => button, () => true, key => translations[key]);
+  assert.equal(button.attrs["aria-label"], "Follow page. Choose follow mode");
+  render({ followMode: "continuous", followPaused: true }, () => button, () => true, key => translations[key]);
+  assert.equal(button.attrs["aria-label"], "Follow continuously. Choose follow mode");
+  assert.equal(button.attrs["aria-pressed"], "true");
 });
