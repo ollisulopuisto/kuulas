@@ -409,3 +409,25 @@ def test_excerpt_inherits_its_originals_sync_origin():
     q = ops.resync(p, ["x"])
     # Excerpt frame 0 is Ville's 10 s, which plays at 10.3 s.
     assert q.clip("x").start == int(10.3 * RATE)
+
+
+def test_align_points_keeps_surviving_anchor_clock_for_drifted_candidate_piece():
+    p, _store = room(offset_frames=0)
+    p = ops.add_media(p, Media(id="c", name="c.wav", channels=1, frames=30 * RATE))
+    p = ops.add_track(p, track_id="C", name="C")
+    p = ops.add_clip(p, track_id="C", media_id="c", clip_id="cc", start=0)
+    p = ops.mark_in_sync(p, ["ca", "cc"], main="cc", group_id="g")
+    p = ops.delete_clip(p, "cc")
+    p = ops.split_clip(p, "ca", at=3 * RATE, new_id="ca-later")
+    p = ops.trim_clip(p, "ca", start=2 * RATE)
+    p = ops.split_clip(p, "cv", at=3 * RATE, new_id="cv-later")
+    p = ops.move_clip(p, "cv-later", start=12 * RATE)
+    p = ops.move_clip(p, "cv", start=0, track_id="A")
+
+    q = ops.align_points(p, "ca", 2 * RATE, "cv", 0)
+
+    assert all(c.id != "ca" for track in q.tracks for c in track.clips)
+    assert q.sync_group("v").main == "a"
+    assert q.clip("cv-later").start == 12 * RATE
+    q = ops.resync(q, ["cv-later"])
+    assert q.clip("cv-later").start == 5 * RATE

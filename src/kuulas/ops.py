@@ -1319,12 +1319,19 @@ def align_points(p: Project, clip_a: str, point_a: int,
     if a.free:
         p = _replace_clip(p, replace(a, free=False))
     p = _overwrite_under(before, p, only={b.id})
-    anchor_survived = any(c.id == a.id for track in p.tracks for c in track.clips)
-    return _align_sync_group(p, a.media, b.media, delta, anchor_survived)
+    # The selected anchor may be overwritten while another piece of the same
+    # recording still supplies its clock. A piece moved away from that clock
+    # is not a trustworthy replacement reference, so use the aligned candidate
+    # only when no unchanged anchor-clock piece remains.
+    anchor_clock = a.start - a.offset
+    anchor_reference_survived = any(
+        c.media == a.media and c.start - c.offset == anchor_clock
+        for track in p.tracks for c in track.clips)
+    return _align_sync_group(p, a.media, b.media, delta, anchor_reference_survived)
 
 
 def _align_sync_group(p: Project, media_a: str, media_b: str,
-                      delta: int, anchor_survived: bool) -> Project:
+                      delta: int, anchor_reference_survived: bool) -> Project:
     """Join B to A's recording clock, keeping and rebasing existing partners.
 
     A's group wins when both recordings already belong to different groups.
@@ -1370,7 +1377,7 @@ def _align_sync_group(p: Project, media_a: str, media_b: str,
         members_a[media_b] = origin_b
 
     joined = replace(group_a, members=tuple(sorted(members_a.items())))
-    preferred_main = media_a if anchor_survived else media_b
+    preferred_main = media_a if anchor_reference_survived else media_b
     joined = _with_live_sync_main(p, joined, media_b,
                                   preferred_media=preferred_main)
     groups = tuple(group for group in p.sync_groups
