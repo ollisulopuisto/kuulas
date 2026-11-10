@@ -1,7 +1,3 @@
-## Unreleased
-
-- The Follow button's accessible name now includes the selected mode (page or continuous), so screen readers can tell which mode is active.
-
 ## [v26.11.8.1] - 2026-11-08
 
 - **Align recordings from a shared sound point.** Mark the same source frame in two recordings to move one clip into sync and record their shared timing in one undoable edit. Existing sync partners stay together, and destination clips follow normal overwrite behavior.

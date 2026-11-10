@@ -137,11 +137,32 @@ test("follow mode changes update the actual rendered accessible name", () => {
   const start = code.indexOf('  if (touched("followMode", "followPaused")) {');
   const end = code.indexOf('  if (touched("showGates"))', start);
   const render = new Function("state", "$", "touched", "t", code.slice(start, end));
-  const button = { textContent: "", title: "", attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } };
-  const translations = { "ui.view.follow_page": "Follow page", "ui.view.follow_continuous": "Follow continuously", "ui.view.follow_title": "Choose follow mode" };
-  render({ followMode: "page", followPaused: false }, () => button, () => true, key => translations[key]);
+  const button = {
+    textContent: "",
+    title: "",
+    attrs: {},
+    setAttribute(k, v) {
+      this.attrs[k] = v;
+    },
+  };
+  const translations = {
+    "ui.view.follow_page": "Follow page",
+    "ui.view.follow_continuous": "Follow continuously",
+    "ui.view.follow_title": "Choose follow mode",
+  };
+  render(
+    { followMode: "page", followPaused: false },
+    () => button,
+    () => true,
+    (key) => translations[key],
+  );
   assert.equal(button.attrs["aria-label"], "Follow page. Choose follow mode");
-  render({ followMode: "continuous", followPaused: true }, () => button, () => true, key => translations[key]);
+  render(
+    { followMode: "continuous", followPaused: true },
+    () => button,
+    () => true,
+    (key) => translations[key],
+  );
   assert.equal(button.attrs["aria-label"], "Follow continuously. Choose follow mode");
   assert.equal(button.attrs["aria-pressed"], "true");
 });
