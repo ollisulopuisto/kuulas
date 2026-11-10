@@ -1207,10 +1207,47 @@ def _overwrite_under(before: Project, moved: Project,
 
 def trim_clips(p: Project, clip_ids, start: int | None = None,
                end: int | None = None) -> Project:
-    """``trim_clip`` on several clips; one that would end up empty refuses all."""
-    for clip_id in clip_ids:
-        p = trim_clip(p, clip_id, start=start, end=end)
-    return p
+    """``trim_clip`` on several clips in a single pass; an empty clip refuses all."""
+    clip_ids = tuple(clip_ids)
+    wanted = set(clip_ids)
+    if not wanted:
+        return p
+    target_start = int(start) if start is not None else None
+    target_end = int(end) if end is not None else None
+    media_map = {m.id: m for m in p.media}
+    remaining = set(wanted)
+    tracks = []
+    # Batch clip trimming in a single pass to avoid O(K * T * N) scans and allocations.
+    for t in p.tracks:
+        new_clips = None
+        for index, c in enumerate(t.clips):
+            if c.id in wanted:
+                remaining.discard(c.id)
+                media = media_map.get(c.media) or p.media_item(c.media)
+                new_start, new_end = c.start, c.end
+                if target_start is not None:
+                    new_start = max(target_start, c.start - c.offset, 0)
+                if target_end is not None:
+                    new_end = min(target_end, c.start - c.offset + media.frames)
+                length = new_end - new_start
+                if length <= 0:
+                    raise EditError("error.edit.trim_empty")
+                changed = replace(
+                    c, start=new_start, offset=c.offset + (new_start - c.start),
+                    length=length, fade_in=min(c.fade_in, length),
+                    fade_out=min(c.fade_out, length),
+                    xfade_in=c.xfade_in if new_start == c.start else 0,
+                    xfade_out=c.xfade_out if new_end == c.end else 0)
+                if new_clips is None:
+                    new_clips = list(t.clips[:index])
+                new_clips.append(changed)
+            elif new_clips is not None:
+                new_clips.append(c)
+        tracks.append(t if new_clips is None else replace(t, clips=_sorted(new_clips)))
+    if remaining:
+        missing = next(cid for cid in clip_ids if cid in remaining)
+        raise EditError("error.edit.no_clip", clip_id=missing)
+    return replace(p, tracks=tuple(tracks))
 
 
 def adjust_clip_gain(p: Project, clip_ids, delta_db: float) -> Project:
