@@ -355,3 +355,79 @@ def test_adjust_clip_gain_accepts_one_shot_iterator():
     p_res = ops.adjust_clip_gain(p, one_shot, -2.5)
     assert p_res.clip("c1").gain_db == -2.5
     assert p_res.clip("c2").gain_db == -2.5
+
+
+def test_trim_clips_batch_updates_start_and_end():
+    p = project_with_two_tracks()
+    p = ops.add_clip(p, track_id="t1", clip_id="c3", media_id="m1", start=12 * RATE)
+    p_trimmed = ops.trim_clips(p, ["c1", "c2"], start=2 * RATE, end=8 * RATE)
+    c1 = p_trimmed.clip("c1")
+    c2 = p_trimmed.clip("c2")
+    c3 = p_trimmed.clip("c3")
+    assert c1.start == 2 * RATE
+    assert c1.end == 8 * RATE
+    assert c1.offset == 2 * RATE
+    assert c1.length == 6 * RATE
+
+    assert c2.start == 2 * RATE
+    assert c2.end == 8 * RATE
+    assert c2.offset == 2 * RATE
+    assert c2.length == 6 * RATE
+
+    assert c3.start == 12 * RATE
+
+
+def test_trim_clips_empty_selection_returns_same_project():
+    p = project_with_two_tracks()
+    p_same = ops.trim_clips(p, [])
+    assert p_same == p
+
+
+def test_trim_clips_unknown_clip_raises_error():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.trim_clips(p, ["c1", "nonexistent"], start=RATE)
+    assert exc_info.value.key == "error.edit.no_clip"
+    assert exc_info.value.params == {"clip_id": "nonexistent"}
+
+
+def test_trim_clips_empty_trim_refuses_all():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.trim_clips(p, ["c1", "c2"], start=11 * RATE)
+    assert exc_info.value.key == "error.edit.trim_empty"
+    assert p.clip("c1").start == 0
+    assert p.clip("c2").start == 0
+
+
+def test_trim_clips_preserves_error_priority_in_order():
+    p = project_with_two_tracks()
+    # Missing ID precedes invalid trim: reports no_clip
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.trim_clips(p, ["missing", "c1"], start=11 * RATE)
+    assert exc_info.value.key == "error.edit.no_clip"
+    assert exc_info.value.params == {"clip_id": "missing"}
+
+    # Invalid trim precedes missing ID: reports trim_empty
+    with pytest.raises(ops.EditError) as exc_info:
+        ops.trim_clips(p, ["c1", "missing"], start=11 * RATE)
+    assert exc_info.value.key == "error.edit.trim_empty"
+
+
+def test_trim_clips_changes_only_first_track_with_duplicate_id():
+    p = project_with_two_tracks()
+    p = ops.add_clip(p, track_id="t2", media_id="m2", clip_id="c1", start=5 * RATE)
+    q = ops.trim_clips(p, ["c1"], start=2 * RATE)
+
+    # c1 on track t1 is modified
+    assert q.track("t1").clips[0].start == 2 * RATE
+    # c1 on track t2 is untouched
+    assert next(c for c in q.track("t2").clips if c.id == "c1").start == 5 * RATE
+
+
+def test_trim_clips_accepts_one_shot_iterator():
+    p = project_with_two_tracks()
+    one_shot = (cid for cid in ["c1", "c2"])
+    p_res = ops.trim_clips(p, one_shot, start=RATE)
+    assert p_res.clip("c1").start == RATE
+    assert p_res.clip("c2").start == RATE
