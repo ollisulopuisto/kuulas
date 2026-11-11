@@ -1492,22 +1492,26 @@ def synced_start(p: Project, clip: Clip) -> int | None:
 
 
 def _independently_displaced(refs: list[Clip], r: Clip) -> bool:
-    """Whether ``r`` was dragged off the clock both its source neighbours keep.
+    """Whether ``r`` was dragged off the clock the rest of the recording keeps.
 
-    A group-wide ripple cut shifts every piece after the cut by the same
-    amount, so the pieces before and after a cut boundary keep different
-    clocks and no piece is flagged. A piece dragged away on its own ends up
-    flanked by neighbours that agree on a different clock: that piece moved,
-    not the recording.
+    Pieces that sit next to each other in both source and timeline order moved
+    together (a group-wide cut, or a block moved as one), and edge pieces of
+    such a coherent run are legitimate too: a cut boundary always leaves the
+    two sides on different clocks. A piece no source neighbour abuts on the
+    timeline was dragged off on its own, and it stops being a reference when
+    at least two other pieces agree on a different clock, so a lone odd piece
+    cannot convict the rest.
     """
     by_source = sorted(refs, key=lambda c: (c.offset, c.start))
     i = by_source.index(r)
-    if not 0 < i < len(by_source) - 1:
+    neighbors = [by_source[j] for j in (i - 1, i + 1) if 0 <= j < len(by_source)]
+    if not neighbors or any(r.end == n.start or r.start == n.end
+                            for n in neighbors):
         return False
-    left = by_source[i - 1].start - by_source[i - 1].offset
-    right = by_source[i + 1].start - by_source[i + 1].offset
     clock = r.start - r.offset
-    return left == right != clock
+    others = [c.start - c.offset for c in refs if c is not r]
+    return any(others.count(other) >= 2 for other in set(others)
+               if other != clock)
 
 
 def resync(p: Project, clip_ids) -> Project:

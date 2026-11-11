@@ -475,3 +475,18 @@ def test_resync_keeps_pieces_before_a_group_wide_cut_on_their_clock():
     q = ops.resync(p, [before_cut.id])
 
     assert q.clip(before_cut.id).start == 2 * RATE
+
+
+def test_resync_ignores_a_displaced_edge_piece_of_the_main_clip():
+    # Devin review on the #196 fix: an edge piece dragged off on its own must
+    # not win the reference either; the surviving pieces keep the clock.
+    p, _ = marked_room()
+    p = ops.add_track(p, track_id="X", name="X")
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca-mid")
+    p = ops.split_clip(p, "ca-mid", at=7 * RATE, new_id="ca-late")
+    p = ops.move_clip(p, "ca", start=8 * RATE, track_id="X")
+    p = ops.split_clip(p, "cv", at=2 * RATE, new_id="cv-rest")
+
+    q = ops.resync(p, ["cv"])
+
+    assert q.clip("cv").start == 0
