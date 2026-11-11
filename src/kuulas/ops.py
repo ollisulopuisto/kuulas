@@ -7,6 +7,7 @@ them, by name, so the whitelist ``OPS`` is the edit vocabulary.
 from __future__ import annotations
 
 import uuid
+from collections import Counter
 from dataclasses import replace
 
 from . import curves, edit_scope, fx, narration
@@ -1466,11 +1467,11 @@ def synced_start(p: Project, clip: Clip) -> int | None:
     recording, so cuts made in the main clip are followed. Both ``resync`` and
     the drift display (``sync_state``) read it, so they cannot disagree.
 
-    A main piece dragged off on its own no longer sits on the clock its
-    recording neighbours keep (``start - offset``), so it is not a trustworthy
-    reference and stays out of the choice. A group-wide cut instead shifts a
-    whole tail of pieces together, so no single clock is authoritative: edge
-    pieces and coherent blocks always remain candidates.
+    A main piece dragged off on its own breaks the layout relations the rest
+    of the recording keeps, so it is not a trustworthy reference and stays out
+    of the choice (``_independently_displaced``). Pieces that moved together -
+    a group-wide cut, a trim, a block move - keep those relations and remain
+    candidates even when they sit on different clocks.
     """
     group = p.sync_group(clip.media)
     if group is None or clip.media == group.main:
@@ -1480,7 +1481,10 @@ def synced_start(p: Project, clip: Clip) -> int | None:
         return None
     rec = _recorded(p, clip)
 
-    refs = [r for r in refs if not _independently_displaced(refs, r)]
+    displaced = _independently_displaced(refs)
+    kept = [r for r in refs if r.id not in displaced]
+    if kept:
+        refs = kept
 
     def score(r: Clip) -> tuple[int, int]:
         r_rec = _recorded(p, r)
@@ -1491,27 +1495,44 @@ def synced_start(p: Project, clip: Clip) -> int | None:
     return max(0, ref.start + (rec - _recorded(p, ref)))
 
 
-def _independently_displaced(refs: list[Clip], r: Clip) -> bool:
-    """Whether ``r`` was dragged off the clock the rest of the recording keeps.
+def _independently_displaced(refs: list[Clip]) -> set[str]:
+    """Pieces of the main recording that were dragged off its clock.
 
-    Pieces that sit next to each other in both source and timeline order moved
-    together (a group-wide cut, or a block moved as one), and edge pieces of
-    such a coherent run are legitimate too: a cut boundary always leaves the
-    two sides on different clocks. A piece no source neighbour abuts on the
-    timeline was dragged off on its own, and it stops being a reference when
-    at least two other pieces agree on a different clock, so a lone odd piece
-    cannot convict the rest.
+    A group-wide cut, a trim and a block move all keep the layout relations
+    between pieces: pieces stay in source order on the timeline, and the
+    timeline gap between source-adjacent pieces can only shrink (a cut eats
+    into it), never grow past the source gap. A piece dragged off on its own
+    breaks one of those relations: it overlaps or passes another piece on the
+    timeline, or it opens a gap the recording does not have. In such an
+    inconsistent pair the piece on the less common clock (fewer pieces) is
+    the one that moved; equal support convicts neither.
     """
     by_source = sorted(refs, key=lambda c: (c.offset, c.start))
-    i = by_source.index(r)
-    neighbors = [by_source[j] for j in (i - 1, i + 1) if 0 <= j < len(by_source)]
-    if not neighbors or any(r.end == n.start or r.start == n.end
-                            for n in neighbors):
-        return False
-    clock = r.start - r.offset
-    others = [c.start - c.offset for c in refs if c is not r]
-    return any(others.count(other) >= 2 for other in set(others)
-               if other != clock)
+    support = Counter(c.start - c.offset for c in by_source)
+    displaced: set[str] = set()
+
+    def flag(a: Clip, b: Clip) -> None:
+        clock_a, clock_b = a.start - a.offset, b.start - b.offset
+        if clock_a == clock_b:
+            return
+        if support[clock_a] > support[clock_b]:
+            displaced.add(b.id)
+        elif support[clock_b] > support[clock_a]:
+            displaced.add(a.id)
+
+    for i, a in enumerate(by_source):
+        for b in by_source[i + 1:]:
+            # The same recording cannot play two stretches at one time.
+            if a.start < b.end and b.start < a.end:
+                flag(a, b)
+        if i + 1 < len(by_source):
+            b = by_source[i + 1]
+            source_gap = b.offset - (a.offset + a.length)
+            timeline_gap = b.start - (a.start + a.length)
+            if source_gap >= 0 and (b.start < a.start
+                                    or timeline_gap > source_gap):
+                flag(a, b)
+    return displaced
 
 
 def resync(p: Project, clip_ids) -> Project:

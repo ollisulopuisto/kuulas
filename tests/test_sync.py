@@ -490,3 +490,39 @@ def test_resync_ignores_a_displaced_edge_piece_of_the_main_clip():
     q = ops.resync(p, ["cv"])
 
     assert q.clip("cv").start == 0
+
+
+def test_resync_keeps_trailing_reference_after_a_cut_across_a_trim_gap():
+    # Devin review on the #196 fix: a trim opens a source gap; a group-wide
+    # cut across it shifts the trailing piece and its partner together, and
+    # the trailing piece must stay a reference though it abuts nothing.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca2")
+    p = ops.split_clip(p, "ca2", at=7 * RATE, new_id="ca3")
+    p = ops.trim_clip(p, "ca2", end=5 * RATE)
+    p = ops.split_clip(p, "cv", at=7 * RATE, new_id="cv-tail")
+    p = ops.ripple_delete(p, 5 * RATE, 6 * RATE)
+    assert p.clip("cv-tail").start == 6 * RATE
+
+    q = ops.resync(p, ["cv-tail"])
+
+    assert q.clip("cv-tail").start == 6 * RATE
+
+
+def test_resync_ignores_a_piece_abutting_a_trimmed_neighbour():
+    # Devin review on the #196 fix: timeline abutment with a trimmed neighbour
+    # is not coherence - the source ranges do not touch, so the dragged piece
+    # is displaced even though it touches another piece on the timeline.
+    p, _ = marked_room()
+    p = ops.add_track(p, track_id="X", name="X")
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca-mid")
+    p = ops.split_clip(p, "ca-mid", at=4 * RATE, new_id="ca-late")
+    p = ops.trim_clip(p, "ca", end=1 * RATE)
+    p = ops.move_clip(p, "ca-mid", start=1 * RATE, track_id="X")
+    p = ops.split_clip(p, "cv", at=2 * RATE, new_id="cv-mid")
+    p = ops.split_clip(p, "cv-mid", at=4 * RATE, new_id="cv-rest")
+    p = ops.move_clip(p, "cv-mid", start=12 * RATE)
+
+    q = ops.resync(p, ["cv-mid"])
+
+    assert q.clip("cv-mid").start == 2 * RATE
