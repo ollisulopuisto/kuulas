@@ -2543,7 +2543,12 @@ class Session:
         undo step, named ``interview_title`` or after the first file. Files
         that already belong to an interview are not put in a second one.
         """
-        # Path validation: prevent path traversal and unbounded path input
+        # Path validation: prevent path traversal and unbounded path input.
+        # A malformed path (type, empty, NUL, overlong, relative or "..")
+        # rejects the whole call; a well-formed path that does not name a
+        # readable file fails only that file in the report (WP34), so one
+        # missing source never costs the rest of the batch.
+        clean: list[str] = []
         for p in paths:
             try:
                 p_str = os.fspath(p)
@@ -2556,19 +2561,32 @@ class Session:
             raw_path = Path(p_str)
             if not raw_path.is_absolute() or ".." in raw_path.parts:
                 raise MediaError("error.media.not_a_file", name=p_str[:200])
+            clean.append(p_str)
+
+        unreadable: dict[int, ImportResult] = {}
+        readable: list[str] = []
+        for i, p_str in enumerate(clean):
             try:
-                norm_p = os.path.normpath(p_str)
-                real_p = os.path.realpath(norm_p)
-                if not os.path.isfile(real_p) or ".." in Path(real_p).parts:
-                    raise MediaError("error.media.not_a_file", name=p_str[:200])
+                real_p = os.path.realpath(os.path.normpath(p_str))
+                exists = os.path.isfile(real_p) and ".." not in Path(real_p).parts
             except (OSError, RuntimeError):
-                raise MediaError("error.media.not_a_file", name=p_str[:200]) from None
+                exists = False
+            if exists:
+                readable.append(p_str)
+            else:
+                unreadable[i] = ImportResult(
+                    Path(p_str),
+                    error=MediaError("error.media.not_a_file", name=p_str[:200]))
 
         with self.lock:
             if onto_track is not None:
                 # Before any file is read: an unknown track must change nothing.
                 ops._find_track(self.history.state, onto_track)
-            report = self.store.import_batch(paths, copy)
+            imported = self.store.import_batch(readable, copy) if readable else []
+            # The report keeps the request's order: a missing file keeps its slot.
+            results = iter(imported)
+            report = [unreadable[i] if i in unreadable else next(results)
+                      for i in range(len(clean))]
             self.last_import_report = report
             ok = [(str(x), r) for x, r in zip(paths, report, strict=True) if r.ok]
             if report and not ok:
