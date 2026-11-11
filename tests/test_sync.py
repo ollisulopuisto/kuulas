@@ -526,3 +526,39 @@ def test_resync_ignores_a_piece_abutting_a_trimmed_neighbour():
     q = ops.resync(p, ["cv-mid"])
 
     assert q.clip("cv-mid").start == 2 * RATE
+
+
+def test_resync_follows_a_coherently_moved_block_of_the_main_clip():
+    # Devin review on the #196 fix: a block of pieces moved together keeps its
+    # clock, even when more pieces stay behind; their partners follow them.
+    p, _ = marked_room()
+    p = ops.add_track(p, track_id="X", name="X")
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca-b1")
+    p = ops.split_clip(p, "ca-b1", at=4 * RATE, new_id="ca-b2")
+    p = ops.split_clip(p, "ca-b2", at=6 * RATE, new_id="ca-c1")
+    p = ops.split_clip(p, "ca-c1", at=8 * RATE, new_id="ca-c2")
+    p = ops.move_clip(p, "ca-b1", start=32 * RATE, track_id="X")
+    p = ops.move_clip(p, "ca-b2", start=34 * RATE, track_id="X")
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-rest")
+    p = ops.split_clip(p, "cv", at=2 * RATE, new_id="cv-mid")
+
+    q = ops.resync(p, ["cv-mid"])
+
+    assert q.clip("cv-mid").start == 32 * RATE
+
+
+def test_resync_ignores_an_edge_piece_shifted_into_a_trim_gap():
+    # Devin review on the #196 fix: a cut can only shift later content, so a
+    # lone leading piece off the recording's clock was dragged, even when its
+    # move only shortened a gap a trim opened.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca-mid")
+    p = ops.split_clip(p, "ca-mid", at=4 * RATE, new_id="ca-late")
+    p = ops.trim_clip(p, "ca-mid", start=3 * RATE)
+    p = ops.move_clip(p, "ca", start=RATE // 2)
+    p = ops.split_clip(p, "cv", at=2 * RATE, new_id="cv-rest")
+    p = ops.move_clip(p, "cv", start=12 * RATE)
+
+    q = ops.resync(p, ["cv"])
+
+    assert q.clip("cv").start == 0

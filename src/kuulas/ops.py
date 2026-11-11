@@ -1498,40 +1498,45 @@ def synced_start(p: Project, clip: Clip) -> int | None:
 def _independently_displaced(refs: list[Clip]) -> set[str]:
     """Pieces of the main recording that were dragged off its clock.
 
-    A group-wide cut, a trim and a block move all keep the layout relations
-    between pieces: pieces stay in source order on the timeline, and the
-    timeline gap between source-adjacent pieces can only shrink (a cut eats
-    into it), never grow past the source gap. A piece dragged off on its own
-    breaks one of those relations: it overlaps or passes another piece on the
-    timeline, or it opens a gap the recording does not have. In such an
-    inconsistent pair the piece on the less common clock (fewer pieces) is
-    the one that moved; equal support convicts neither.
+    Group-wide edits - cuts, inserts - shift a whole suffix of the recording
+    together, and a block moved as one keeps its pieces side by side; both
+    leave internally coherent runs that remain trustworthy references even
+    when another clock has more pieces. A piece dragged off on its own gives
+    itself away: it plays over another piece of the same recording, sits as
+    a lone piece between runs that agree on a different clock, or leads the
+    recording on a non-zero clock, which no suffix edit can produce.
     """
     by_source = sorted(refs, key=lambda c: (c.offset, c.start))
     support = Counter(c.start - c.offset for c in by_source)
+    runs: list[tuple[int, list[Clip]]] = []
+    for c in by_source:
+        clock = c.start - c.offset
+        if runs and runs[-1][0] == clock:
+            runs[-1][1].append(c)
+        else:
+            runs.append((clock, [c]))
     displaced: set[str] = set()
-
-    def flag(a: Clip, b: Clip) -> None:
-        clock_a, clock_b = a.start - a.offset, b.start - b.offset
-        if clock_a == clock_b:
-            return
-        if support[clock_a] > support[clock_b]:
-            displaced.add(b.id)
-        elif support[clock_b] > support[clock_a]:
-            displaced.add(a.id)
-
-    for i, a in enumerate(by_source):
-        for b in by_source[i + 1:]:
-            # The same recording cannot play two stretches at one time.
-            if a.start < b.end and b.start < a.end:
-                flag(a, b)
-        if i + 1 < len(by_source):
-            b = by_source[i + 1]
-            source_gap = b.offset - (a.offset + a.length)
-            timeline_gap = b.start - (a.start + a.length)
-            if source_gap >= 0 and (b.start < a.start
-                                    or timeline_gap > source_gap):
-                flag(a, b)
+    # One recording cannot play two stretches at one time: when runs overlap
+    # on the timeline, the run on the less common clock moved.
+    for i, (clock_a, run_a) in enumerate(runs):
+        for clock_b, run_b in runs[i + 1:]:
+            if any(a.start < b.end and b.start < a.end
+                   for a in run_a for b in run_b):
+                if support[clock_a] > support[clock_b]:
+                    displaced.update(c.id for c in run_b)
+                elif support[clock_b] > support[clock_a]:
+                    displaced.update(c.id for c in run_a)
+    # A lone piece whose source neighbours agree on a different clock moved;
+    # a coherent run of two or more is a block moved deliberately.
+    for i in range(1, len(runs) - 1):
+        clock, run = runs[i]
+        if len(run) == 1 and runs[i - 1][0] == runs[i + 1][0] != clock:
+            displaced.add(run[0].id)
+    # Group-wide edits only shift later content, so the recording's leading
+    # piece keeps its clock: a lone leading piece off it was dragged.
+    if (len(runs) > 1 and len(runs[0][1]) == 1 and runs[0][0] != 0
+            and runs[1][0] == 0):
+        displaced.add(runs[0][1][0].id)
     return displaced
 
 
