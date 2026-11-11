@@ -1549,20 +1549,27 @@ def _independently_displaced(p: Project, group: SyncGroup,
     # reference; the evaluated clip still outvotes a lone piece when it sits
     # on a clock the rest of the main recording keeps better.
     if len(runs) > 1:
-        origins = dict(group.members)
+        # An excerpt inherits membership from its original, so derive each
+        # origin through sync_member rather than the explicit member list.
+        def member_origin(c: Clip) -> int | None:
+            found = p.sync_member(c.media)
+            if found is None or found[0].id != group.id:
+                return None
+            return flicks_to_frames(found[1], p.rate)
 
         def kept_clock(c: Clip) -> int:
-            origin = flicks_to_frames(origins[c.media], p.rate)
-            return c.start - c.offset - origin
+            return c.start - c.offset - member_origin(c)
 
         def recorded_range(c: Clip) -> tuple[int, int]:
-            origin = flicks_to_frames(origins[c.media], p.rate)
+            origin = member_origin(c)
             return c.offset + origin, c.offset + origin + c.length
 
         witnesses = [c for t in p.tracks for c in t.clips
-                     if c.media in origins and c.media != group.main
-                     and c.id != clip.id and not c.free]
-        candidate_clock = kept_clock(clip) if clip.media in origins else None
+                     if c.media != group.main and c.id != clip.id
+                     and not c.free and member_origin(c) is not None]
+        candidate_origin = member_origin(clip)
+        candidate_clock = (clip.start - clip.offset - candidate_origin
+                           if candidate_origin is not None else None)
         candidate_range = recorded_range(clip)
         for clock, run in runs:
             if len(run) != 1:

@@ -629,3 +629,20 @@ def test_resync_with_offset_recordings_compares_witnesses_in_recording_time():
     q = ops.resync(p, ["cv"])
 
     assert q.clip("cv").start == 2 * RATE
+
+
+def test_resync_places_an_inherited_excerpt_against_a_split_main():
+    # Devin review on the #196 fix: an excerpt inherits group membership from
+    # its original, so the displaced-reference check must derive origins
+    # through sync_member instead of indexing the explicit member list.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=4 * RATE, new_id="ca-tail")
+    p = ops.move_clip(p, "ca-tail", start=9 * RATE)
+    p = ops.add_media(p, Media(id="vx", name="v excerpt", channels=1, frames=5 * RATE,
+                               excerpt_of="v",
+                               excerpt_start_flicks=frames_to_flicks(2 * RATE, RATE)))
+    p = ops.add_clip(p, track_id="V", media_id="vx", clip_id="x", start=99 * RATE)
+
+    q = ops.resync(p, ["x"])
+
+    assert q.clip("x").start == 2 * RATE
