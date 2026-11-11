@@ -1564,8 +1564,20 @@ def _independently_displaced(p: Project, group: SyncGroup,
             origin = member_origin(c)
             return c.offset + origin, c.offset + origin + c.length
 
+        def descends_from_main(media_id: str) -> bool:
+            mid = media_id
+            while mid and mid != group.main:
+                parent = p.media_item(mid).excerpt_of
+                if not parent or parent == mid:
+                    return False
+                mid = parent
+            return mid == group.main
+
+        # A witness must be an independent recording: an excerpt of the main
+        # media inherits its membership but cannot testify that a main piece
+        # is displaced.
         witnesses = [c for t in p.tracks for c in t.clips
-                     if c.media != group.main and c.id != clip.id
+                     if not descends_from_main(c.media) and c.id != clip.id
                      and not c.free and member_origin(c) is not None]
         candidate_origin = member_origin(clip)
         candidate_clock = (clip.start - clip.offset - candidate_origin

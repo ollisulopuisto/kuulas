@@ -646,3 +646,23 @@ def test_resync_places_an_inherited_excerpt_against_a_split_main():
     q = ops.resync(p, ["x"])
 
     assert q.clip("x").start == 2 * RATE
+
+
+def test_main_excerpt_does_not_witness_against_a_coherently_shifted_tail():
+    # Devin review on the #196 fix: an excerpt of the main recording inherits
+    # its origin but is not an independent recording, so it cannot testify
+    # that a legitimately shifted main tail is displaced.
+    p, _ = room(offset_frames=0)
+    p = ops.mark_in_sync(p, ["ca", "cv"], main="ca", group_id="g")
+    p = ops.split_clip(p, "ca", at=4 * RATE, new_id="ca-tail")
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-tail")
+    p = ops.move_clip(p, "ca-tail", start=9 * RATE)
+    p = ops.move_clip(p, "cv-tail", start=9 * RATE)
+    p = ops.add_media(p, Media(id="ax", name="a excerpt", channels=2, frames=2 * RATE,
+                               excerpt_of="a",
+                               excerpt_start_flicks=frames_to_flicks(4 * RATE, RATE)))
+    p = ops.add_clip(p, track_id="V", media_id="ax", clip_id="x", start=4 * RATE)
+
+    q = ops.resync(p, ["cv-tail"])
+
+    assert q.clip("cv-tail").start == 9 * RATE
