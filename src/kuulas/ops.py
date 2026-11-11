@@ -1597,12 +1597,11 @@ def _independently_displaced(p: Project, group: SyncGroup,
                         if recorded_range(w)[0] < hi
                         and lo < recorded_range(w)[1]]
             other_clocks = {clk for clk, _ in runs} - {clock}
-            if any(any(kept_clock(w) == clk for w in covering)
-                   for clk in other_clocks):
-                displaced.add(r.id)
-            elif (candidate_clock is not None and candidate_clock != clock
-                  and candidate_range[0] < hi and lo < candidate_range[1]
-                  and support.get(candidate_clock, 0) > support[clock]):
+            if (any(any(kept_clock(w) == clk for w in covering)
+                    for clk in other_clocks)
+                    or (candidate_clock is not None and candidate_clock != clock
+                        and candidate_range[0] < hi and lo < candidate_range[1]
+                        and support.get(candidate_clock, 0) > support[clock])):
                 displaced.add(r.id)
     return displaced
 
