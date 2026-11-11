@@ -217,7 +217,8 @@ def foreign_job(session, state):
         settings=None)
     path = bgjobs.job_file(session.package.path, job_id)
     data = bgjobs.read_json(path)
-    bgjobs.write_json_atomic(path, {**data, "host": "other-mac.local"})
+    bgjobs.write_json_atomic(path, {
+        **data, "host": "other-mac.local", "machine": "other-machine"})
     bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
         "state": state, "progress": 0.4, "pid": 1, "host": "other-mac.local"})
     return job_id, media
@@ -287,6 +288,67 @@ def test_a_hostname_spelt_with_a_local_suffix_is_this_computer(session, monkeypa
     assert shown["foreign"] is False
     assert shown["state"] == "interrupted"
     session.cancel_background(job_id)  # no foreign_host refusal
+    assert session.background_jobs()[0]["state"] == "cancelled"
+
+
+def test_a_legacy_btime_token_falls_back_to_the_pid_check(session, monkeypatch):
+    """The first cut of the boot token used /proc/stat btime, a wall clock that
+    moves with clock sync; such a token proves nothing, so the pid check decides."""
+    hold_worker(monkeypatch)
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
+    monkeypatch.setattr(bgjobs, "boot_id", lambda: "linux-a-real-uuid")
+    alive = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
+            "state": "running", "progress": 0.2, "pid": alive.pid,
+            "host": bgjobs._hostname(), "boot": "linux-1794300000"})
+        assert session.background_jobs()[0]["state"] == "running"
+    finally:
+        alive.kill()
+
+
+def test_a_hostname_collision_does_not_grant_a_foreign_machines_job(session, monkeypatch):
+    """Two Macs can collide as ``studio`` and ``studio.local``; when both sides
+    record a machine token, that decides, and the other machine's job stays
+    foreign even under a normalized hostname."""
+    hold_worker(monkeypatch)
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
+    monkeypatch.setattr(bgjobs, "machine_id", lambda: "machine-a")
+    base = re.sub(r"\.local$", "", bgjobs._hostname(), flags=re.IGNORECASE)
+    path = bgjobs.job_file(session.package.path, job_id)
+    job = bgjobs.read_json(path)
+    bgjobs.write_json_atomic(path, {
+        **job, "host": base.upper() + ".LOCAL", "machine": "machine-b"})
+    bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
+        "state": "running", "progress": 0.2, "pid": 1,
+        "host": base.upper() + ".LOCAL"})
+    shown = session.background_jobs()[0]
+    assert shown["foreign"] is True
+    assert shown["state"] == "running"
+    with pytest.raises(bgjobs.BackgroundJobError) as e:
+        session.cancel_background(job_id)
+    assert e.value.key == "error.transcribe.foreign_host"
+
+
+def test_a_matching_machine_token_keeps_a_hostname_variant_mine(session, monkeypatch):
+    """The same Mac under another hostname spelling is still this computer when
+    the machine tokens agree; its dead worker reconciles and can be cancelled."""
+    hold_worker(monkeypatch)
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
+    monkeypatch.setattr(bgjobs, "machine_id", lambda: "machine-a")
+    gone = subprocess.Popen([sys.executable, "-c", "pass"])
+    gone.wait()
+    base = re.sub(r"\.local$", "", bgjobs._hostname(), flags=re.IGNORECASE)
+    variant = base.upper() + ".LOCAL"
+    path = bgjobs.job_file(session.package.path, job_id)
+    job = bgjobs.read_json(path)
+    bgjobs.write_json_atomic(path, {**job, "host": variant, "machine": "machine-a"})
+    bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
+        "state": "running", "progress": 0.2, "pid": gone.pid, "host": variant})
+    shown = session.background_jobs()[0]
+    assert shown["foreign"] is False
+    assert shown["state"] == "interrupted"
+    session.cancel_background(job_id)
     assert session.background_jobs()[0]["state"] == "cancelled"
 
 

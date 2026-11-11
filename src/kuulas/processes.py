@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import ctypes
+import hashlib
 import os
 import re
 import shutil
 import signal
 import subprocess
 import sys
+from collections.abc import Callable
 from ctypes import wintypes
 from pathlib import Path
 
@@ -92,6 +94,15 @@ def kill_process_group(proc: subprocess.Popen) -> None:
         os.killpg(proc.pid, signal.SIGKILL)
 
 
+_CACHE: dict[str, str | None] = {}  # identity tokens never change at runtime
+
+
+def _cached(name: str, probe: Callable[[], str | None]) -> str | None:
+    if name not in _CACHE:
+        _CACHE[name] = probe()
+    return _CACHE[name]
+
+
 def boot_id() -> str | None:
     """A token naming this machine's current boot, or ``None`` when the OS has no
     cheap way to tell.
@@ -101,23 +112,66 @@ def boot_id() -> str | None:
     A recorded worker pid is therefore trusted only while the boot token matches.
     ``None`` keeps the pid check as the only signal (Windows has no stdlib boot
     timestamp, so the behaviour there is unchanged).
+
+    Linux reads the per-boot UUID (``/proc/sys/kernel/random/boot_id``), not
+    ``/proc/stat``'s ``btime``: that is a wall clock and moves with clock sync,
+    which would call a live worker interrupted.
     """
+    return _cached("boot", _probe_boot_id)
+
+
+def _probe_boot_id() -> str | None:
+    token: str | None = None
     if sys.platform == "darwin":
         sysctl = shutil.which("sysctl")
-        if sysctl is None:
-            return None
+        if sysctl is not None:
+            try:
+                out = subprocess.check_output(  # noqa: S603 - resolved, fixed argv
+                    [sysctl, "-n", "kern.boottime"], text=True, timeout=5)
+            except (OSError, subprocess.SubprocessError):
+                out = ""
+            match = re.search(r"sec\s*=\s*(\d+)", out)
+            token = f"mac-{match.group(1)}" if match else None
+    elif os.name == "posix":
         try:
-            out = subprocess.check_output(  # noqa: S603 - resolved path, fixed argv
-                [sysctl, "-n", "kern.boottime"], text=True, timeout=5)
-        except (OSError, subprocess.SubprocessError):
-            return None
-        match = re.search(r"sec\s*=\s*(\d+)", out)
-        return f"mac-{match.group(1)}" if match else None
-    if os.name == "posix":
-        try:
-            for line in Path("/proc/stat").read_text(encoding="ascii").splitlines():
-                if line.startswith("btime "):
-                    return f"linux-{line.split()[1]}"
+            token = "linux-" + Path("/proc/sys/kernel/random/boot_id").read_text(
+                encoding="ascii").strip()
         except OSError:
-            return None
-    return None
+            token = None
+    return token
+
+
+def machine_id() -> str | None:
+    """A stable per-machine token (a hash of the OS machine identity), or ``None``.
+
+    Hostnames lie in both directions: macOS spells one Mac ``name`` and
+    ``name.local``, and two Macs can collide under those spellings. The token is
+    hashed so project files never carry the raw hardware UUID; only equality is
+    ever checked. ``None`` (Windows) keeps the hostname comparison as the only
+    signal.
+    """
+    return _cached("machine", _probe_machine_id)
+
+
+def _probe_machine_id() -> str | None:
+    raw: str | None = None
+    if sys.platform == "darwin":
+        ioreg = shutil.which("ioreg")
+        if ioreg is not None:
+            try:
+                out = subprocess.check_output(  # noqa: S603 - resolved, fixed argv
+                    [ioreg, "-rd1", "-c", "IOPlatformExpertDevice"],
+                    text=True, timeout=5)
+            except (OSError, subprocess.SubprocessError):
+                out = ""
+            match = re.search(r'"IOPlatformUUID"\s*=\s*"([^"]+)"', out)
+            raw = match.group(1) if match else None
+    elif os.name == "posix":
+        for candidate in ("/etc/machine-id", "/var/lib/dbus/machine-id"):
+            try:
+                raw = Path(candidate).read_text(encoding="ascii").strip()
+            except OSError:
+                continue
+            if raw:
+                break
+    return hashlib.sha256(raw.encode()).hexdigest()[:16] if raw else None
