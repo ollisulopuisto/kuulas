@@ -488,6 +488,15 @@ def test_split_clips_missing_clip_reports_error():
     assert error.value.params == {"clip_id": "nonexistent"}
 
 
+def test_split_clips_with_a_repeated_in_range_clip_is_refused():
+    # A repeated id used to reach split_clip twice; the second split landed on
+    # the new edge and raised split_outside. Keep that contract.
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as error:
+        ops.split_clips(p, 5 * RATE, ["c1", "c1"])
+    assert error.value.key == "error.edit.split_outside"
+
+
 def test_split_clips_multiple_tracks_single_pass():
     p = project_with_two_tracks()
     out = ops.split_clips(p, 5 * RATE, ["c1", "c2"])

@@ -1067,6 +1067,16 @@ def split_clips(p: Project, at: int, clip_ids) -> Project:
     if not track_to_split:
         raise EditError("error.edit.split_outside")
 
+    # Splitting one clip twice at the same point was never possible: the
+    # sequential version raised on the second pass, so a repeated in-range
+    # id is refused here too.
+    split_ids = {cid for splits in track_to_split.values() for cid in splits}
+    seen: set[str] = set()
+    for cid in clip_ids:
+        if cid in seen and cid in split_ids:
+            raise EditError("error.edit.split_outside")
+        seen.add(cid)
+
     tracks = []
     for ti, t in enumerate(p.tracks):
         splits = track_to_split.get(ti)
