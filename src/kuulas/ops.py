@@ -1567,7 +1567,12 @@ def _independently_displaced(p: Project, group: SyncGroup,
         def descends_from_main(media_id: str) -> bool:
             mid = media_id
             while mid and mid != group.main:
-                parent = p.media_item(mid).excerpt_of
+                try:
+                    parent = p.media_item(mid).excerpt_of
+                except KeyError:
+                    # A pasted excerpt can name an original this project
+                    # does not have; then it cannot descend from the main.
+                    return False
                 if not parent or parent == mid:
                     return False
                 mid = parent

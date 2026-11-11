@@ -666,3 +666,23 @@ def test_main_excerpt_does_not_witness_against_a_coherently_shifted_tail():
     q = ops.resync(p, ["cv-tail"])
 
     assert q.clip("cv-tail").start == 9 * RATE
+
+
+def test_resync_survives_a_pasted_excerpt_whose_original_is_absent():
+    # Devin review on the #196 fix: a pasted excerpt can refer to an original
+    # that is not in this project; the witness scan must treat a missing
+    # ancestor as "not the main" instead of raising KeyError.
+    p, _ = room(offset_frames=0)
+    p = ops.mark_in_sync(p, ["ca", "cv"], main="ca", group_id="g")
+    p = ops.split_clip(p, "ca", at=4 * RATE, new_id="ca-tail")
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-tail")
+    p = ops.move_clip(p, "ca-tail", start=9 * RATE)
+    p = ops.move_clip(p, "cv-tail", start=9 * RATE)
+    p = ops.add_media(p, Media(id="px", name="pasted excerpt", channels=1,
+                               frames=2 * RATE, excerpt_of="sha256:deadbeef",
+                               excerpt_start_flicks=frames_to_flicks(RATE, RATE)))
+    p = ops.add_clip(p, track_id="V", media_id="px", clip_id="pxc", start=4 * RATE)
+
+    q = ops.resync(p, ["cv-tail"])
+
+    assert q.clip("cv-tail").start == 9 * RATE
