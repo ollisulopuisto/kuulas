@@ -409,3 +409,280 @@ def test_excerpt_inherits_its_originals_sync_origin():
     q = ops.resync(p, ["x"])
     # Excerpt frame 0 is Ville's 10 s, which plays at 10.3 s.
     assert q.clip("x").start == int(10.3 * RATE)
+
+
+def test_align_points_keeps_surviving_anchor_clock_for_drifted_candidate_piece():
+    p, _store = room(offset_frames=0)
+    p = ops.add_media(p, Media(id="c", name="c.wav", channels=1, frames=30 * RATE))
+    p = ops.add_track(p, track_id="C", name="C")
+    p = ops.add_clip(p, track_id="C", media_id="c", clip_id="cc", start=0)
+    p = ops.mark_in_sync(p, ["ca", "cc"], main="cc", group_id="g")
+    p = ops.delete_clip(p, "cc")
+    p = ops.split_clip(p, "ca", at=3 * RATE, new_id="ca-later")
+    p = ops.trim_clip(p, "ca", start=2 * RATE)
+    p = ops.split_clip(p, "cv", at=3 * RATE, new_id="cv-later")
+    p = ops.move_clip(p, "cv-later", start=12 * RATE)
+    p = ops.move_clip(p, "cv", start=0, track_id="A")
+
+    q = ops.align_points(p, "ca", 2 * RATE, "cv", 0)
+
+    assert all(c.id != "ca" for track in q.tracks for c in track.clips)
+    assert q.sync_group("v").main == "a"
+    assert q.clip("cv-later").start == 12 * RATE
+    q = ops.resync(q, ["cv-later"])
+    assert q.clip("cv-later").start == 5 * RATE
+
+
+def test_resync_ignores_a_displaced_anchor_piece_overlapping_the_candidate():
+    # Devin review on #196: anchor A split 0-2/2-3/3-7/7-30 with the 3-7 piece
+    # moved away to t=8; aligning candidate B over the selected 2-3 piece keeps
+    # A's clock (the 7-30 piece survives unchanged). Resyncing B's 3-6 piece
+    # must follow that clock, not the displaced 3-7 piece that overlaps it.
+    p, _store = room(offset_frames=0)
+    p = ops.add_media(p, Media(id="c", name="c.wav", channels=1,
+                               frames=30 * RATE))
+    p = ops.add_track(p, track_id="C", name="C")
+    p = ops.add_clip(p, track_id="C", media_id="c", clip_id="cc", start=0)
+    p = ops.mark_in_sync(p, ["ca", "cc"], main="cc", group_id="g")
+    p = ops.delete_clip(p, "cc")
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca-pick")
+    p = ops.split_clip(p, "ca-pick", at=3 * RATE, new_id="ca-mid")
+    p = ops.split_clip(p, "ca-mid", at=7 * RATE, new_id="ca-late")
+    p = ops.move_clip(p, "ca-mid", start=8 * RATE, track_id="C")
+    p = ops.split_clip(p, "cv", at=3 * RATE, new_id="cv-mid")
+    p = ops.split_clip(p, "cv-mid", at=6 * RATE, new_id="cv-late")
+    p = ops.move_clip(p, "cv", start=0, track_id="A")
+
+    q = ops.align_points(p, "ca-pick", 2 * RATE, "cv", 0)
+
+    assert q.sync_group("v").main == "a"
+    q = ops.move_clip(q, "cv-mid", start=12 * RATE)
+    q = ops.resync(q, ["cv-mid"])
+    assert q.clip("cv-mid").start == 5 * RATE
+
+
+def test_resync_keeps_pieces_before_a_group_wide_cut_on_their_clock():
+    # Devin review on the #196 fix: a group-wide ripple cut gives the pieces
+    # after it a new shared clock; the pieces before it are still right and
+    # must not be dropped from the reference choice for being outnumbered.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=10 * RATE, new_id="ca2")
+    p = ops.split_clip(p, "ca2", at=20 * RATE, new_id="ca3")
+    p = ops.split_clip(p, "cv", at=2 * RATE, new_id="cv0")
+    p = ops.ripple_delete(p, 5 * RATE, 6 * RATE)
+    before_cut = next(c for c in p.track("V").clips if c.start == 2 * RATE)
+
+    q = ops.resync(p, [before_cut.id])
+
+    assert q.clip(before_cut.id).start == 2 * RATE
+
+
+def test_resync_ignores_a_displaced_edge_piece_of_the_main_clip():
+    # Devin review on the #196 fix: an edge piece dragged off on its own must
+    # not win the reference either; the surviving pieces keep the clock.
+    p, _ = marked_room()
+    p = ops.add_track(p, track_id="X", name="X")
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca-mid")
+    p = ops.split_clip(p, "ca-mid", at=7 * RATE, new_id="ca-late")
+    p = ops.move_clip(p, "ca", start=8 * RATE, track_id="X")
+    p = ops.split_clip(p, "cv", at=2 * RATE, new_id="cv-rest")
+
+    q = ops.resync(p, ["cv"])
+
+    assert q.clip("cv").start == 0
+
+
+def test_resync_keeps_trailing_reference_after_a_cut_across_a_trim_gap():
+    # Devin review on the #196 fix: a trim opens a source gap; a group-wide
+    # cut across it shifts the trailing piece and its partner together, and
+    # the trailing piece must stay a reference though it abuts nothing.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca2")
+    p = ops.split_clip(p, "ca2", at=7 * RATE, new_id="ca3")
+    p = ops.trim_clip(p, "ca2", end=5 * RATE)
+    p = ops.split_clip(p, "cv", at=7 * RATE, new_id="cv-tail")
+    p = ops.ripple_delete(p, 5 * RATE, 6 * RATE)
+    assert p.clip("cv-tail").start == 6 * RATE
+
+    q = ops.resync(p, ["cv-tail"])
+
+    assert q.clip("cv-tail").start == 6 * RATE
+
+
+def test_resync_ignores_a_piece_abutting_a_trimmed_neighbour():
+    # Devin review on the #196 fix: timeline abutment with a trimmed neighbour
+    # is not coherence - the source ranges do not touch, so the dragged piece
+    # is displaced even though it touches another piece on the timeline.
+    p, _ = marked_room()
+    p = ops.add_track(p, track_id="X", name="X")
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca-mid")
+    p = ops.split_clip(p, "ca-mid", at=4 * RATE, new_id="ca-late")
+    p = ops.trim_clip(p, "ca", end=1 * RATE)
+    p = ops.move_clip(p, "ca-mid", start=1 * RATE, track_id="X")
+    p = ops.split_clip(p, "cv", at=2 * RATE, new_id="cv-mid")
+    p = ops.split_clip(p, "cv-mid", at=4 * RATE, new_id="cv-rest")
+    p = ops.move_clip(p, "cv-mid", start=12 * RATE)
+
+    q = ops.resync(p, ["cv-mid"])
+
+    assert q.clip("cv-mid").start == 2 * RATE
+
+
+def test_resync_follows_a_coherently_moved_block_of_the_main_clip():
+    # Devin review on the #196 fix: a block of pieces moved together keeps its
+    # clock, even when more pieces stay behind; their partners follow them.
+    p, _ = marked_room()
+    p = ops.add_track(p, track_id="X", name="X")
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca-b1")
+    p = ops.split_clip(p, "ca-b1", at=4 * RATE, new_id="ca-b2")
+    p = ops.split_clip(p, "ca-b2", at=6 * RATE, new_id="ca-c1")
+    p = ops.split_clip(p, "ca-c1", at=8 * RATE, new_id="ca-c2")
+    p = ops.move_clip(p, "ca-b1", start=32 * RATE, track_id="X")
+    p = ops.move_clip(p, "ca-b2", start=34 * RATE, track_id="X")
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-rest")
+    p = ops.split_clip(p, "cv", at=2 * RATE, new_id="cv-mid")
+
+    q = ops.resync(p, ["cv-mid"])
+
+    assert q.clip("cv-mid").start == 32 * RATE
+
+
+def test_resync_ignores_an_edge_piece_shifted_into_a_trim_gap():
+    # Devin review on the #196 fix: a cut can only shift later content, so a
+    # lone leading piece off the recording's clock was dragged, even when its
+    # move only shortened a gap a trim opened.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca-mid")
+    p = ops.split_clip(p, "ca-mid", at=4 * RATE, new_id="ca-late")
+    p = ops.trim_clip(p, "ca-mid", start=3 * RATE)
+    p = ops.move_clip(p, "ca", start=RATE // 2)
+    p = ops.split_clip(p, "cv", at=2 * RATE, new_id="cv-rest")
+    p = ops.move_clip(p, "cv", start=12 * RATE)
+
+    q = ops.resync(p, ["cv"])
+
+    assert q.clip("cv").start == 0
+
+
+def test_resync_ignores_a_lone_trailing_piece_dragged_later():
+    # Devin review on the #196 fix: a trailing piece dragged off on its own
+    # keeps a clock no other recording in the group keeps; partners stay on
+    # the clock the rest of the group agrees on.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca-mid")
+    p = ops.split_clip(p, "ca-mid", at=4 * RATE, new_id="ca-tail")
+    p = ops.trim_clip(p, "ca-tail", end=6 * RATE)
+    p = ops.move_clip(p, "ca-tail", start=9 * RATE)
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-tail")
+    p = ops.trim_clip(p, "cv-tail", end=6 * RATE)
+
+    q = ops.resync(p, ["cv-tail"])
+
+    assert q.clip("cv-tail").start == 4 * RATE
+
+
+def test_resync_keeps_a_trailing_piece_shifted_with_the_whole_group():
+    # The mirror image: a group-wide insert shifts the trailing pieces of
+    # every recording together, so the shifted trailing piece stays the
+    # reference for its range.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=4 * RATE, new_id="ca-tail")
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-tail")
+    for clip_id, start in (("ca-tail", 9 * RATE), ("cv-tail", 9 * RATE),
+                           ("cv2", 15 * RATE), ("cv3", 25 * RATE)):
+        p = ops.move_clip(p, clip_id, start=start)
+
+    q = ops.resync(p, ["cv-tail"])
+
+    assert q.clip("cv-tail").start == 9 * RATE
+
+
+def test_resync_fixes_a_partner_piece_drifted_onto_the_tails_clock():
+    # Devin review on the #196 fix: the clip being resynced must not testify
+    # against its own reference; a drifted opening follows the opening, not
+    # the shifted tail it happens to share a clock with.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=4 * RATE, new_id="ca-tail")
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-tail")
+    p = ops.move_clip(p, "ca-tail", start=9 * RATE)
+    p = ops.move_clip(p, "cv-tail", start=9 * RATE)
+    p = ops.move_clip(p, "cv2", start=15 * RATE)
+    p = ops.move_clip(p, "cv3", start=25 * RATE)
+    p = ops.move_clip(p, "cv", start=5 * RATE)
+
+    q = ops.resync(p, ["cv"])
+
+    assert q.clip("cv").start == 0
+
+
+def test_resync_with_offset_recordings_compares_witnesses_in_recording_time():
+    # Devin review on the #196 fix: a partner that started 2 s after the main
+    # has raw source offsets 2 s behind the group clock; they must not
+    # witness against the main's untouched opening piece.
+    p, _store = room(offset_frames=2 * RATE)
+    p = ops.mark_in_sync(p, ["ca", "cv"], main="ca", group_id="g")
+    p = ops.split_clip(p, "ca", at=4 * RATE, new_id="ca-tail")
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-tail")
+    p = ops.move_clip(p, "ca-tail", start=9 * RATE)
+    p = ops.move_clip(p, "cv-tail", start=9 * RATE)
+
+    q = ops.resync(p, ["cv"])
+
+    assert q.clip("cv").start == 2 * RATE
+
+
+def test_resync_places_an_inherited_excerpt_against_a_split_main():
+    # Devin review on the #196 fix: an excerpt inherits group membership from
+    # its original, so the displaced-reference check must derive origins
+    # through sync_member instead of indexing the explicit member list.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=4 * RATE, new_id="ca-tail")
+    p = ops.move_clip(p, "ca-tail", start=9 * RATE)
+    p = ops.add_media(p, Media(id="vx", name="v excerpt", channels=1, frames=5 * RATE,
+                               excerpt_of="v",
+                               excerpt_start_flicks=frames_to_flicks(2 * RATE, RATE)))
+    p = ops.add_clip(p, track_id="V", media_id="vx", clip_id="x", start=99 * RATE)
+
+    q = ops.resync(p, ["x"])
+
+    assert q.clip("x").start == 2 * RATE
+
+
+def test_main_excerpt_does_not_witness_against_a_coherently_shifted_tail():
+    # Devin review on the #196 fix: an excerpt of the main recording inherits
+    # its origin but is not an independent recording, so it cannot testify
+    # that a legitimately shifted main tail is displaced.
+    p, _ = room(offset_frames=0)
+    p = ops.mark_in_sync(p, ["ca", "cv"], main="ca", group_id="g")
+    p = ops.split_clip(p, "ca", at=4 * RATE, new_id="ca-tail")
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-tail")
+    p = ops.move_clip(p, "ca-tail", start=9 * RATE)
+    p = ops.move_clip(p, "cv-tail", start=9 * RATE)
+    p = ops.add_media(p, Media(id="ax", name="a excerpt", channels=2, frames=2 * RATE,
+                               excerpt_of="a",
+                               excerpt_start_flicks=frames_to_flicks(4 * RATE, RATE)))
+    p = ops.add_clip(p, track_id="V", media_id="ax", clip_id="x", start=4 * RATE)
+
+    q = ops.resync(p, ["cv-tail"])
+
+    assert q.clip("cv-tail").start == 9 * RATE
+
+
+def test_resync_survives_a_pasted_excerpt_whose_original_is_absent():
+    # Devin review on the #196 fix: a pasted excerpt can refer to an original
+    # that is not in this project; the witness scan must treat a missing
+    # ancestor as "not the main" instead of raising KeyError.
+    p, _ = room(offset_frames=0)
+    p = ops.mark_in_sync(p, ["ca", "cv"], main="ca", group_id="g")
+    p = ops.split_clip(p, "ca", at=4 * RATE, new_id="ca-tail")
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-tail")
+    p = ops.move_clip(p, "ca-tail", start=9 * RATE)
+    p = ops.move_clip(p, "cv-tail", start=9 * RATE)
+    p = ops.add_media(p, Media(id="px", name="pasted excerpt", channels=1,
+                               frames=2 * RATE, excerpt_of="sha256:deadbeef",
+                               excerpt_start_flicks=frames_to_flicks(RATE, RATE)))
+    p = ops.add_clip(p, track_id="V", media_id="px", clip_id="pxc", start=4 * RATE)
+
+    q = ops.resync(p, ["cv-tail"])
+
+    assert q.clip("cv-tail").start == 9 * RATE

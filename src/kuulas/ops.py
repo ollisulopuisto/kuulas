@@ -1331,12 +1331,19 @@ def align_points(p: Project, clip_a: str, point_a: int,
     if a.free:
         p = _replace_clip(p, replace(a, free=False))
     p = _overwrite_under(before, p, only={b.id})
-    anchor_survived = any(c.id == a.id for track in p.tracks for c in track.clips)
-    return _align_sync_group(p, a.media, b.media, delta, anchor_survived)
+    # The selected anchor may be overwritten while another piece of the same
+    # recording still supplies its clock. A piece moved away from that clock
+    # is not a trustworthy replacement reference, so use the aligned candidate
+    # only when no unchanged anchor-clock piece remains.
+    anchor_clock = a.start - a.offset
+    anchor_reference_survived = any(
+        c.media == a.media and c.start - c.offset == anchor_clock
+        for track in p.tracks for c in track.clips)
+    return _align_sync_group(p, a.media, b.media, delta, anchor_reference_survived)
 
 
 def _align_sync_group(p: Project, media_a: str, media_b: str,
-                      delta: int, anchor_survived: bool) -> Project:
+                      delta: int, anchor_reference_survived: bool) -> Project:
     """Join B to A's recording clock, keeping and rebasing existing partners.
 
     A's group wins when both recordings already belong to different groups.
@@ -1382,7 +1389,7 @@ def _align_sync_group(p: Project, media_a: str, media_b: str,
         members_a[media_b] = origin_b
 
     joined = replace(group_a, members=tuple(sorted(members_a.items())))
-    preferred_main = media_a if anchor_survived else media_b
+    preferred_main = media_a if anchor_reference_survived else media_b
     joined = _with_live_sync_main(p, joined, media_b,
                                   preferred_media=preferred_main)
     groups = tuple(group for group in p.sync_groups
@@ -1470,6 +1477,12 @@ def synced_start(p: Project, clip: Clip) -> int | None:
     The reference is the main media's piece that plays the same stretch of the
     recording, so cuts made in the main clip are followed. Both ``resync`` and
     the drift display (``sync_state``) read it, so they cannot disagree.
+
+    A main piece dragged off on its own breaks the layout relations the rest
+    of the recording keeps, so it is not a trustworthy reference and stays out
+    of the choice (``_independently_displaced``). Pieces that moved together -
+    a group-wide cut, a trim, a block move - keep those relations and remain
+    candidates even when they sit on different clocks.
     """
     group = p.sync_group(clip.media)
     if group is None or clip.media == group.main:
@@ -1479,6 +1492,11 @@ def synced_start(p: Project, clip: Clip) -> int | None:
         return None
     rec = _recorded(p, clip)
 
+    displaced = _independently_displaced(p, group, refs, clip)
+    kept = [r for r in refs if r.id not in displaced]
+    if kept:
+        refs = kept
+
     def score(r: Clip) -> tuple[int, int]:
         r_rec = _recorded(p, r)
         overlap = min(r_rec + r.length, rec + clip.length) - max(r_rec, rec)
@@ -1486,6 +1504,117 @@ def synced_start(p: Project, clip: Clip) -> int | None:
 
     ref = max(refs, key=score)
     return max(0, ref.start + (rec - _recorded(p, ref)))
+
+
+def _independently_displaced(p: Project, group: SyncGroup,
+                             refs: list[Clip], clip: Clip) -> set[str]:
+    """Pieces of the main recording that were dragged off its clock.
+
+    Group-wide edits - cuts, inserts - shift a whole suffix of the recording
+    together, and a block moved as one keeps its pieces side by side; both
+    leave internally coherent runs that remain trustworthy references even
+    when another clock has more pieces. A piece dragged off on its own gives
+    itself away: it plays over another piece of the same recording, sits as
+    a lone piece between runs that agree on a different clock, leads the
+    recording on a non-zero clock, which no suffix edit can produce, or keeps
+    a shifted clock that no piece of the group's other recordings keeps,
+    while they and the rest of the main recording agree on another.
+    """
+    by_source = sorted(refs, key=lambda c: (c.offset, c.start))
+    support = Counter(c.start - c.offset for c in by_source)
+    runs: list[tuple[int, list[Clip]]] = []
+    for c in by_source:
+        clock = c.start - c.offset
+        if runs and runs[-1][0] == clock:
+            runs[-1][1].append(c)
+        else:
+            runs.append((clock, [c]))
+    displaced: set[str] = set()
+    # One recording cannot play two stretches at one time: when runs overlap
+    # on the timeline, the run on the less common clock moved.
+    for i, (clock_a, run_a) in enumerate(runs):
+        for clock_b, run_b in runs[i + 1:]:
+            if any(a.start < b.end and b.start < a.end
+                   for a in run_a for b in run_b):
+                if support[clock_a] > support[clock_b]:
+                    displaced.update(c.id for c in run_b)
+                elif support[clock_b] > support[clock_a]:
+                    displaced.update(c.id for c in run_a)
+    # A lone piece whose source neighbours agree on a different clock moved;
+    # a coherent run of two or more is a block moved deliberately.
+    for i in range(1, len(runs) - 1):
+        clock, run = runs[i]
+        if len(run) == 1 and runs[i - 1][0] == runs[i + 1][0] != clock:
+            displaced.add(run[0].id)
+    # Group-wide edits only shift later content, so the recording's leading
+    # piece keeps its clock: a lone leading piece off it was dragged.
+    if (len(runs) > 1 and len(runs[0][1]) == 1 and runs[0][0] != 0
+            and runs[1][0] == 0):
+        displaced.add(runs[0][1][0].id)
+    # Group-wide edits shift every recording in the group together, so a
+    # lone main piece on a shifted clock is only legitimate when the group's
+    # other recordings keep that clock over its stretch of the recording.
+    # Intervals compare on the shared recording clock (offset plus origin),
+    # never on raw source offsets: grouped recordings can start apart. The
+    # clip being evaluated and clips declared free cannot testify against a
+    # reference; the evaluated clip still outvotes a lone piece when it sits
+    # on a clock the rest of the main recording keeps better.
+    if len(runs) > 1:
+        # An excerpt inherits membership from its original, so derive each
+        # origin through sync_member rather than the explicit member list.
+        def member_origin(c: Clip) -> int | None:
+            found = p.sync_member(c.media)
+            if found is None or found[0].id != group.id:
+                return None
+            return flicks_to_frames(found[1], p.rate)
+
+        def kept_clock(c: Clip) -> int:
+            return c.start - c.offset - member_origin(c)
+
+        def recorded_range(c: Clip) -> tuple[int, int]:
+            origin = member_origin(c)
+            return c.offset + origin, c.offset + origin + c.length
+
+        def descends_from_main(media_id: str) -> bool:
+            mid = media_id
+            while mid and mid != group.main:
+                try:
+                    parent = p.media_item(mid).excerpt_of
+                except KeyError:
+                    # A pasted excerpt can name an original this project
+                    # does not have; then it cannot descend from the main.
+                    return False
+                if not parent or parent == mid:
+                    return False
+                mid = parent
+            return mid == group.main
+
+        # A witness must be an independent recording: an excerpt of the main
+        # media inherits its membership but cannot testify that a main piece
+        # is displaced.
+        witnesses = [c for t in p.tracks for c in t.clips
+                     if not descends_from_main(c.media) and c.id != clip.id
+                     and not c.free and member_origin(c) is not None]
+        candidate_origin = member_origin(clip)
+        candidate_clock = (clip.start - clip.offset - candidate_origin
+                           if candidate_origin is not None else None)
+        candidate_range = recorded_range(clip)
+        for clock, run in runs:
+            if len(run) != 1:
+                continue
+            r = run[0]
+            lo, hi = r.offset, r.offset + r.length
+            covering = [w for w in witnesses
+                        if recorded_range(w)[0] < hi
+                        and lo < recorded_range(w)[1]]
+            other_clocks = {clk for clk, _ in runs} - {clock}
+            if (any(any(kept_clock(w) == clk for w in covering)
+                    for clk in other_clocks)
+                    or (candidate_clock is not None and candidate_clock != clock
+                        and candidate_range[0] < hi and lo < candidate_range[1]
+                        and support.get(candidate_clock, 0) > support[clock])):
+                displaced.add(r.id)
+    return displaced
 
 
 def resync(p: Project, clip_ids) -> Project:
