@@ -46,6 +46,7 @@ import logging
 import os
 import platform
 import shutil
+import stat
 import struct
 import subprocess
 import tempfile
@@ -746,6 +747,14 @@ class MediaStore:
             raise MediaError("error.media.not_a_file", name=str(raw or "")[:200])
         p = Path(raw)
         if not p.is_absolute() or ".." in p.parts:
+            raise MediaError("error.media.not_a_file", name=raw[:200])
+        # Refuse anything that is not a regular file before any open(): a
+        # named pipe would block the read (and the session lock) forever.
+        try:
+            mode = os.stat(p).st_mode
+        except OSError:
+            raise MediaError("error.media.not_a_file", name=raw[:200]) from None
+        if not stat.S_ISREG(mode):
             raise MediaError("error.media.not_a_file", name=raw[:200])
         return p
 
