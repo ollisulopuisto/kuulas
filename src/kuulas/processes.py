@@ -98,8 +98,14 @@ _CACHE: dict[str, str | None] = {}  # identity tokens never change at runtime
 
 
 def _cached(name: str, probe: Callable[[], str | None]) -> str | None:
+    """Read an identity token once. Only a found token is cached: a transient
+    probe failure (a sysctl timeout, a half-mounted /proc) is retried next call,
+    so a stale job is not stranded as "running" until the editor restarts."""
     if name not in _CACHE:
-        _CACHE[name] = probe()
+        token = probe()
+        if token is not None:
+            _CACHE[name] = token
+        return token
     return _CACHE[name]
 
 
