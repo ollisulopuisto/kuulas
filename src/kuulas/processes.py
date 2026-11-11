@@ -10,6 +10,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import time
 from collections.abc import Callable
 from ctypes import wintypes
 from pathlib import Path
@@ -94,19 +95,25 @@ def kill_process_group(proc: subprocess.Popen) -> None:
         os.killpg(proc.pid, signal.SIGKILL)
 
 
-_CACHE: dict[str, str | None] = {}  # identity tokens never change at runtime
+#: A found identity token never changes at runtime and is read once.
+_CACHE: dict[str, tuple[str | None, float]] = {}
+#: A failed probe is retried after this long, not on every call: probing costs
+#: up to seconds (a sysctl timeout) and jobs are listed far more often.
+_FAILED_PROBE_RETRY_S = 30.0
 
 
 def _cached(name: str, probe: Callable[[], str | None]) -> str | None:
-    """Read an identity token once. Only a found token is cached: a transient
-    probe failure (a sysctl timeout, a half-mounted /proc) is retried next call,
-    so a stale job is not stranded as "running" until the editor restarts."""
-    if name not in _CACHE:
-        token = probe()
-        if token is not None:
-            _CACHE[name] = token
-        return token
-    return _CACHE[name]
+    """Read an identity token once. Only a found token is cached for good: a
+    transient probe failure (a sysctl timeout, a half-mounted /proc) is retried
+    after a backoff, so a stale job is not stranded as "running" and a failing
+    probe does not stall every jobs listing either."""
+    found = _CACHE.get(name)
+    if found is not None and (found[0] is not None
+                              or time.monotonic() - found[1] < _FAILED_PROBE_RETRY_S):
+        return found[0]
+    token = probe()
+    _CACHE[name] = (token, time.monotonic())
+    return token
 
 
 def boot_id() -> str | None:
