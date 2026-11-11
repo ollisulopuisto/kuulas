@@ -91,18 +91,18 @@ jobs:
           echo 'ui=true' >> "$GITHUB_OUTPUT"
           echo 'lint=true' >> "$GITHUB_OUTPUT"
 
-  python-tests:
+  # The macOS shards are the merge gate: they start immediately and the
+  # Linux shards wait for them, so the Mac result lands first and the Linux
+  # shards may report after a merge. A failed macOS shard does not hide the
+  # Linux result. Manual and weekly runs keep both platforms.
+  python-tests-mac:
     needs: changes
     if: needs.changes.outputs.python == 'true'
-    name: Python tests (${{ matrix.os }}, shard ${{ matrix.shard }}/2)
-    runs-on: ${{ matrix.os }}
+    name: Python tests (macos-latest, shard ${{ matrix.shard }}/2)
+    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
-        # Windows is off for now (owner, 2026-10-26): its Biome check fails on every file
-        # (CRLF checkout) and it is red on main too. Add windows-latest back to turn it on;
-        # the Windows-only steps below are kept and skip themselves.
-        os: [macos-latest, ubuntu-latest]
         shard: [1, 2]
     defaults:
       run:
@@ -168,9 +168,93 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: pytest-report-${{ matrix.os }}-${{ matrix.shard }}
+          name: pytest-report-macos-latest-${{ matrix.shard }}
           path: kuulas/test-results/pytest.xml
           if-no-files-found: warn
+
+  python-tests:
+    needs: [changes, python-tests-mac]
+    # Staggered behind the macOS gate; still runs when a Mac shard fails so
+    # Linux feedback is not hidden. Skipped only when the selection job fails
+    # or the Mac shards are cancelled.
+    if: ${{ always() && !cancelled() && needs.changes.result == 'success' && needs.python-tests-mac.result != 'cancelled' && needs.changes.outputs.python == 'true' }}
+    name: Python tests (ubuntu-latest, shard ${{ matrix.shard }}/2)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows is off for now (owner, 2026-10-26): its Biome check fails on every file
+        # (CRLF checkout) and it is red on main too. Add windows-latest back to turn it on;
+        # the Windows-only steps below are kept and skip themselves.
+        shard: [1, 2]
+    defaults:
+      run:
+        working-directory: kuulas
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: kuulas
+      - uses: actions/checkout@v7
+        with:
+          repository: ollisulopuisto/podcast
+          path: podcast
+      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      # Audio decoding and the export tests need ffmpeg and libsndfile/PortAudio.
+      - name: ffmpeg and audio libraries (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: ffmpeg and audio libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1
+      - name: ffmpeg and tzdata (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+      - run: uv sync
+      - name: Prepare pytest report directory
+        run: uv run python -c "from pathlib import Path; Path('test-results').mkdir(exist_ok=True)"
+      - name: Python tests (Windows editor coverage; omit platform-only integration)
+        if: runner.os == 'Windows' && needs.changes.outputs.python == 'true'
+        run: >
+          uv run pytest -q -vv --full-trace -o faulthandler_timeout=10 --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml --kuulas-shard=${{ matrix.shard }}/2
+          --ignore-glob=tests/test_recorder_*.py
+          --ignore-glob=tests/test_record_*.py
+          --ignore=tests/test_analysis_worker.py
+          --ignore=tests/test_background_transcribe.py
+          --ignore=tests/test_build_script.py
+          --ignore-glob=tests/test_automix*.py
+          --ignore=tests/test_fetch_ffmpeg.py
+          --ignore=tests/test_keys_doc.py
+          --ignore=tests/test_memory_ceiling.py
+          --ignore=tests/test_stage_bundle.py
+          --ignore=tests/test_toolpath.py
+          --ignore=tests/test_transcribe_worker.py
+          --ignore=tests/test_worker_manager.py
+          --deselect=tests/test_colab_session.py::test_cancel_stops_the_tool_and_stores_nothing
+          --deselect=tests/test_colab_transcribe.py::test_cancel_stops_the_process_and_removes_the_folder
+          --deselect=tests/test_colab_transcribe.py::test_cancel_asks_the_tool_to_stop_its_colab_session_with_sigint_first
+          --deselect=tests/test_cut_preview.py::test_session_cut_preview_lock_duration_measurement
+          --deselect=tests/test_export_all_tracks.py::test_bridge_reveals_only_the_last_automixer_log
+          --deselect=tests/test_fuzz_hardening.py::test_desktop_bridge_hardening
+          --deselect=tests/test_import_hardening.py::test_a_hung_ffprobe_is_killed_and_reported
+          --deselect=tests/test_import_hardening.py::test_a_hung_ffmpeg_is_killed_and_reported
+          --deselect=tests/test_import_hardening.py::test_a_decoder_that_loses_its_source_reports_the_drive
+          --deselect=tests/test_media.py::test_a_linked_file_that_vanishes_after_open_plays_silence_after_a_check
+          --deselect=tests/test_offload_no_inline.py::test_a_signal_death_names_the_signal
+          --deselect=tests/test_source_map_api.py::test_session_source_map_lock_duration_measurement
+          --deselect=tests/test_worker_launch.py::test_the_worker_runs_when_the_executable_is_the_bundles_launcher
+      - name: Python tests
+        if: runner.os != 'Windows' && needs.changes.outputs.python == 'true'
+        run: uv run pytest -q --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml --kuulas-shard=${{ matrix.shard }}/2
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: pytest-report-ubuntu-latest-${{ matrix.shard }}
+          path: kuulas/test-results/pytest.xml
+          if-no-files-found: warn
+
 
   python-changed-tests:
     needs: changes

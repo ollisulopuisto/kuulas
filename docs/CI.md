@@ -2,9 +2,11 @@
 
 ## Normal pull requests
 
-Pull requests run independent jobs in parallel, selected by the files they
-touch. Python changes run the full pytest suite on macOS and Linux plus Ruff on
-Linux. UI, locale, generated-key and prototype changes run the full Node suite
+Pull requests run jobs selected by the files they touch. Python changes run
+the full pytest suite on macOS first - the macOS shards are the merge gate -
+and the Linux shards follow once the macOS ones finish, so their results may
+land after a merge; a failed macOS shard does not hide the Linux result. Ruff
+runs on Linux in parallel as before. UI, locale, generated-key and prototype changes run the full Node suite
 and Biome on Linux. Workflow changes run both groups. The workflow uses Node 24
 for UI tests and Node 24-compatible GitHub Actions; the changed-path filter runs
 on `dorny/paths-filter@v4`. Documentation-only changes skip these code checks.
