@@ -1481,7 +1481,7 @@ def synced_start(p: Project, clip: Clip) -> int | None:
         return None
     rec = _recorded(p, clip)
 
-    displaced = _independently_displaced(refs)
+    displaced = _independently_displaced(p, group, refs)
     kept = [r for r in refs if r.id not in displaced]
     if kept:
         refs = kept
@@ -1495,7 +1495,8 @@ def synced_start(p: Project, clip: Clip) -> int | None:
     return max(0, ref.start + (rec - _recorded(p, ref)))
 
 
-def _independently_displaced(refs: list[Clip]) -> set[str]:
+def _independently_displaced(p: Project, group: SyncGroup,
+                             refs: list[Clip]) -> set[str]:
     """Pieces of the main recording that were dragged off its clock.
 
     Group-wide edits - cuts, inserts - shift a whole suffix of the recording
@@ -1503,8 +1504,10 @@ def _independently_displaced(refs: list[Clip]) -> set[str]:
     leave internally coherent runs that remain trustworthy references even
     when another clock has more pieces. A piece dragged off on its own gives
     itself away: it plays over another piece of the same recording, sits as
-    a lone piece between runs that agree on a different clock, or leads the
-    recording on a non-zero clock, which no suffix edit can produce.
+    a lone piece between runs that agree on a different clock, leads the
+    recording on a non-zero clock, which no suffix edit can produce, or keeps
+    a shifted clock that no piece of the group's other recordings keeps,
+    while they and the rest of the main recording agree on another.
     """
     by_source = sorted(refs, key=lambda c: (c.offset, c.start))
     support = Counter(c.start - c.offset for c in by_source)
@@ -1537,6 +1540,29 @@ def _independently_displaced(refs: list[Clip]) -> set[str]:
     if (len(runs) > 1 and len(runs[0][1]) == 1 and runs[0][0] != 0
             and runs[1][0] == 0):
         displaced.add(runs[0][1][0].id)
+    # Group-wide edits shift every recording in the group together: a lone
+    # piece on a clock that no piece of the other recordings keeps, while
+    # they and the rest of the main recording agree on another, was dragged.
+    if len(runs) > 1:
+        origins = dict(group.members)
+        witnesses = [c for t in p.tracks for c in t.clips
+                     if c.media in origins and c.media != group.main]
+
+        def kept_clock(c: Clip) -> int:
+            origin = flicks_to_frames(origins[c.media], p.rate)
+            return c.start - c.offset - origin
+
+        for clock, run in runs:
+            if len(run) != 1:
+                continue
+            r = run[0]
+            lo, hi = r.offset, r.offset + r.length
+            covering = [w for w in witnesses
+                        if w.offset < hi and lo < w.offset + w.length]
+            other_clocks = {clk for clk, _ in runs} - {clock}
+            if any(any(kept_clock(w) == clk for w in covering)
+                   for clk in other_clocks):
+                displaced.add(r.id)
     return displaced
 
 
