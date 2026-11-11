@@ -307,6 +307,15 @@ def test_import_media_rejects_relative_and_traversal(tmp_path):
         assert report[1].ok is False
         assert isinstance(report[1].error, MediaError)
         assert len(project.tracks) == 1
+
+        # FIFO is rejected without opening/hanging
+        fifo = folder / "test.fifo"
+        try:
+            os.mkfifo(fifo)
+            with pytest.raises(MediaError):
+                session.import_media([str(fifo)])
+        except (AttributeError, OSError):
+            pass
     finally:
         session.close()
 
