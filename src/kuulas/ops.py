@@ -7,7 +7,6 @@ them, by name, so the whitelist ``OPS`` is the edit vocabulary.
 from __future__ import annotations
 
 import uuid
-from collections import Counter
 from dataclasses import replace
 
 from . import curves, edit_scope, fx, narration
@@ -1467,10 +1466,11 @@ def synced_start(p: Project, clip: Clip) -> int | None:
     recording, so cuts made in the main clip are followed. Both ``resync`` and
     the drift display (``sync_state``) read it, so they cannot disagree.
 
-    A main piece moved on its own no longer sits on the clock the rest of the
-    main recording keeps (``start - offset``), so it is not a trustworthy
-    reference: when one clock is kept by more pieces than any other, only
-    pieces on that clock can be picked. A tie keeps every piece a candidate.
+    A main piece dragged off on its own no longer sits on the clock its
+    recording neighbours keep (``start - offset``), so it is not a trustworthy
+    reference and stays out of the choice. A group-wide cut instead shifts a
+    whole tail of pieces together, so no single clock is authoritative: edge
+    pieces and coherent blocks always remain candidates.
     """
     group = p.sync_group(clip.media)
     if group is None or clip.media == group.main:
@@ -1480,10 +1480,7 @@ def synced_start(p: Project, clip: Clip) -> int | None:
         return None
     rec = _recorded(p, clip)
 
-    (main_clock, count), *rest = Counter(r.start - r.offset
-                                         for r in refs).most_common(2)
-    if not rest or rest[0][1] < count:
-        refs = [r for r in refs if r.start - r.offset == main_clock]
+    refs = [r for r in refs if not _independently_displaced(refs, r)]
 
     def score(r: Clip) -> tuple[int, int]:
         r_rec = _recorded(p, r)
@@ -1492,6 +1489,25 @@ def synced_start(p: Project, clip: Clip) -> int | None:
 
     ref = max(refs, key=score)
     return max(0, ref.start + (rec - _recorded(p, ref)))
+
+
+def _independently_displaced(refs: list[Clip], r: Clip) -> bool:
+    """Whether ``r`` was dragged off the clock both its source neighbours keep.
+
+    A group-wide ripple cut shifts every piece after the cut by the same
+    amount, so the pieces before and after a cut boundary keep different
+    clocks and no piece is flagged. A piece dragged away on its own ends up
+    flanked by neighbours that agree on a different clock: that piece moved,
+    not the recording.
+    """
+    by_source = sorted(refs, key=lambda c: (c.offset, c.start))
+    i = by_source.index(r)
+    if not 0 < i < len(by_source) - 1:
+        return False
+    left = by_source[i - 1].start - by_source[i - 1].offset
+    right = by_source[i + 1].start - by_source[i + 1].offset
+    clock = r.start - r.offset
+    return left == right != clock
 
 
 def resync(p: Project, clip_ids) -> Project:

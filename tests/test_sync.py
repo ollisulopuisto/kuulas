@@ -459,3 +459,19 @@ def test_resync_ignores_a_displaced_anchor_piece_overlapping_the_candidate():
     q = ops.move_clip(q, "cv-mid", start=12 * RATE)
     q = ops.resync(q, ["cv-mid"])
     assert q.clip("cv-mid").start == 5 * RATE
+
+
+def test_resync_keeps_pieces_before_a_group_wide_cut_on_their_clock():
+    # Devin review on the #196 fix: a group-wide ripple cut gives the pieces
+    # after it a new shared clock; the pieces before it are still right and
+    # must not be dropped from the reference choice for being outnumbered.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=10 * RATE, new_id="ca2")
+    p = ops.split_clip(p, "ca2", at=20 * RATE, new_id="ca3")
+    p = ops.split_clip(p, "cv", at=2 * RATE, new_id="cv0")
+    p = ops.ripple_delete(p, 5 * RATE, 6 * RATE)
+    before_cut = next(c for c in p.track("V").clips if c.start == 2 * RATE)
+
+    q = ops.resync(p, [before_cut.id])
+
+    assert q.clip(before_cut.id).start == 2 * RATE
