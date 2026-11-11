@@ -2544,7 +2544,12 @@ class Session:
         that already belong to an interview are not put in a second one.
         """
         # Path validation: prevent path traversal and unbounded path input
-        for p_str in paths:
+        for p in paths:
+            try:
+                p_str = os.fspath(p)
+            except TypeError:
+                msg = str(p or "")[:200]
+                raise MediaError("error.media.not_a_file", name=msg) from None
             bad = not isinstance(p_str, str) or not p_str.strip() or "\0" in p_str
             if bad or len(p_str) > 4096:
                 raise MediaError("error.media.not_a_file", name=str(p_str or "")[:200])
