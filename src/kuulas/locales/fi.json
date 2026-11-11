@@ -1,4 +1,7 @@
 {
+  "dmg.welcome": "Tervetuloa",
+  "dmg.install": "Asenna vetämällä ohjelma Ohjelmat-kansioon.",
+  "dmg.open": "Avaa Ohjelmat-kansiosta.",
   "ui.loudness.pending": "Mitataan äänekkyyttä…",
   "ui.loudness.unavailable": "Äänekkyyttä ei ole mitattu",
   "ui.loudness.updating": "mittaus päivittyy",

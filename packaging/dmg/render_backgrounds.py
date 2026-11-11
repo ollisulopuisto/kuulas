@@ -1,5 +1,6 @@
 """Development-only artwork export. Pillow is not used at build time."""
 
+import json
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -10,30 +11,35 @@ BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 APPS = {"kuulas": ("Kuulas", "#aad862")}
 
 
+LOCALES = BASE.parents[1] / "src/kuulas/locales"
+FI = json.loads((LOCALES / "fi.json").read_text())
+EN = json.loads((LOCALES / "en.json").read_text())
+COPY = {
+    "welcome": FI["dmg.welcome"] + " / " + EN["dmg.welcome"],
+    "install_fi": FI["dmg.install"],
+    "install_en": EN["dmg.install"],
+    "open": FI["dmg.open"] + " / " + EN["dmg.open"],
+}
+
+
 def draw(name, color):
     im = Image.new("RGB", (4096, 2160), "#171a20")
     d = ImageDraw.Draw(im)
-    d.rounded_rectangle((30, 30, 36, 108), 3, fill=color)
+    d.rounded_rectangle((30, 30, 36, 142), 3, fill=color)
+    d.text((54, 22), name, font=ImageFont.truetype(BOLD, 31), fill="#f6f5f0")
+    d.text((55, 65), COPY["welcome"], font=ImageFont.truetype(FONT, 17), fill="#bdc4ce")
     d.text(
-        (54, 29), "Welcome to " + name, font=ImageFont.truetype(BOLD, 31), fill="#f6f5f0"
+        (55, 101), COPY["install_fi"], font=ImageFont.truetype(FONT, 17), fill="#f6f5f0"
     )
     d.text(
-        (55, 80),
-        "Drag the app to Applications to install.",
-        font=ImageFont.truetype(FONT, 17),
-        fill="#bdc4ce",
+        (55, 128), COPY["install_en"], font=ImageFont.truetype(FONT, 17), fill="#bdc4ce"
     )
     for x in [96, 473]:
         d.rounded_rectangle((x, 166, x + 206, 373), 24, fill="#eef0ed")
     d.text(
         (388, 221), "→", font=ImageFont.truetype(FONT, 54), fill="#bfc8d2", anchor="mt"
     )
-    d.text(
-        (55, 396),
-        "Open from Applications when the copy is finished.",
-        font=ImageFont.truetype(FONT, 16),
-        fill="#bdc4ce",
-    )
+    d.text((55, 396), COPY["open"], font=ImageFont.truetype(FONT, 16), fill="#bdc4ce")
     return im
 
 
