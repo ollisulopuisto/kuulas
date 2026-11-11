@@ -1036,14 +1036,66 @@ CLIP_GAIN_RANGE = (-60.0, 12.0)
 
 
 def split_clips(p: Project, at: int, clip_ids) -> Project:
-    """Split each listed clip that the point lies inside; skip the others."""
+    """Split each listed clip that the point lies inside; skip the others.
+
+    Batches splits across tracks in a single pass to avoid O(K * T * N) project scans
+    and intermediate Project allocations.
+    """
     at = int(at)
-    hit = [cid for cid in clip_ids if (c := _find_clip(p, cid)[0]).start < at < c.end]
-    if not hit:
+    clip_ids = tuple(clip_ids)
+    wanted = set(clip_ids)
+    if not wanted:
         raise EditError("error.edit.split_outside")
-    for clip_id in hit:
-        p = split_clip(p, clip_id, at)
-    return p
+
+    owner: dict[str, int] = {}
+    clips_by_id: dict[str, Clip] = {}
+    for ti, t in enumerate(p.tracks):
+        for c in t.clips:
+            if c.id in wanted and owner.setdefault(c.id, ti) == ti:
+                clips_by_id.setdefault(c.id, c)
+
+    for cid in dict.fromkeys(clip_ids):
+        if cid not in owner:
+            raise EditError("error.edit.no_clip", clip_id=cid)
+
+    track_to_split: dict[int, dict[str, Clip]] = {}
+    for cid in dict.fromkeys(clip_ids):
+        c = clips_by_id[cid]
+        if c.start < at < c.end:
+            track_to_split.setdefault(owner[cid], {})[cid] = c
+
+    if not track_to_split:
+        raise EditError("error.edit.split_outside")
+
+    # Splitting one clip twice at the same point was never possible: the
+    # sequential version raised on the second pass, so a repeated in-range
+    # id is refused here too.
+    split_ids = {cid for splits in track_to_split.values() for cid in splits}
+    seen: set[str] = set()
+    for cid in clip_ids:
+        if cid in seen and cid in split_ids:
+            raise EditError("error.edit.split_outside")
+        seen.add(cid)
+
+    tracks = []
+    for ti, t in enumerate(p.tracks):
+        splits = track_to_split.get(ti)
+        if not splits:
+            tracks.append(t)
+            continue
+        new_clips = []
+        replaced_ids: set[str] = set()
+        for c in t.clips:
+            if c.id in splits and c.id not in replaced_ids:
+                left, right = _cut(c, at, globals()["new_id"]("c"))
+                new_clips.extend((left, right))
+                replaced_ids.add(c.id)
+            elif c.id in splits:
+                continue
+            else:
+                new_clips.append(c)
+        tracks.append(replace(t, clips=_sorted(new_clips)))
+    return replace(p, tracks=tuple(tracks))
 
 
 def mute_range(p: Project, start: int, end: int, track_ids=None) -> Project:

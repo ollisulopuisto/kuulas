@@ -478,3 +478,52 @@ def test_trim_large_batch_visits_track_only_a_constant_number_of_times():
     out = ops.trim_clips(project, [f"c{i}" for i in range(600)], end=1200 * RATE)
     assert len(out.tracks[0].clips) == 1200
     assert CountedClips.visits <= 4 * len(clips)
+
+
+def test_split_clips_missing_clip_reports_error():
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as error:
+        ops.split_clips(p, 5 * RATE, ["c1", "nonexistent"])
+    assert error.value.key == "error.edit.no_clip"
+    assert error.value.params == {"clip_id": "nonexistent"}
+
+
+def test_split_clips_with_a_repeated_in_range_clip_is_refused():
+    # A repeated id used to reach split_clip twice; the second split landed on
+    # the new edge and raised split_outside. Keep that contract.
+    p = project_with_two_tracks()
+    with pytest.raises(ops.EditError) as error:
+        ops.split_clips(p, 5 * RATE, ["c1", "c1"])
+    assert error.value.key == "error.edit.split_outside"
+
+
+def test_split_clips_multiple_tracks_single_pass():
+    p = project_with_two_tracks()
+    out = ops.split_clips(p, 5 * RATE, ["c1", "c2"])
+    assert len(out.track("t1").clips) == 2
+    assert len(out.track("t2").clips) == 2
+    assert [c.start for c in out.track("t1").clips] == [0, 5 * RATE]
+    assert [c.start for c in out.track("t2").clips] == [0, 5 * RATE]
+
+
+def test_split_clips_large_batch_visits_track_constant_number_of_times():
+    class CountedClips(tuple):
+        visits = 0
+
+        def __iter__(self):
+            for clip in super().__iter__():
+                type(self).visits += 1
+                yield clip
+
+    clips = CountedClips(
+        Clip(id=f"c{i}", media="m", start=i * RATE, offset=0, length=RATE)
+        for i in range(1200)
+    )
+    project = Project(
+        rate=RATE,
+        media=(Media(id="m", name="large.wav", channels=1, frames=2 * RATE),),
+        tracks=(Track(id="t", name="Batch", clips=clips),),
+    )
+    CountedClips.visits = 0
+    ops.split_clips(project, RATE // 2, [f"c{i}" for i in range(600)])
+    assert CountedClips.visits <= 4 * len(clips)
