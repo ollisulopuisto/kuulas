@@ -3381,7 +3381,7 @@ class Session:
                 bgjobs.write_json_atomic(bgjobs.marker_file(folder, job_id),
                                          {"media": {}, "reported": True})
             return
-        mine = job.get("host") == package._hostname()
+        mine = bgjobs._same_host(job.get("host"), package._hostname())
         names = {i["id"]: i["name"] for i in job.get("items", [])}
         new: dict[str, str] = {}
         for media_id in names:

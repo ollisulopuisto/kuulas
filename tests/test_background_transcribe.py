@@ -3,6 +3,7 @@
 The worker runs inline in a thread here (conftest) with a fake engine: no Colab, no
 audio decoding. The detached process itself is tested in test_transcribe_worker.py."""
 
+import re
 import subprocess
 import sys
 import threading
@@ -242,6 +243,51 @@ def test_a_result_synced_from_another_computer_is_ingested_here(session):
         bgjobs.words_to_file(fake_local("Olli.wav"), timing="whisper", language="fi"))
     session.poll_background()
     assert session.transcripts()[media][0]["w"] == "Olli"
+
+
+# -- stale state after a reboot ----------------------------------------------------
+
+
+def test_a_running_job_from_an_earlier_boot_is_interrupted(session, monkeypatch):
+    """A reboot can hand the recorded pid to a live, unrelated process, so a pid
+    alone cannot keep a job "running" across boots: the worker's boot token
+    decides. The job can then be cancelled, not just shown."""
+    hold_worker(monkeypatch)
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
+    monkeypatch.setattr(bgjobs, "boot_id", lambda: "this-boot")
+    alive = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
+            "state": "running", "progress": 0.2, "pid": alive.pid,
+            "host": bgjobs._hostname(), "boot": "an-earlier-boot"})
+        shown = session.background_jobs()[0]
+        assert shown["state"] == "interrupted"
+        session.cancel_background(job_id)
+        assert session.background_jobs()[0]["state"] == "cancelled"
+    finally:
+        alive.kill()
+
+
+def test_a_hostname_spelt_with_a_local_suffix_is_this_computer(session, monkeypatch):
+    """macOS reports one Mac as ``name`` and ``name.local`` (and case varies), so
+    an exact string compare made the owner's own job "foreign": shown as running
+    on his computer and refusing to cancel."""
+    hold_worker(monkeypatch)
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
+    gone = subprocess.Popen([sys.executable, "-c", "pass"])
+    gone.wait()
+    base = re.sub(r"\.local$", "", bgjobs._hostname(), flags=re.IGNORECASE)
+    variant = base.upper() + ".LOCAL"
+    path = bgjobs.job_file(session.package.path, job_id)
+    job = bgjobs.read_json(path)
+    bgjobs.write_json_atomic(path, {**job, "host": variant})
+    bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
+        "state": "running", "progress": 0.2, "pid": gone.pid, "host": variant})
+    shown = session.background_jobs()[0]
+    assert shown["foreign"] is False
+    assert shown["state"] == "interrupted"
+    session.cancel_background(job_id)  # no foreign_host refusal
+    assert session.background_jobs()[0]["state"] == "cancelled"
 
 
 # -- interrupted, cancel, restart ------------------------------------------------
