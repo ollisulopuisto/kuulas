@@ -97,13 +97,16 @@ def job_is_mine(job: dict) -> bool:
     A recorded machine token decides when both sides have one: hostnames lie in
     both directions (one Mac is ``name`` and ``name.local``; two Macs can also
     collide under exactly those spellings, and normalization alone would hand
-    each the other's jobs). The normalized hostname compare is the fallback for
-    jobs written before the token existed or on systems without one.
+    each the other's jobs). When the job names its machine but the local probe
+    fails, ownership is unproven and the job is foreign until the probe
+    recovers; falling back to a collidable hostname would hand control to the
+    wrong computer. The hostname compare is the fallback only for jobs written
+    before the token existed.
     """
     recorded = job.get("machine")
-    current = machine_id()
-    if isinstance(recorded, str) and current is not None:
-        return recorded == current
+    if isinstance(recorded, str):
+        current = machine_id()
+        return current is not None and recorded == current
     return _same_host(job.get("host"), _hostname())
 
 

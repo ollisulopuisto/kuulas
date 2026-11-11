@@ -352,6 +352,26 @@ def test_a_matching_machine_token_keeps_a_hostname_variant_mine(session, monkeyp
     assert session.background_jobs()[0]["state"] == "cancelled"
 
 
+def test_an_unreadable_machine_token_means_foreign_not_hostname(session, monkeypatch):
+    """A job that names its machine can only be proven ours by a matching token:
+    when the local probe fails, the hostname fallback must not hand us control
+    (hostnames collide); the job is foreign until the probe recovers."""
+    hold_worker(monkeypatch)
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
+    monkeypatch.setattr(bgjobs, "machine_id", lambda: None)
+    path = bgjobs.job_file(session.package.path, job_id)
+    job = bgjobs.read_json(path)
+    bgjobs.write_json_atomic(path, {**job, "machine": "machine-a"})
+    bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
+        "state": "running", "progress": 0.2, "pid": 1, "host": bgjobs._hostname()})
+    shown = session.background_jobs()[0]
+    assert shown["foreign"] is True
+    assert shown["state"] == "running"
+    with pytest.raises(bgjobs.BackgroundJobError) as e:
+        session.cancel_background(job_id)
+    assert e.value.key == "error.transcribe.foreign_host"
+
+
 # -- interrupted, cancel, restart ------------------------------------------------
 
 
