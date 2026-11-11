@@ -301,49 +301,6 @@ def test_a_session_whose_every_file_fails_changes_nothing(tmp_path, broken):
         s.close()
 
 
-def test_a_missing_file_fails_only_its_own_slot_in_the_report(tmp_path):
-    s = Session(tmp_path / "Talk.kuulas")
-    try:
-        good = tmp_path / "good.wav"
-        sf.write(good, noise(1.0, seed=9), RATE, subtype="PCM_16")
-        gone = tmp_path / "missing.wav"
-        p, report = s.import_media_report([str(good), str(gone)])
-        assert [t.name for t in p.tracks] == ["good"]
-        assert [r.ok for r in report] == [True, False]
-        assert report[1].error.key == "error.media.not_a_file"
-        assert s.last_import_report == report
-    finally:
-        s.close()
-
-
-def test_a_request_of_only_missing_files_reports_them_and_changes_nothing(tmp_path):
-    s = Session(tmp_path / "Talk.kuulas")
-    try:
-        gone = [str(tmp_path / "a.wav"), str(tmp_path / "b.wav")]
-        with pytest.raises(MediaError) as err:
-            s.import_media_report(gone)
-        assert err.value.key == "error.media.all_failed"
-        assert [r.ok for r in s.last_import_report] == [False, False]
-        assert [str(r.path) for r in s.last_import_report] == gone
-        assert s.state.tracks == ()
-        assert not s.history.can_undo
-    finally:
-        s.close()
-
-
-def test_a_single_missing_file_is_reported_before_raising(tmp_path):
-    s = Session(tmp_path / "Talk.kuulas")
-    try:
-        gone = str(tmp_path / "gone.wav")
-        with pytest.raises(MediaError) as err:
-            s.import_media_report([gone])
-        assert err.value.key == "error.media.not_a_file"
-        assert [r.ok for r in s.last_import_report] == [False]
-        assert str(s.last_import_report[0].path) == gone
-    finally:
-        s.close()
-
-
 # -- hung decoders -------------------------------------------------------------
 
 

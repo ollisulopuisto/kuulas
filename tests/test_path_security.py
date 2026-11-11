@@ -284,8 +284,8 @@ def test_import_media_rejects_relative_and_traversal(tmp_path):
     session = Session(tmp_path / "Show.kuulas")
     folder = tmp_path / "recordings"
     folder.mkdir()
-    target_file = folder / "take.wav"
-    sf.write(str(target_file), np.zeros((48000,), dtype=np.float32), 48000,
+    good_file = folder / "good.wav"
+    sf.write(str(good_file), np.zeros((48000,), dtype=np.float32), 48000,
              subtype="PCM_16")
     try:
         from kuulas.media import MediaError  # noqa: PLC0415
@@ -296,6 +296,17 @@ def test_import_media_rejects_relative_and_traversal(tmp_path):
                 session.import_media([bad])
             with pytest.raises(MediaError):
                 session.import_media_report([bad])
+
+        # Batch with one good and one bad path: good one imports, bad one fails in report
+        project, report = session.import_media_report(
+            [str(good_file), "relative/bad.wav"]
+        )
+        assert len(report) == 2
+        assert report[0].ok is True
+        assert report[0].media is not None
+        assert report[1].ok is False
+        assert isinstance(report[1].error, MediaError)
+        assert len(project.tracks) == 1
     finally:
         session.close()
 
