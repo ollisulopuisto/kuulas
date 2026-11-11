@@ -431,3 +431,31 @@ def test_align_points_keeps_surviving_anchor_clock_for_drifted_candidate_piece()
     assert q.clip("cv-later").start == 12 * RATE
     q = ops.resync(q, ["cv-later"])
     assert q.clip("cv-later").start == 5 * RATE
+
+
+def test_resync_ignores_a_displaced_anchor_piece_overlapping_the_candidate():
+    # Devin review on #196: anchor A split 0-2/2-3/3-7/7-30 with the 3-7 piece
+    # moved away to t=8; aligning candidate B over the selected 2-3 piece keeps
+    # A's clock (the 7-30 piece survives unchanged). Resyncing B's 3-6 piece
+    # must follow that clock, not the displaced 3-7 piece that overlaps it.
+    p, _store = room(offset_frames=0)
+    p = ops.add_media(p, Media(id="c", name="c.wav", channels=1,
+                               frames=30 * RATE))
+    p = ops.add_track(p, track_id="C", name="C")
+    p = ops.add_clip(p, track_id="C", media_id="c", clip_id="cc", start=0)
+    p = ops.mark_in_sync(p, ["ca", "cc"], main="cc", group_id="g")
+    p = ops.delete_clip(p, "cc")
+    p = ops.split_clip(p, "ca", at=2 * RATE, new_id="ca-pick")
+    p = ops.split_clip(p, "ca-pick", at=3 * RATE, new_id="ca-mid")
+    p = ops.split_clip(p, "ca-mid", at=7 * RATE, new_id="ca-late")
+    p = ops.move_clip(p, "ca-mid", start=8 * RATE, track_id="C")
+    p = ops.split_clip(p, "cv", at=3 * RATE, new_id="cv-mid")
+    p = ops.split_clip(p, "cv-mid", at=6 * RATE, new_id="cv-late")
+    p = ops.move_clip(p, "cv", start=0, track_id="A")
+
+    q = ops.align_points(p, "ca-pick", 2 * RATE, "cv", 0)
+
+    assert q.sync_group("v").main == "a"
+    q = ops.move_clip(q, "cv-mid", start=12 * RATE)
+    q = ops.resync(q, ["cv-mid"])
+    assert q.clip("cv-mid").start == 5 * RATE

@@ -7,6 +7,7 @@ them, by name, so the whitelist ``OPS`` is the edit vocabulary.
 from __future__ import annotations
 
 import uuid
+from collections import Counter
 from dataclasses import replace
 
 from . import curves, edit_scope, fx, narration
@@ -1465,6 +1466,11 @@ def synced_start(p: Project, clip: Clip) -> int | None:
     The reference is the main media's piece that plays the same stretch of the
     recording, so cuts made in the main clip are followed. Both ``resync`` and
     the drift display (``sync_state``) read it, so they cannot disagree.
+
+    A main piece moved on its own no longer sits on the clock the rest of the
+    main recording keeps (``start - offset``), so it is not a trustworthy
+    reference: when one clock is kept by more pieces than any other, only
+    pieces on that clock can be picked. A tie keeps every piece a candidate.
     """
     group = p.sync_group(clip.media)
     if group is None or clip.media == group.main:
@@ -1473,6 +1479,11 @@ def synced_start(p: Project, clip: Clip) -> int | None:
     if not refs:
         return None
     rec = _recorded(p, clip)
+
+    (main_clock, count), *rest = Counter(r.start - r.offset
+                                         for r in refs).most_common(2)
+    if not rest or rest[0][1] < count:
+        refs = [r for r in refs if r.start - r.offset == main_clock]
 
     def score(r: Clip) -> tuple[int, int]:
         r_rec = _recorded(p, r)
