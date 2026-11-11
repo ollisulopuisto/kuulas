@@ -2543,6 +2543,22 @@ class Session:
         undo step, named ``interview_title`` or after the first file. Files
         that already belong to an interview are not put in a second one.
         """
+        # Path validation: prevent path traversal and unbounded path input
+        for p_str in paths:
+            bad = not isinstance(p_str, str) or not p_str.strip() or "\0" in p_str
+            if bad or len(p_str) > 4096:
+                raise MediaError("error.media.not_a_file", name=str(p_str or "")[:200])
+            raw_path = Path(p_str)
+            if not raw_path.is_absolute() or ".." in raw_path.parts:
+                raise MediaError("error.media.not_a_file", name=p_str[:200])
+            try:
+                norm_p = os.path.normpath(p_str)
+                real_p = os.path.realpath(norm_p)
+                if not os.path.isfile(real_p) or ".." in Path(real_p).parts:
+                    raise MediaError("error.media.not_a_file", name=p_str[:200])
+            except (OSError, RuntimeError):
+                raise MediaError("error.media.not_a_file", name=p_str[:200]) from None
+
         with self.lock:
             if onto_track is not None:
                 # Before any file is read: an unknown track must change nothing.

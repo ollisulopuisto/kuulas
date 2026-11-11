@@ -277,6 +277,29 @@ def test_check_replace_media_rejects_relative_and_traversal(tmp_path):
         session.close()
 
 
+def test_import_media_rejects_relative_and_traversal(tmp_path):
+    import numpy as np  # noqa: PLC0415
+    import soundfile as sf  # noqa: PLC0415
+
+    session = Session(tmp_path / "Show.kuulas")
+    folder = tmp_path / "recordings"
+    folder.mkdir()
+    target_file = folder / "take.wav"
+    sf.write(str(target_file), np.zeros((48000,), dtype=np.float32), 48000,
+             subtype="PCM_16")
+    try:
+        from kuulas.media import MediaError  # noqa: PLC0415
+
+        for bad in ["relative/take.wav", str(folder / ".." / "recordings" / "take.wav"),
+                    "bad\0path", "", "x" * 4097]:
+            with pytest.raises(MediaError):
+                session.import_media([bad])
+            with pytest.raises(MediaError):
+                session.import_media_report([bad])
+    finally:
+        session.close()
+
+
 def test_export_rejects_relative_and_traversal_folder(tmp_path):
     import numpy as np  # noqa: PLC0415
     import soundfile as sf  # noqa: PLC0415

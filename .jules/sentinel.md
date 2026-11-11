@@ -1,3 +1,8 @@
+## 2026-11-09 - Missing path validation and traversal in batch media import
+**Vulnerability:** Batch media import handlers accepted relative, unnormalized paths containing directory traversal segments (`..`), NUL bytes, or arbitrary lengths without validating path constraints prior to processing and linking files.
+**Learning:** While single-file relinking and locate operations strictly validated path bounds, batch import workflows relied on downstream file resolution, allowing unvalidated paths with traversal components to enter media indexing.
+**Prevention:** Apply the standard path validation invariant (non-empty string <= 4096 characters, no NUL bytes, absolute path without `..` traversal components, and verified `os.path.realpath` regular file check) to all incoming paths before batch import execution.
+
 ## 2026-11-08 - HTTP response header injection in content disposition handling
 **Vulnerability:** Filenames generated from user-controlled project or edit names were placed into HTTP `Content-Disposition` response headers without stripping CRLF or control characters, allowing response header injection / HTTP response splitting.
 **Learning:** Quoted strings in HTTP headers (such as `attachment; filename="..."`) must not contain raw CRLF or ASCII control characters. Even when RFC 5987 percent-encoding is applied to the extended filename parameter, the fallback quoted-string parameter can break the header framing if control characters are not sanitized first.
