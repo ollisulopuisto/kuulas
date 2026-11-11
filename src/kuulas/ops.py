@@ -1481,7 +1481,7 @@ def synced_start(p: Project, clip: Clip) -> int | None:
         return None
     rec = _recorded(p, clip)
 
-    displaced = _independently_displaced(p, group, refs)
+    displaced = _independently_displaced(p, group, refs, clip)
     kept = [r for r in refs if r.id not in displaced]
     if kept:
         refs = kept
@@ -1496,7 +1496,7 @@ def synced_start(p: Project, clip: Clip) -> int | None:
 
 
 def _independently_displaced(p: Project, group: SyncGroup,
-                             refs: list[Clip]) -> set[str]:
+                             refs: list[Clip], clip: Clip) -> set[str]:
     """Pieces of the main recording that were dragged off its clock.
 
     Group-wide edits - cuts, inserts - shift a whole suffix of the recording
@@ -1540,28 +1540,45 @@ def _independently_displaced(p: Project, group: SyncGroup,
     if (len(runs) > 1 and len(runs[0][1]) == 1 and runs[0][0] != 0
             and runs[1][0] == 0):
         displaced.add(runs[0][1][0].id)
-    # Group-wide edits shift every recording in the group together: a lone
-    # piece on a clock that no piece of the other recordings keeps, while
-    # they and the rest of the main recording agree on another, was dragged.
+    # Group-wide edits shift every recording in the group together, so a
+    # lone main piece on a shifted clock is only legitimate when the group's
+    # other recordings keep that clock over its stretch of the recording.
+    # Intervals compare on the shared recording clock (offset plus origin),
+    # never on raw source offsets: grouped recordings can start apart. The
+    # clip being evaluated and clips declared free cannot testify against a
+    # reference; the evaluated clip still outvotes a lone piece when it sits
+    # on a clock the rest of the main recording keeps better.
     if len(runs) > 1:
         origins = dict(group.members)
-        witnesses = [c for t in p.tracks for c in t.clips
-                     if c.media in origins and c.media != group.main]
 
         def kept_clock(c: Clip) -> int:
             origin = flicks_to_frames(origins[c.media], p.rate)
             return c.start - c.offset - origin
 
+        def recorded_range(c: Clip) -> tuple[int, int]:
+            origin = flicks_to_frames(origins[c.media], p.rate)
+            return c.offset + origin, c.offset + origin + c.length
+
+        witnesses = [c for t in p.tracks for c in t.clips
+                     if c.media in origins and c.media != group.main
+                     and c.id != clip.id and not c.free]
+        candidate_clock = kept_clock(clip) if clip.media in origins else None
+        candidate_range = recorded_range(clip)
         for clock, run in runs:
             if len(run) != 1:
                 continue
             r = run[0]
             lo, hi = r.offset, r.offset + r.length
             covering = [w for w in witnesses
-                        if w.offset < hi and lo < w.offset + w.length]
+                        if recorded_range(w)[0] < hi
+                        and lo < recorded_range(w)[1]]
             other_clocks = {clk for clk, _ in runs} - {clock}
             if any(any(kept_clock(w) == clk for w in covering)
                    for clk in other_clocks):
+                displaced.add(r.id)
+            elif (candidate_clock is not None and candidate_clock != clock
+                  and candidate_range[0] < hi and lo < candidate_range[1]
+                  and support.get(candidate_clock, 0) > support[clock]):
                 displaced.add(r.id)
     return displaced
 

@@ -595,3 +595,37 @@ def test_resync_keeps_a_trailing_piece_shifted_with_the_whole_group():
     q = ops.resync(p, ["cv-tail"])
 
     assert q.clip("cv-tail").start == 9 * RATE
+
+
+def test_resync_fixes_a_partner_piece_drifted_onto_the_tails_clock():
+    # Devin review on the #196 fix: the clip being resynced must not testify
+    # against its own reference; a drifted opening follows the opening, not
+    # the shifted tail it happens to share a clock with.
+    p, _ = marked_room()
+    p = ops.split_clip(p, "ca", at=4 * RATE, new_id="ca-tail")
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-tail")
+    p = ops.move_clip(p, "ca-tail", start=9 * RATE)
+    p = ops.move_clip(p, "cv-tail", start=9 * RATE)
+    p = ops.move_clip(p, "cv2", start=15 * RATE)
+    p = ops.move_clip(p, "cv3", start=25 * RATE)
+    p = ops.move_clip(p, "cv", start=5 * RATE)
+
+    q = ops.resync(p, ["cv"])
+
+    assert q.clip("cv").start == 0
+
+
+def test_resync_with_offset_recordings_compares_witnesses_in_recording_time():
+    # Devin review on the #196 fix: a partner that started 2 s after the main
+    # has raw source offsets 2 s behind the group clock; they must not
+    # witness against the main's untouched opening piece.
+    p, _store = room(offset_frames=2 * RATE)
+    p = ops.mark_in_sync(p, ["ca", "cv"], main="ca", group_id="g")
+    p = ops.split_clip(p, "ca", at=4 * RATE, new_id="ca-tail")
+    p = ops.split_clip(p, "cv", at=4 * RATE, new_id="cv-tail")
+    p = ops.move_clip(p, "ca-tail", start=9 * RATE)
+    p = ops.move_clip(p, "cv-tail", start=9 * RATE)
+
+    q = ops.resync(p, ["cv"])
+
+    assert q.clip("cv").start == 2 * RATE
