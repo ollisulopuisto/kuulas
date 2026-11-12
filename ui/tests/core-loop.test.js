@@ -263,6 +263,35 @@ describe("the panel", () => {
     assert.ok(row.classList.contains("flash"));
   });
 
+  test("refresh rebuilds only when a shown combo changed: a modifier press keeps focus", () => {
+    const keys = { "edit.remove": "X" };
+    const { panel, root } = makePanel({ keys });
+    panel.show();
+    panel.update({ tried: ["cut"], hidden: false });
+    const before = root.find((c) => c.dataset.row === "cut");
+    panel.refresh(); // a Shift press refreshes the keys, but no combo changed
+    assert.equal(
+      root.find((c) => c.dataset.row === "cut"),
+      before,
+    );
+    assert.ok(root.find((c) => c.dataset.row === "cut").classList.contains("done"));
+    keys["edit.remove"] = "Alt+X"; // a remap does change a combo
+    panel.refresh();
+    const after = root.find((c) => c.dataset.row === "cut");
+    assert.notEqual(after, before);
+    assert.deepEqual(
+      after.find((c) => c.classList.contains("cl-keys")).children.map((k) => k.textContent),
+      ["⌥", "X"],
+    );
+    assert.ok(after.classList.contains("done"), "the state goes back on after a rebuild");
+  });
+
+  test("refresh on a hidden panel is a no-op", () => {
+    const { panel, root } = makePanel();
+    panel.refresh();
+    assert.ok(root.hidden);
+  });
+
   test("show and hide toggle the section; Hide tips reports back once per click", () => {
     const { panel, root, calls } = makePanel();
     assert.ok(root.hidden);

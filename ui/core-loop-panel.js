@@ -44,6 +44,13 @@ export function comboParts(combo, platform = "other") {
 export function createCoreLoopPanel({ root, t, platform, keyOf, undoCombo, onHide }) {
   const rows = new Map();
   let progress = null;
+  // The combos on show and the last state applied: a keys/language refresh rebuilds only
+  // when a shown combo really changed (a bare modifier press refreshes the keyboard layer
+  // too, and rebuilding then would steal the focus from Hide tips).
+  const signature = () =>
+    JSON.stringify([...CORE_LOOP.map((entry) => keyOf(entry.command) ?? null), undoCombo ?? null]);
+  let rendered = null;
+  let lastState = null;
 
   function kbdChip(label) {
     const chip = document.createElement("kbd");
@@ -125,26 +132,47 @@ export function createCoreLoopPanel({ root, t, platform, keyOf, undoCombo, onHid
     root.append(header, intro, list, footer);
   }
 
+  /** The remembered state on the rows: done ticks, the counter. Re-applied after a rebuild. */
+  function apply(state) {
+    for (const entry of CORE_LOOP)
+      rows.get(entry.id)?.classList.toggle("done", state.tried.includes(entry.id));
+    if (progress)
+      progress.textContent = t("ui.coreloop.progress", {
+        tried: triedCount(state),
+        total: TOTAL,
+      });
+  }
+
   render();
+  rendered = signature();
 
   return {
     element: root,
     show() {
       render();
+      rendered = signature();
       root.hidden = false;
+      if (lastState) apply(lastState);
     },
     hide() {
       root.hidden = true;
     },
     /** Reflects the remembered state: done rows ticked, the counter current. */
     update(state) {
-      for (const entry of CORE_LOOP)
-        rows.get(entry.id)?.classList.toggle("done", state.tried.includes(entry.id));
-      if (progress)
-        progress.textContent = t("ui.coreloop.progress", {
-          tried: triedCount(state),
-          total: TOTAL,
-        });
+      lastState = state;
+      apply(state);
+    },
+    /**
+     * A keys refresh (the keyboard layer re-reads the keymap): rebuild only when a shown
+     * combo changed, so a modifier press alone never re-creates the focused Hide tips.
+     */
+    refresh() {
+      if (root.hidden) return;
+      const now = signature();
+      if (now === rendered) return;
+      render();
+      rendered = now;
+      if (lastState) apply(lastState);
     },
     /** The row that just ticked flashes; the done class stays. */
     flash(id) {

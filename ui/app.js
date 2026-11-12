@@ -4960,8 +4960,10 @@ function openCoreLoop() {
   coreLoopPanel.update(coreLoop);
 }
 // Guarded for onRefresh firing before the panel exists (keyboard setup is earlier).
+// The panel rebuilds only when a shown combo changed: onRefresh also fires for modifier
+// presses, and rebuilding then would steal the focus from Hide tips.
 function refreshCoreLoopPanel() {
-  if (coreLoopPanel && !coreLoopPanel.element.hidden) openCoreLoop();
+  coreLoopPanel?.refresh();
 }
 onLanguageChange(() => {
   if (!coreLoopPanel.element.hidden) openCoreLoop();
