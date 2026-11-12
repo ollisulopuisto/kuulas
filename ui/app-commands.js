@@ -311,6 +311,8 @@ export function registerAppCommands(registry, { actions, app }) {
   def("record.stop_mode", () => app.cycleStopMode());
   // Pre-roll before Record (WP12c): off / 10 / 30 / 60 (default) / 120 s.
   def("record.preroll", () => app.cyclePreroll());
+  // Live transcription of the take (off by default): the running take's, or the next one's.
+  def("record.live_transcript", () => app.toggleLiveTranscript(), hasProject);
   def("gate.open_stretch", () => app.openGateStretch(), hasProject);
   // Open the closed stretches under the selected clips (one clip or several), one undo step.
   def(

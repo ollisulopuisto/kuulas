@@ -21,7 +21,7 @@ from recorder_helpers import (
     wait_until,
 )
 
-from kuulas import clipboard_level
+from kuulas import clipboard_level, live_transcribe
 from kuulas import record_session as record_session_module
 from kuulas import record_take as rt
 from kuulas.ops import EditError
@@ -1401,5 +1401,109 @@ def test_no_engine_factory_no_live_transcript(session, recorder):
         assert published.kinds("live_transcript") == []
         assert rs.live_transcript_words() == []
         rs.stop("two_step")
+    finally:
+        rs.close()
+
+
+def _live_rs(session, recorder, published=None):
+    return RecordSession(
+        session, published if published is not None else Published(),
+        connect=lambda: RecorderClient.connect(recorder.socket_path, timeout=20),
+        spawn=no_spawn, retry_s=0.1,
+        live_engine_factory=lambda: (lambda audio, rate: []))
+
+
+def test_a_rejected_second_start_keeps_the_active_takes_live_flag(session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        device = {"index": 0, "name": "Fake Mic"}
+        rs.start(device=device, channel=1, track_id=None, name="Olli", at=0,
+                 live_transcription=True)
+        assert rs._live_enabled is True
+        with pytest.raises(RecordError):
+            rs.start(device=device, channel=1, track_id=None, name="Olli", at=0,
+                     live_transcription=False)
+        assert rs._live_enabled is True  # the take's flag, so its stop flushes
+        assert rs.status()["live_transcript_enabled"] is True
+    finally:
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_a_failed_start_restores_the_prior_live_flag(session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        rs._live_enabled = True  # as if left over
+        rs._command = lambda *a, **k: (_ for _ in ()).throw(
+            RecordError("error.record.bad_request"))
+        rs.status = lambda *a, **k: {"recording": False, "state": "idle"}
+        with pytest.raises(RecordError):
+            rs.start(device=None, channel=1, track_id=None, name="Olli", at=0,
+                     live_transcription=False)
+        assert rs._live_enabled is True
+    finally:
+        rs._live_enabled = False
+        rs.close()
+
+
+def test_stop_during_runner_construction_leaves_no_orphan_worker(
+        session, recorder, monkeypatch):
+    building, release, created = threading.Event(), threading.Event(), []
+
+    class SlowRunner:
+        def __init__(self, sidecar, **_kw):
+            self.sidecar = sidecar
+            self.started = self.stopped = False
+            created.append(self)
+            building.set()
+            release.wait(10)
+
+        def start(self):
+            self.started = True
+
+        def stop(self, **_kw):
+            self.stopped = True
+
+        def wait(self, _timeout=None):
+            return True
+
+        def poke(self):
+            pass
+
+    monkeypatch.setattr(live_transcribe, "LiveTranscribeRunner", SlowRunner)
+    rs = _live_rs(session, recorder)
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0)
+        take = view["take"]
+        rs._live_enabled = True
+        starter = threading.Thread(target=rs._live_start, args=(rs.status(),))
+        starter.start()
+        assert building.wait(10)
+        stopper = threading.Thread(target=rs._live_stop, args=(take,))
+        stopper.start()  # stop arrives while the runner is being built
+        time.sleep(0.2)
+        release.set()
+        starter.join(10)
+        stopper.join(10)
+        assert rs._live_runner is None
+        assert all(r.stopped or not r.started for r in created)
+        assert not any(r.started and not r.stopped for r in created)
+    finally:
+        release.set()
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_live_start_after_the_take_ended_makes_no_runner(session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0, live_transcription=True)
+        old = dict(view)
+        rs.stop("two_step")
+        rs._live_enabled = True
+        rs._live_start(old)  # a late start request for a take that is over
+        assert rs._live_runner is None
     finally:
         rs.close()

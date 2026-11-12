@@ -2,12 +2,12 @@
 id: record
 title: Recording a take
 applies-to: [index]
-commands: [transport.record, record.stop_mode, record.preroll, marker.add]
+commands: [transport.record, record.stop_mode, record.preroll, record.live_transcript, marker.add]
 related: [track, timeline]
 ---
 Record one or more input channels onto tracks: {key:transport.record} opens the record view. Choose the input, the channel and the track (or a new one), then press Record. The take starts where the playhead is and appears as a clip there when you stop.
 
-- Live transcription is off by default. Turn on **Live transcription** in the record setup before the take, or use the checkbox beside the red Recording chip while it records. You can also change it in the record view. Kuulas uses the local Orukeet engine; words appear with a short delay and are added to the take's transcript when it lands. Your choice is remembered.
+- Live transcription is off by default. Turn on **Live transcription** in the record setup before the take, or use the checkbox beside the red Recording chip while it records. You can also change it in the record view, with {key:record.live_transcript}, or under Playback > Recording settings. Kuulas uses the local Orukeet engine; words appear with a short delay and are added to the take's transcript when it lands. Your choice is remembered.
 
 - Pre-roll: you can never press Record too late. While the record view is open the input is listened to and the last 60 seconds are kept in memory; the take starts that far before you pressed Record, and the clip is placed so that the pre-roll ends at the playhead (cut off at the start of the timeline). Choose off, 10, 30, 60 or 120 seconds: {key:record.preroll}, or the Pre-roll setting under More options. The view says "Armed: listening, not recording" while this is on. Nothing is written to disk until you press Record; closing the view, quitting or a crash throws the buffer away.
 

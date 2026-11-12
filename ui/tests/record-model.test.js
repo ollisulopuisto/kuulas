@@ -13,6 +13,7 @@ import {
   liveHits,
   liveTail,
   liveTranscriptPreference,
+  liveTranscriptPreferenceFromStatus,
   liveTranscriptVisible,
   meterLabels,
   pickDevice,
@@ -118,6 +119,26 @@ describe("the start request", () => {
     assert.equal(liveTranscriptPreference(null), false);
     assert.equal(liveTranscriptPreference("0"), false);
     assert.equal(liveTranscriptPreference("1"), true);
+  });
+  test("only our own take's live flag becomes the saved preference", () => {
+    const mine = { recording: true, ours: true, live_transcript_enabled: true };
+    assert.equal(liveTranscriptPreferenceFromStatus(mine), true);
+    assert.equal(
+      liveTranscriptPreferenceFromStatus({ ...mine, live_transcript_enabled: false }),
+      false,
+    );
+    // Another project's take, or no take: the preference is left alone (null).
+    assert.equal(liveTranscriptPreferenceFromStatus({ ...mine, ours: false }), null);
+    assert.equal(
+      liveTranscriptPreferenceFromStatus({
+        recording: false,
+        ours: true,
+        live_transcript_enabled: true,
+      }),
+      null,
+    );
+    assert.equal(liveTranscriptPreferenceFromStatus({ recording: true, ours: true }), null);
+    assert.equal(liveTranscriptPreferenceFromStatus(null), null);
   });
 });
 

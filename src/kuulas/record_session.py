@@ -139,6 +139,10 @@ class RecordSession:
         # The finished take's flush + import coordination (see _live_stop):
         # {"runner", "take", "imported", "flushed", "waiting"} under _lock.
         self._live_pending: dict | None = None
+        # Serializes runner create / enable / disable / stop (always taken BEFORE
+        # _lock): a stop or a disable can never slip in between a runner being
+        # built and being published.
+        self._live_lifecycle = threading.RLock()
         self.session = session
         # While a take of this project records, the session refuses edits (Session.
         # _check_not_recording); the answer is read live from the last status heard.
@@ -479,8 +483,17 @@ class RecordSession:
                 raise RecordError("error.record.cart_track_records")
         if at < 0:
             raise RecordError("error.record.bad_request", detail="at")
-        with self._lock:
-            self._live_enabled = bool(live_transcription and self._live_engine_factory)
+        # The flag belongs to the active take: a start that cannot begin a new take
+        # (one is active already) never touches it; a start that fails puts the
+        # prior value back, so the running take's stop still flushes its backlog.
+        recording_now = bool(self.status().get("recording"))
+        with self._live_lifecycle, self._lock:
+            take_active = self._live_runner is not None or recording_now
+            previous_live = self._live_enabled
+            if not take_active:
+                self._live_enabled = bool(live_transcription
+                                          and self._live_engine_factory)
+        restore_live = not take_active
         self.folder.mkdir(parents=True, exist_ok=True)
         for _attempt in range(3):  # another take may appear in between: next number
             take = rt.next_take(os.listdir(self.folder), [lane.name for lane in lanes],
@@ -506,8 +519,9 @@ class RecordSession:
                 rt.remove_plan(self.folder, take)
                 if e.key == "error.record.take_exists":
                     continue
-                with self._lock:
-                    self._live_enabled = False
+                if restore_live:
+                    with self._live_lifecycle, self._lock:
+                        self._live_enabled = previous_live
                 raise
             with self._lock:
                 self._status, self._available = answer, True
@@ -519,6 +533,9 @@ class RecordSession:
             if answer.get("warning"):
                 self._notice(answer["warning"] | {"event": "warning"})
             return view
+        if restore_live:
+            with self._live_lifecycle, self._lock:
+                self._live_enabled = previous_live
         raise RecordError("error.record.take_exists", status=409, detail="")
 
     def _make_tracks(self, plan: rt.TakePlan, cart_track: str | None = None) -> None:
@@ -825,33 +842,47 @@ class RecordSession:
     # risk to the take: the watcher only pokes; engine trouble loses a lane.
 
     def _live_start(self, status: dict) -> None:
-        with self._lock:
-            enabled = self._live_enabled
-        if (not enabled or self._live_engine_factory is None
-                or self._live_runner is not None):
-            return
-        # Segment 1 of each lane (a take past the 4 GB segment boundary keeps
-        # transcribing only on its first segment for now).
-        plan = status.get("plan") or {}
-        take = status.get("take")
-        lane_files = {}
-        for lane in plan.get("lanes") or []:
-            key = lane.get("track_id") or f"ch{lane.get('channel')}"
-            if take and lane.get("name"):
-                lane_files[key] = rt.segment_file(take, lane["name"], 1)
-        if not lane_files:
-            return
-        self._live_done = None
-        with self._lock:
-            self._live_pending = None
-        sidecar = live_transcribe.LiveTranscribeSidecar(
-            rate=self.rate, folder=self.folder, lane_files=lane_files,
-            engine_factory=self._live_engine_factory)
-        self._live_runner = live_transcribe.LiveTranscribeRunner(
-            sidecar, log=log,
-            publish=lambda statuses: self.publish(
-                {"type": "record", "kind": "live_transcript", "statuses": statuses}))
-        self._live_runner.start()
+        with self._live_lifecycle:
+            with self._lock:
+                enabled = self._live_enabled
+            if (not enabled or self._live_engine_factory is None
+                    or self._live_runner is not None):
+                return
+            # Segment 1 of each lane (a take past the 4 GB segment boundary keeps
+            # transcribing only on its first segment for now).
+            plan = status.get("plan") or {}
+            take = status.get("take")
+            lane_files = {}
+            for lane in plan.get("lanes") or []:
+                key = lane.get("track_id") or f"ch{lane.get('channel')}"
+                if take and lane.get("name"):
+                    lane_files[key] = rt.segment_file(take, lane["name"], 1)
+            if not lane_files:
+                return
+            self._live_done = None
+            with self._lock:
+                self._live_pending = None
+            sidecar = live_transcribe.LiveTranscribeSidecar(
+                rate=self.rate, folder=self.folder, lane_files=lane_files,
+                engine_factory=self._live_engine_factory)
+            runner = live_transcribe.LiveTranscribeRunner(
+                sidecar, log=log,
+                publish=lambda statuses: self.publish(
+                    {"type": "record", "kind": "live_transcript",
+                     "statuses": statuses}))
+            # Recheck before publishing: the take may have stopped, or live
+            # transcription been switched off, while the runner was built.
+            current = self.status()
+            with self._lock:
+                still = (self._live_enabled and self._live_runner is None
+                         and current.get("recording") and current.get("ours")
+                         and current.get("take") == take)
+                if still:
+                    self._live_runner = runner
+            if not still:
+                runner.stop(flush=False, block=False)
+                return
+            runner.start()
 
     def _live_stop(self, take: str | None = None) -> None:
         # The take's stop and import NEVER wait on ASR (owner, 2026-11-01): the
@@ -861,7 +892,7 @@ class RecordSession:
         # flush and the import are done (either order). A flush that outlives
         # LIVE_FLUSH_TIMEOUT_S is cancelled and whatever words exist are
         # handed off - the take is never at risk, the status stays honest.
-        with self._lock:
+        with self._live_lifecycle, self._lock:
             flush = self._live_enabled
             self._live_enabled = False
             runner, self._live_runner = self._live_runner, None
@@ -897,16 +928,17 @@ class RecordSession:
             raise RecordError("error.record.not_recording", status=409)
         if enabled and self._live_engine_factory is None:
             raise RecordError("error.live_engine.unavailable", status=409)
-        with self._lock:
-            self._live_enabled = bool(enabled)
-            runner = self._live_runner
-        if enabled:
-            if runner is None:
-                self._live_start(status)
-            else:
-                runner.resume()
-        elif runner is not None:
-            runner.pause()
+        with self._live_lifecycle:
+            with self._lock:
+                self._live_enabled = bool(enabled)
+                runner = self._live_runner
+            if enabled:
+                if runner is None:
+                    self._live_start(status)
+                else:
+                    runner.resume()
+            elif runner is not None:
+                runner.pause()
         updated = self.status()
         self.publish({"type": "record", "kind": "status", "status": updated})
         return updated

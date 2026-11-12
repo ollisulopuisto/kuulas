@@ -107,6 +107,14 @@ export function liveTranscriptPreference(value) {
   return value === "1";
 }
 
+/** The preference a status frame may save: the live flag of OUR OWN running take, else
+ *  null (another project's take, no take or no flag never rewrites this user's choice). */
+export function liveTranscriptPreferenceFromStatus(status) {
+  if (!status?.recording || !status.ours) return null;
+  if (status.live_transcript_enabled === undefined) return null;
+  return Boolean(status.live_transcript_enabled);
+}
+
 // -- several channels of one device (WP12b) -------------------------------------------------
 // A row is one device channel: whether to record it and onto which track ("new" or a track id,
 // with the name a new track gets). The rows that are on are the take's lanes, in channel order:

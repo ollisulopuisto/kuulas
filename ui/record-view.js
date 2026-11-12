@@ -34,6 +34,7 @@ import {
   liveHits,
   liveTail,
   liveTranscriptPreference,
+  liveTranscriptPreferenceFromStatus,
   liveTranscriptVisible,
   meterLabels,
   pickDevice,
@@ -1110,8 +1111,9 @@ export function createRecordView({
       if (rec.liveSearch) rec.liveSearch.value = "";
     }
     status = next;
-    if (next?.recording && next.live_transcript_enabled !== undefined) {
-      liveTranscriptPreferenceOn = Boolean(next.live_transcript_enabled);
+    const ownLive = liveTranscriptPreferenceFromStatus(next);
+    if (ownLive !== null) {
+      liveTranscriptPreferenceOn = ownLive;
       prefs.set(LIVE_TRANSCRIPT_KEY, liveTranscriptPreferenceOn ? "1" : "0");
     }
     if (next?.recording && next.ours) {
@@ -1286,6 +1288,17 @@ export function createRecordView({
     liveFrame: () => (recording() ? (status?.plan?.at ?? 0) + shownPosition() : null),
     setStopMode,
     setPreroll,
+    /** Record > Recording settings > Live transcription: flip it for the running take, or
+     *  for the next one. Returns the new state, or null when it cannot change now. */
+    toggleLiveTranscript() {
+      if (!liveTranscriptAvailable() || liveTogglePending || liveFlushing) return null;
+      if (recording() && !status?.ours) return null;
+      const now = recording()
+        ? status?.live_transcript_enabled === true
+        : liveTranscriptPreferenceOn;
+      void changeLiveTranscript(!now);
+      return !now;
+    },
     /** Ask the server again (after the live channel was down). */
     refresh: refreshStatus,
     /** Transport > Record…: the view, set up for a new take or showing the running one. */
