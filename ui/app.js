@@ -34,6 +34,13 @@ import {
 import { applyCommandShortcuts } from "./command-shortcuts.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
+import {
+  noteRun as coreLoopNoteRun,
+  readCoreLoop,
+  showsOnLaunch,
+  writeCoreLoop,
+} from "./core-loop-model.js";
+import { createCoreLoopPanel } from "./core-loop-panel.js";
 import { installDialogKeys } from "./dialog-keys.js";
 import { dragModeChoice, nextDragMode } from "./drag-mode.js";
 import { createDuckMusicDialog } from "./duck-music-dialog.js";
@@ -1524,6 +1531,7 @@ const keyboard = setupKeyboard({
     patch: setState,
     openHelp: () => void help.open(),
     openWhatsNew: (after) => openWhatsNew(after),
+    openCoreLoop: () => openCoreLoop(),
     revealSidebar: () => setSidebar(true),
     undo: () => undo(),
     redo: () => redo(),
@@ -4911,6 +4919,43 @@ keyboard.registry.onRun((id) => {
   useHints = step.state;
   writeUse(prefs, useHints);
   if (step.hint) showNotice(t(step.hint), "info");
+});
+
+// The core-loop onboarding (the owner's sketch v2, 2026-11-12): the five editing-loop keys,
+// each row ticked when its command really runs (registry.onRun), not on a bare keypress.
+// Non-modal, so the user keeps editing while it is open; the state stays in this browser,
+// like the use-hints counter. Help > A few keys for editing opens it again at any time.
+let coreLoop = readCoreLoop(prefs);
+const coreLoopPanel = createCoreLoopPanel({
+  root: $("core-loop"),
+  t,
+  platform: detectPlatform(),
+  keyOf: (id) => shortcutsFor(id, keyboard.entries())[0] ?? null,
+  undoCombo: shortcutsFor("edit.undo", keyboard.entries())[0] ?? null,
+  onHide: () => {
+    coreLoop = { ...coreLoop, hidden: true };
+    writeCoreLoop(prefs, coreLoop);
+  },
+});
+coreLoopPanel.update(coreLoop);
+keyboard.registry.onRun((id) => {
+  const step = coreLoopNoteRun(coreLoop, id);
+  if (step.state === coreLoop) return;
+  coreLoop = step.state;
+  writeCoreLoop(prefs, coreLoop);
+  coreLoopPanel.update(coreLoop);
+  if (step.ticked) coreLoopPanel.flash(step.ticked);
+});
+// show() rebuilds the rows (remaps, the language), so the state goes back on after it.
+if (showsOnLaunch(coreLoop)) openCoreLoop();
+
+// Help > A few keys for editing…: the card again, even after it was hidden or finished.
+function openCoreLoop() {
+  coreLoopPanel.show();
+  coreLoopPanel.update(coreLoop);
+}
+onLanguageChange(() => {
+  if (!coreLoopPanel.element.hidden) openCoreLoop();
 });
 
 function removeToolbarButton(id) {
