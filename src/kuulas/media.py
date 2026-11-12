@@ -753,7 +753,12 @@ class MediaStore:
             st = p.stat()
             if not stat.S_ISREG(st.st_mode):
                 raise MediaError("error.media.not_a_file", name=raw[:200])
-        except OSError:
+        except OSError as e:
+            # A pulled drive fails here first, before anything is opened: say so,
+            # with the drive to reconnect, as _explain does for a failed read.
+            if e.errno in VANISHED_ERRNOS:
+                raise MediaError("error.media.source_vanished", name=p.name,
+                                 drive=drive_of(p)) from None
             raise MediaError("error.media.not_a_file", name=raw[:200]) from None
         return p
 

@@ -365,6 +365,33 @@ def test_a_named_pipe_is_refused_without_blocking_the_import(tmp_path, store):
     assert r.error.key == "error.media.not_a_file"
 
 
+@pytest.mark.parametrize("code", [errno.EIO, errno.ENXIO])
+def test_a_drive_lost_during_the_path_check_names_the_drive(store, tmp_path, monkeypatch, code):
+    """The up-front stat() is the first thing to touch a pulled drive; its EIO or
+    ENXIO must reach the user as 'reconnect the drive', not 'unreadable file'."""
+    src = tmp_path / "card" / "take.wav"
+    src.parent.mkdir()
+    sf.write(src, noise(0.5, seed=3), RATE, subtype="PCM_16")
+    monkeypatch.setattr(media_mod, "drive_of", lambda _p: "ZOOM H6")
+    real_stat = type(src).stat
+
+    def pulled(self, *a, **k):
+        if self.name == "take.wav":
+            raise OSError(code, os.strerror(code))
+        return real_stat(self, *a, **k)
+
+    monkeypatch.setattr(type(src), "stat", pulled)
+    [r] = store.import_batch([src])
+    assert not r.ok
+    assert r.error.key == "error.media.source_vanished"
+    assert r.error.params["drive"] == "ZOOM H6"
+
+
+def test_a_missing_file_is_still_not_a_file(store, tmp_path):
+    [r] = store.import_batch([tmp_path / "nope.wav"])
+    assert r.error.key == "error.media.not_a_file"
+
+
 # -- hung decoders -------------------------------------------------------------
 
 
