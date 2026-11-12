@@ -115,8 +115,8 @@ describe("comboParts: one chip per key", () => {
     assert.deepEqual(comboParts("Shift+Mod+Space", "mac"), ["⇧", "⌘", "Space"]);
   });
 
-  test("the same combo names the modifiers elsewhere", () => {
-    assert.deepEqual(comboParts("Shift+Mod+Space", "other"), ["Shift", "Ctrl", "Space"]);
+  test("the same combo names the modifiers elsewhere, modifier first as formatCombo does", () => {
+    assert.deepEqual(comboParts("Shift+Mod+Space", "other"), ["Ctrl", "Shift", "Space"]);
   });
 
   test("a plain letter is one chip, uppercased", () => {
@@ -127,6 +127,12 @@ describe("comboParts: one chip per key", () => {
   test("no combo is no chips", () => {
     assert.deepEqual(comboParts(null, "mac"), []);
     assert.deepEqual(comboParts("", "mac"), []);
+  });
+
+  test("the plus key keeps its chip, alone and with a modifier", () => {
+    assert.deepEqual(comboParts("+", "mac"), ["+"]);
+    assert.deepEqual(comboParts("Mod++", "mac"), ["⌘", "+"]);
+    assert.deepEqual(comboParts("Mod++", "other"), ["Ctrl", "+"]);
   });
 });
 

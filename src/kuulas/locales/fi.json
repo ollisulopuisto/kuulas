@@ -2133,7 +2133,7 @@
   "ui.ctx.insert": "Lisää tähän",
   "ui.ctx.zoom": "Zoomaus",
   "cmd.edit.remove": "Poista ja sulje aukko",
-  "cmd.edit.remove.hint": "Poistaa merkityn välin tai valitut leikkeet ja sulkee aukon. Väli koskee kaikkia raitoja tai vain valittuja raitoja, kun kyseinen laajuus on valittuna; {key:range.scope_toggle} vaihtaa sitä. Mitään ei mene leikepöydälle.",
+  "cmd.edit.remove.hint": "Poistaa merkityn välin tai valitut leikkeet ja sulkee aukon. Väli koskee kaikkia raitoja (maalattu väli maalattuja kaistojaan) tai vain valittuja raitoja, kun kyseinen laajuus on valittuna; {key:range.scope_toggle} vaihtaa sitä. Mitään ei mene leikepöydälle.",
   "cmd.edit.remove_track": "Poista ja sulje aukko vain tältä raidalta",
   "cmd.edit.remove_track.hint": "Poistaa valinnan vain valitulta raidalta ja sulkee sen aukon. Mitään ei mene leikepöydälle.",
   "ui.edit.label.remove": "Poisto ja aukon sulkeminen",

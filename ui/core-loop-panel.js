@@ -6,27 +6,34 @@
 
 import { CORE_LOOP, TOTAL, triedCount } from "./core-loop-model.js";
 import { keyName } from "./i18n.js";
-
-// Apple's order (i18n.js MAC_ORDER): control, option, shift, command.
-const MOD_ORDER = ["Ctrl", "Alt", "Shift", "Mod"];
+import { parseCombo } from "./keys.js";
 
 /**
  * One chip per key: "Shift+Mod+Space" -> ["⇧", "⌘", "Space"] on a Mac, named
- * ["Shift", "Ctrl", "Space"] elsewhere. An unbound command is no chips, never an error.
+ * ["Shift", "Ctrl", "Space"] elsewhere; the plus key keeps its chip ("Mod++" ->
+ * ["⌘", "+"]), which a naive split on "+" would eat. parseCombo does the reading.
+ * An unbound command is no chips, never an error.
  */
 export function comboParts(combo, platform = "other") {
-  const keys = String(combo ?? "")
-    .split("+")
-    .filter(Boolean);
-  if (keys.length === 0) return [];
-  const ordered =
+  const parsed = parseCombo(combo);
+  if (!parsed) return [];
+  const mods =
     platform === "mac"
       ? [
-          ...MOD_ORDER.filter((mod) => keys.includes(mod)),
-          ...keys.filter((key) => !MOD_ORDER.includes(key)),
+          // Apple's order (i18n.js MAC_ORDER): control, option, shift, command.
+          [parsed.ctrl, "Ctrl"],
+          [parsed.alt, "Alt"],
+          [parsed.shift, "Shift"],
+          [parsed.mod, "Mod"],
         ]
-      : keys;
-  return ordered.map((key) => keyName(key, platform));
+      : [
+          [parsed.mod || parsed.ctrl, "Mod"],
+          [parsed.alt, "Alt"],
+          [parsed.shift, "Shift"],
+        ];
+  return [...mods.filter(([on]) => on).map(([, name]) => name), parsed.key].map((key) =>
+    keyName(key, platform),
+  );
 }
 
 /**

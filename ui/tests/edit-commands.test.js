@@ -372,6 +372,26 @@ describe("the editing commands", () => {
     assert.deepEqual(h.toasts[0][1], { undo: false });
   });
 
+  test("a refused range command does not tick the run listeners (the core-loop card must not tick X)", () => {
+    const state = base({ inPoint: 0, outPoint: 3 * S, rangeMode: "selected" });
+    const h = setup(state);
+    const ran = [];
+    h.registry.onRun((id) => ran.push(id));
+    assert.equal(h.registry.run("edit.remove", null, state), false);
+    assert.equal(h.sent.length, 0);
+    assert.match(h.toasts[0][0], /^ui\.scope\.none_selected/);
+    assert.deepEqual(ran, []);
+  });
+
+  test("a successful range edit still ticks the run listeners", () => {
+    const state = base({ inPoint: 0, outPoint: 3 * S });
+    const h = setup(state);
+    const ran = [];
+    h.registry.onRun((id) => ran.push(id));
+    assert.equal(h.registry.run("edit.remove", null, state), true);
+    assert.deepEqual(ran, ["edit.remove"]);
+  });
+
   test("select all picks the clip ids; E flips the range scope", () => {
     const state = base();
     const h = setup(state);

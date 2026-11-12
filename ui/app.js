@@ -1498,6 +1498,9 @@ const transcript = createTranscript({
 
 // The whole keyboard layer: keymap, palette, cheat sheet, menu bar, hints (shell-keys.js).
 // Esc and Enter in modal dialogs (dialog-keys.js): before the keymap sees the key.
+
+// Filled in below with the use-hints block; onRefresh can fire before that, so it guards.
+let coreLoopPanel = null;
 installDialogKeys(window);
 
 let nameDialog = null;
@@ -1525,6 +1528,8 @@ const keyboard = setupKeyboard({
     button.title = keys.map((combo) => formatCombo(combo, platform)).join(" ");
     tabKeyEntries = entries;
     translate();
+    // A keymap import or reset repaints the core-loop card's key chips while it is open.
+    refreshCoreLoopPanel();
   },
   app: {
     getState,
@@ -4926,7 +4931,7 @@ keyboard.registry.onRun((id) => {
 // Non-modal, so the user keeps editing while it is open; the state stays in this browser,
 // like the use-hints counter. Help > A few keys for editing opens it again at any time.
 let coreLoop = readCoreLoop(prefs);
-const coreLoopPanel = createCoreLoopPanel({
+coreLoopPanel = createCoreLoopPanel({
   root: $("core-loop"),
   t,
   platform: detectPlatform(),
@@ -4953,6 +4958,10 @@ if (showsOnLaunch(coreLoop)) openCoreLoop();
 function openCoreLoop() {
   coreLoopPanel.show();
   coreLoopPanel.update(coreLoop);
+}
+// Guarded for onRefresh firing before the panel exists (keyboard setup is earlier).
+function refreshCoreLoopPanel() {
+  if (coreLoopPanel && !coreLoopPanel.element.hidden) openCoreLoop();
 }
 onLanguageChange(() => {
   if (!coreLoopPanel.element.hidden) openCoreLoop();

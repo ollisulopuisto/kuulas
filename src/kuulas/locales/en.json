@@ -2137,7 +2137,7 @@
   "ui.ctx.insert": "Insert here",
   "ui.ctx.zoom": "Zoom",
   "cmd.edit.remove": "Delete and close the gap",
-  "cmd.edit.remove.hint": "Removes the in-out range or the selected clips and closes the gap. A range acts on all tracks, or on the selected tracks only while that scope is on; {key:range.scope_toggle} switches it. Nothing goes to the clipboard.",
+  "cmd.edit.remove.hint": "Removes the in-out range or the selected clips and closes the gap. A range acts on all tracks (a painted range on its painted lanes), or on the selected tracks only while that scope is on; {key:range.scope_toggle} switches it. Nothing goes to the clipboard.",
   "cmd.edit.remove_track": "Delete and close the gap on this track only",
   "cmd.edit.remove_track.hint": "Removes the selection on the current track only and closes its gap. Nothing goes to the clipboard.",
   "ui.edit.label.remove": "Delete and close gap",
