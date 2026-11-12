@@ -142,6 +142,13 @@ mkdir -p "$mnt"
 hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$dmg" >/dev/null
 trap 'hdiutil detach -quiet "$mnt" 2>/dev/null || true' EXIT
 selftest "$mnt/Kuulas.app"
+# Briefcase signs, and applies the entitlements, only at package time. Without the
+# microphone entitlement a hardened-runtime build records silence, so fail here.
+entitlements="$(codesign -d --entitlements :- "$mnt/Kuulas.app" 2>/dev/null || true)"
+if ! grep -q com.apple.security.device.microphone <<<"$entitlements"; then
+  echo "packaged app lacks the com.apple.security.device.microphone entitlement" >&2
+  exit 1
+fi
 if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
   codesign --verify --deep --strict --verbose=2 "$mnt/Kuulas.app"
 fi

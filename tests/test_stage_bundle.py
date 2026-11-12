@@ -92,8 +92,21 @@ def test_minimum_macos_supports_whisper_onnxruntime_wheels(tmp_path):
 
 
 def test_the_microphone_reason_is_declared(tmp_path):
-    info = config(tmp_path)["app"]["kuulas"]["macOS"]["info"]
-    assert info["NSMicrophoneUsageDescription"]
+    # Briefcase 0.4.6 adds the hardened-runtime microphone entitlement only from
+    # the cross-platform permission; a bare macOS.info usage string leaves it out
+    # and CoreAudio records silence in a Developer ID build.
+    app = config(tmp_path)["app"]["kuulas"]
+    assert app["permission"]["microphone"]
+    assert "NSMicrophoneUsageDescription" not in app["macOS"].get("info", {})
+    assert app["macOS"]["info"]["NSHighResolutionCapable"] is True
+
+
+def test_the_build_script_checks_the_microphone_entitlement_of_the_packaged_app():
+    script = (REPO / "scripts" / "build_dmg.sh").read_text(encoding="utf-8")
+    assert "com.apple.security.device.microphone" in script
+    # Signing, and so the entitlements, happens at package time, not at build.
+    assert script.index("briefcase package") < script.index(
+        "com.apple.security.device.microphone")
 
 
 def test_stage_lays_out_a_self_contained_project(tmp_path):
