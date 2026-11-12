@@ -298,6 +298,27 @@ class TestLiveTranscribeRunner:
         finally:
             runner.stop()
 
+    def test_pause_stops_ticks_until_resumed(self):
+        runner, _sidecar, published = self.make(flushed=lambda p: 6 * RATE)
+        runner.pause()
+        runner.start()
+        try:
+            runner.poke()
+            time.sleep(0.15)
+            assert runner.ticks == 0
+            assert published == []
+
+            runner.resume()
+            runner.poke()
+            for _ in range(100):
+                if published:
+                    break
+                time.sleep(0.01)
+            assert runner.ticks >= 1
+            assert published
+        finally:
+            runner.stop()
+
     def test_engine_errors_are_survived_and_counted(self):
         def boom(p):
             raise RuntimeError("levyvika")

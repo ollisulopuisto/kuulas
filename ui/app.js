@@ -1711,6 +1711,7 @@ const keyboard = setupKeyboard({
     recordingFrame: () => recordView.liveFrame(),
     cycleStopMode: () => cycleStopMode(),
     cyclePreroll: () => cyclePreroll(),
+    toggleLiveTranscript: () => toggleLiveTranscript(),
     autoSilence: () => void autoSilence(),
     openSilenceOptions: () => openSilenceOptions(),
     // Calculate Auto-Silence values from the selection: the panel, learning first.
@@ -3074,6 +3075,17 @@ function cyclePreroll() {
   const seconds = nextPreroll(recordView.preroll);
   recordView.setPreroll(seconds);
   showNotice(t("ui.record.preroll.now", { value: prerollLabel(seconds, t) }), "ok");
+}
+
+// Playback > Recording settings > Live transcription: opt the running (or next) take in or out.
+function toggleLiveTranscript() {
+  const now = recordView.toggleLiveTranscript();
+  if (now === null) {
+    showNotice(t("ui.record.live_transcript_unavailable"), "error");
+    return;
+  }
+  const key = now ? "ui.record.live_transcript.now_on" : "ui.record.live_transcript.now_off";
+  showNotice(t(key), "ok");
 }
 
 let perfDialog = null;

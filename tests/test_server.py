@@ -1487,3 +1487,39 @@ class TestLiveTranscriptEndpoint:
             assert r.json()["words"] == [{"track": "t1", "w": "hei", "s": 0, "e": 10}]
             r = c.get("/api/record/live-transcript", params={"q": "hei"})
             assert r.json()["words"] == [{"track": "t1", "w": "hei", "s": 0, "e": 10}]
+
+    def test_post_toggles_live_transcription_for_the_active_take(self, session, engine,
+                                                                tmp_path):
+        class FakeRecorder:
+            enabled = False
+            def set_publish(self, publish):
+                pass
+            def set_live_transcription(self, enabled):
+                self.enabled = enabled
+                return {"live_transcript_enabled": enabled}
+        ui = tmp_path / "ui"
+        ui.mkdir()
+        recorder = FakeRecorder()
+        app = create_app(session, engine, language="en", ui_dir=ui, recorder=recorder)
+        with TestClient(app) as c:
+            r = c.post("/api/record/live-transcript", json={"enabled": True})
+            assert r.status_code == 200
+            assert r.json() == {"live_transcript_enabled": True}
+            assert recorder.enabled is True
+
+    def test_start_request_carries_the_live_transcription_choice(self, session, engine,
+                                                                tmp_path):
+        class FakeRecorder:
+            def set_publish(self, publish):
+                pass
+            def start(self, **kwargs):
+                self.kwargs = kwargs
+                return {"take": "take-1"}
+        ui = tmp_path / "ui"
+        ui.mkdir()
+        recorder = FakeRecorder()
+        app = create_app(session, engine, language="en", ui_dir=ui, recorder=recorder)
+        with TestClient(app) as c:
+            r = c.post("/api/record/start", json={"live_transcription": True})
+            assert r.status_code == 200
+            assert recorder.kwargs["live_transcription"] is True

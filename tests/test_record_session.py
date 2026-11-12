@@ -21,7 +21,7 @@ from recorder_helpers import (
     wait_until,
 )
 
-from kuulas import clipboard_level
+from kuulas import clipboard_level, live_transcribe
 from kuulas import record_session as record_session_module
 from kuulas import record_take as rt
 from kuulas.ops import EditError
@@ -1191,7 +1191,7 @@ def test_live_transcript_words_arrive_while_the_take_runs(session, recorder):
             {"word": "kokouksesta", "start": 1.6, "end": 2.2}]))
     try:
         view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
-                        track_id=None, name="Olli", at=0)
+                        track_id=None, name="Olli", at=0, live_transcription=True)
         assert view["recording"]
         # The first full 5 s chunk lands while the take still records.
         wait_until(lambda: published.kinds("live_transcript"), timeout=30)
@@ -1242,7 +1242,7 @@ def test_slow_engine_never_blocks_stop_and_the_words_land(session, recorder):
         live_engine_factory=lambda: slow_engine)
     try:
         rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
-                 track_id=None, name="Olli", at=0)
+                 track_id=None, name="Olli", at=0, live_transcription=True)
         wait_until(lambda: published.kinds("live_transcript"), timeout=30)
         live_before_stop = [w["w"] for w in rs.live_transcript_words()]
         assert live_before_stop  # the first chunk landed before the stop
@@ -1285,7 +1285,7 @@ def test_hung_engine_times_out_and_hands_off_what_exists(session, recorder,
         live_engine_factory=lambda: hung_engine)
     try:
         rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
-                 track_id=None, name="Olli", at=0)
+                 track_id=None, name="Olli", at=0, live_transcription=True)
         time.sleep(2.0)  # the runner is stuck inside the first engine call
         rs.stop("two_step")  # returns: the take finalizes despite the hang
         wait_until(lambda: not rs.status()["recording"], timeout=20)
@@ -1301,7 +1301,8 @@ def test_hung_engine_times_out_and_hands_off_what_exists(session, recorder,
 def test_status_reports_live_transcript_availability(session, recorder):
     rs = live(session, recorder)
     try:
-        assert rs.status()["live_transcript"] is False
+        assert rs.status()["live_transcript_available"] is False
+        assert rs.status()["live_transcript_enabled"] is False
     finally:
         rs.close()
     rs = RecordSession(
@@ -1310,8 +1311,83 @@ def test_status_reports_live_transcript_availability(session, recorder):
         spawn=no_spawn, retry_s=0.1,
         live_engine_factory=lambda: (lambda audio, rate: []))
     try:
-        assert rs.status()["live_transcript"] is True
+        assert rs.status()["live_transcript_available"] is True
+        assert rs.status()["live_transcript_enabled"] is False
     finally:
+        rs.close()
+
+
+def test_live_transcription_is_off_by_default(session, recorder):
+    published = Published()
+    rs = RecordSession(
+        session, published,
+        connect=lambda: RecorderClient.connect(recorder.socket_path, timeout=20),
+        spawn=no_spawn, retry_s=0.1,
+        live_engine_factory=lambda: (lambda audio, rate: []))
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0)
+        assert view["live_transcript_available"] is True
+        assert view["live_transcript_enabled"] is False
+        time.sleep(0.2)
+        assert published.kinds("live_transcript") == []
+    finally:
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_live_transcription_can_be_enabled_and_disabled_mid_take(session, recorder):
+    published = Published()
+    rs = RecordSession(
+        session, published,
+        connect=lambda: RecorderClient.connect(recorder.socket_path, timeout=20),
+        spawn=no_spawn, retry_s=0.1,
+        live_engine_factory=lambda: (lambda audio, rate: [
+            {"word": "kesken", "start": 1.0, "end": 1.4}]))
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0)
+        assert view["live_transcript_enabled"] is False
+
+        enabled = rs.set_live_transcription(True)
+        assert enabled["live_transcript_enabled"] is True
+        wait_until(lambda: published.kinds("live_transcript"), timeout=30)
+        assert "kesken" in [w["w"] for w in rs.live_transcript_words()]
+
+        disabled = rs.set_live_transcription(False)
+        assert disabled["live_transcript_enabled"] is False
+        time.sleep(0.2)  # let any chunk already in the engine finish
+        ticks = rs._live_runner.ticks
+        time.sleep(0.2)
+        assert rs._live_runner.ticks == ticks
+    finally:
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_live_transcription_can_pause_and_resume_during_a_take(session):
+    class Runner:
+        paused = False
+        def pause(self):
+            self.paused = True
+        def resume(self):
+            self.paused = False
+
+    rs = RecordSession(session, watch=False,
+                       live_engine_factory=lambda: (lambda audio, rate: []))
+    runner = Runner()
+    rs._live_runner = runner
+    rs.status = lambda: {"recording": True, "ours": True}
+    try:
+        rs.set_live_transcription(False)
+        assert runner.paused is True
+        assert rs._live_enabled is False
+
+        rs.set_live_transcription(True)
+        assert runner.paused is False
+        assert rs._live_enabled is True
+    finally:
+        rs._live_runner = None
         rs.close()
 
 
@@ -1326,4 +1402,245 @@ def test_no_engine_factory_no_live_transcript(session, recorder):
         assert rs.live_transcript_words() == []
         rs.stop("two_step")
     finally:
+        rs.close()
+
+
+def _live_rs(session, recorder, published=None):
+    return RecordSession(
+        session, published if published is not None else Published(),
+        connect=lambda: RecorderClient.connect(recorder.socket_path, timeout=20),
+        spawn=no_spawn, retry_s=0.1,
+        live_engine_factory=lambda: (lambda audio, rate: []))
+
+
+def test_a_rejected_second_start_keeps_the_active_takes_live_flag(session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        device = {"index": 0, "name": "Fake Mic"}
+        rs.start(device=device, channel=1, track_id=None, name="Olli", at=0,
+                 live_transcription=True)
+        assert rs._live_enabled is True
+        with pytest.raises(RecordError):
+            rs.start(device=device, channel=1, track_id=None, name="Olli", at=0,
+                     live_transcription=False)
+        assert rs._live_enabled is True  # the take's flag, so its stop flushes
+        assert rs.status()["live_transcript_enabled"] is True
+    finally:
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_a_failed_start_restores_the_prior_live_flag(session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        rs._live_enabled = True  # as if left over
+        rs._command = lambda *a, **k: (_ for _ in ()).throw(
+            RecordError("error.record.bad_request"))
+        rs.status = lambda *a, **k: {"recording": False, "state": "idle"}
+        with pytest.raises(RecordError):
+            rs.start(device=None, channel=1, track_id=None, name="Olli", at=0,
+                     live_transcription=False)
+        assert rs._live_enabled is True
+    finally:
+        rs._live_enabled = False
+        rs.close()
+
+
+def test_stop_during_runner_construction_leaves_no_orphan_worker(
+        session, recorder, monkeypatch):
+    building, release, created = threading.Event(), threading.Event(), []
+
+    class SlowRunner:
+        def __init__(self, sidecar, **_kw):
+            self.sidecar = sidecar
+            self.started = self.stopped = False
+            created.append(self)
+            building.set()
+            release.wait(10)
+
+        def start(self):
+            self.started = True
+
+        def stop(self, **_kw):
+            self.stopped = True
+
+        def wait(self, _timeout=None):
+            return True
+
+        def poke(self):
+            pass
+
+    monkeypatch.setattr(live_transcribe, "LiveTranscribeRunner", SlowRunner)
+    rs = _live_rs(session, recorder)
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0)
+        take = view["take"]
+        rs._live_enabled = True
+        starter = threading.Thread(target=rs._live_start, args=(rs.status(),))
+        starter.start()
+        assert building.wait(10)
+        stopper = threading.Thread(target=rs._live_stop, args=(take,))
+        stopper.start()  # stop arrives while the runner is being built
+        time.sleep(0.2)
+        release.set()
+        starter.join(10)
+        stopper.join(10)
+        assert rs._live_runner is None
+        assert all(r.stopped or not r.started for r in created)
+        assert not any(r.started and not r.stopped for r in created)
+    finally:
+        release.set()
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_live_start_after_the_take_ended_makes_no_runner(session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0, live_transcription=True)
+        old = dict(view)
+        rs.stop("two_step")
+        rs._live_enabled = True
+        rs._live_start(old)  # a late start request for a take that is over
+        assert rs._live_runner is None
+    finally:
+        rs.close()
+
+
+def test_live_start_keeps_the_cached_status_when_the_recheck_cannot_reach_the_recorder(
+        session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0, live_transcription=True)
+        rs._live_enabled = True
+        cached = dict(rs._status)
+        assert rs._recording(cached)
+        assert rs._ours(cached)
+        real = rs._command
+
+        def flaky(cmd, **kw):
+            if cmd == "status":
+                raise RecordError("error.record.unavailable", status=503)
+            return real(cmd, **kw)
+
+        rs._command = flaky
+        rs._live_start(view)
+        assert rs._status == cached  # not replaced by idle: meters keep running
+        assert rs._live_runner is not None  # the take is still ours: the worker starts
+    finally:
+        rs._command = real
+        rs.stop("two_step")
+        rs.close()
+
+
+def _recorder_unreachable(rs):
+    """Make a fresh status request fail, as when the recorder itself died."""
+    real = rs._command
+
+    def dead(cmd, **kw):
+        if cmd == "status":
+            raise RecordError("error.record.unavailable", status=503)
+        return real(cmd, **kw)
+
+    rs._command = dead
+    return real
+
+
+class _Hello:
+    """A reconnected watcher whose hello reports ``status``."""
+
+    closed = True
+
+    def __init__(self, status):
+        self._status = status
+
+    def request(self, *args, **kwargs):
+        return {"status": self._status}
+
+    def next_event(self, timeout):
+        return None
+
+
+def test_recorder_loss_stops_the_live_runner_so_the_next_take_can_start_one(
+        session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0, live_transcription=True)
+        wait_until(lambda: rs._live_runner is not None, timeout=10)
+        real = _recorder_unreachable(rs)
+        rs._after_disconnect()  # the status probe fails: nothing is concluded yet
+        rs._command = real
+        assert rs._live_runner is not None
+        assert rs._live_enabled is True
+        # The next hello shows an idle recorder: the take is over.
+        rs._listen(_Hello({"state": "idle"}))
+        assert rs._live_runner is None
+        assert rs._live_enabled is False
+        pending = rs._live_pending
+        assert pending is not None
+        assert pending["take"] == view["take"]  # its import waits for the flush
+        assert pending["runner"] is not None
+    finally:
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_a_failed_status_probe_then_a_reconnect_to_the_same_take_keeps_live_words(
+        session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                 track_id=None, name="Olli", at=0, live_transcription=True)
+        wait_until(lambda: rs._live_runner is not None, timeout=10)
+        runner = rs._live_runner
+        survived = rs._command("status", timeout=5.0)
+        real = _recorder_unreachable(rs)
+        rs._after_disconnect()  # a transient failure, not a lost take
+        rs._command = real
+        rs._listen(_Hello(survived))
+        assert rs._live_runner is runner
+        assert rs._live_enabled is True
+        assert rs._live_pending is None
+    finally:
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_a_take_that_stopped_while_the_watcher_was_away_frees_the_live_slot(
+        session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0, live_transcription=True)
+        wait_until(lambda: rs._live_runner is not None, timeout=10)
+        rs._after_disconnect()  # the recorder still answers: same take, kept
+        assert rs._live_runner is not None
+        rs._listen(_Hello({"state": "idle"}))  # it stopped before we re-subscribed
+        assert rs._live_runner is None
+        assert rs._live_pending["take"] == view["take"]
+    finally:
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_a_watcher_drop_with_the_recorder_still_recording_keeps_live_transcription(
+        session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                 track_id=None, name="Olli", at=0, live_transcription=True)
+        wait_until(lambda: rs._live_runner is not None, timeout=10)
+        runner = rs._live_runner
+        status = dict(rs._status)
+        rs._after_disconnect()  # only the watcher socket dropped
+        assert rs._live_runner is runner  # same runner: its words are kept
+        assert rs._live_enabled is True  # the opt-in is never reported off
+        assert rs._live_pending is None
+        assert rs._status == status
+    finally:
+        rs.stop("two_step")
         rs.close()

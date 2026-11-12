@@ -57,7 +57,8 @@ export const getWords = () => json("/api/words");
 export const putBackPlan = (body) => post("/api/put-back/plan", body);
 export const searchMaterial = (q) => json(`/api/material-search?q=${encodeURIComponent(q)}`);
 // Recording (WP12a): the recorder is its own program; the server is its viewer and remote.
-/** { available, recording, ours, take, position_frames, disk, notices, pending, ... } */
+/** { available, recording, ours, take, position_frames, disk, notices, pending,
+ * live_transcript_available, live_transcript_enabled, ... } */
 export const getRecordStatus = (channels = 1) =>
   json(`/api/record/status?channels=${Math.max(1, Math.round(Number(channels)) || 1)}`);
 /** { devices: [{ index, name, channels, default }] } (starts the recorder if need be). */
@@ -80,6 +81,9 @@ export const getLiveTranscript = (q = null) =>
   json(
     q ? `/api/record/live-transcript?q=${encodeURIComponent(q)}` : "/api/record/live-transcript",
   );
+/** Turn live transcription on or off for the take that is recording now. */
+export const setLiveTranscript = (enabled) =>
+  post("/api/record/live-transcript", { enabled: Boolean(enabled) });
 /** The session's statistics (WP70): { stats, groups: [{ title, rows: [[label, value]] }], text }. */
 export const getStats = () => json("/api/stats");
 export const getWhatsNew = (after) =>

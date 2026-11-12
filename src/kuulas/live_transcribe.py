@@ -359,6 +359,7 @@ class LiveTranscribeRunner:
         self.min_interval_s = min_interval_s
         self._log = log
         self._wake = threading.Event()
+        self._paused = threading.Event()
         self._stop = threading.Event()
         self._cancel = threading.Event()
         self._thread: threading.Thread | None = None
@@ -374,6 +375,16 @@ class LiveTranscribeRunner:
 
     def poke(self) -> None:
         """New audio may be ready: tick soon (the watcher thread calls this)."""
+        self._wake.set()
+
+    def pause(self) -> None:
+        """Stop spending work on this take until the user opts back in."""
+        self._paused.set()
+        self._wake.set()
+
+    def resume(self) -> None:
+        """Continue at the first untranscribed frame, keeping words already collected."""
+        self._paused.clear()
         self._wake.set()
 
     def stop(self, timeout: float = 30.0, flush: bool = True,
@@ -421,12 +432,16 @@ class LiveTranscribeRunner:
             self._wake.clear()
             if self._stop.is_set():
                 break
+            if self._paused.is_set():
+                continue
             now = time.monotonic()
             wait = self.min_interval_s - (now - last)
             if wait > 0:
                 if self._stop.wait(wait):
                     break
                 self._wake.clear()
+            if self._paused.is_set():
+                continue
             try:
                 statuses = self.sidecar.tick()
                 self.ticks += 1

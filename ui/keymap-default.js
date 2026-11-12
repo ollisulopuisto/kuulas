@@ -1627,6 +1627,14 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.record.preroll",
   },
   {
+    // No key: a setting, like the two above (the Finnish layout leaves none free); reached
+    // from Playback > Recording settings and the palette.
+    id: "record.live_transcript",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.record.live_transcript",
+  },
+  {
     id: "app.statistics",
     keys: { mac: null, other: null },
     context: "global",

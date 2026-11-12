@@ -361,6 +361,7 @@ describe("top-level bar (owner, 2026-10-19)", () => {
     for (const id of ["transport.play", "transport.record", "transport.loop"]) {
       assert.ok(direct("playback").includes(id), id);
     }
+    assert.ok(subIds("playback", "menu.record_settings").includes("record.live_transcript"));
     assert.ok(subIds("playback", "menu.markers").includes("marker.add"));
     assert.ok(subIds("playback", "menu.go").includes("nav.home"));
   });

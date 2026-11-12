@@ -12,6 +12,8 @@ import {
   initialRows,
   liveHits,
   liveTail,
+  liveTranscriptPreference,
+  liveTranscriptPreferenceFromStatus,
   liveTranscriptVisible,
   meterLabels,
   pickDevice,
@@ -87,6 +89,7 @@ describe("the start request", () => {
         cart_track: null,
         play_others: false,
         latency_ms: 0,
+        live_transcription: false,
       },
     );
   });
@@ -101,6 +104,41 @@ describe("the start request", () => {
     assert.equal(body.track_id, "t1");
     assert.equal(body.device, null);
     assert.equal(body.at, 0);
+  });
+  test("a take opts into live transcription only when selected", () => {
+    const body = startRequest({
+      device: null,
+      channel: 1,
+      target: "new",
+      at: 0,
+      liveTranscription: true,
+    });
+    assert.equal(body.live_transcription, true);
+  });
+  test("live transcription preference defaults off", () => {
+    assert.equal(liveTranscriptPreference(null), false);
+    assert.equal(liveTranscriptPreference("0"), false);
+    assert.equal(liveTranscriptPreference("1"), true);
+  });
+  test("only our own take's live flag becomes the saved preference", () => {
+    const mine = { recording: true, ours: true, live_transcript_enabled: true };
+    assert.equal(liveTranscriptPreferenceFromStatus(mine), true);
+    assert.equal(
+      liveTranscriptPreferenceFromStatus({ ...mine, live_transcript_enabled: false }),
+      false,
+    );
+    // Another project's take, or no take: the preference is left alone (null).
+    assert.equal(liveTranscriptPreferenceFromStatus({ ...mine, ours: false }), null);
+    assert.equal(
+      liveTranscriptPreferenceFromStatus({
+        recording: false,
+        ours: true,
+        live_transcript_enabled: true,
+      }),
+      null,
+    );
+    assert.equal(liveTranscriptPreferenceFromStatus({ recording: true, ours: true }), null);
+    assert.equal(liveTranscriptPreferenceFromStatus(null), null);
   });
 });
 
