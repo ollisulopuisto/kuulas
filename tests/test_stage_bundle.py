@@ -99,14 +99,16 @@ def test_the_microphone_reason_is_declared(tmp_path):
     assert app["permission"]["microphone"]
     assert "NSMicrophoneUsageDescription" not in app["macOS"].get("info", {})
     assert app["macOS"]["info"]["NSHighResolutionCapable"] is True
+    # Developer ID apps are not sandboxed: the Hardened Runtime key is audio-input.
+    assert app["macOS"]["entitlement"]["com.apple.security.device.audio-input"] is True
 
 
 def test_the_build_script_checks_the_microphone_entitlement_of_the_packaged_app():
     script = (REPO / "scripts" / "build_dmg.sh").read_text(encoding="utf-8")
-    assert "com.apple.security.device.microphone" in script
+    assert "com.apple.security.device.audio-input" in script
     # Signing, and so the entitlements, happens at package time, not at build.
     assert script.index("briefcase package") < script.index(
-        "com.apple.security.device.microphone")
+        "com.apple.security.device.audio-input")
 
 
 def test_stage_lays_out_a_self_contained_project(tmp_path):

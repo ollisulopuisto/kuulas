@@ -128,12 +128,15 @@ universal_build = false
 # Briefcase installs the wheels for the minimum version it is told.
 min_os_version = "{MIN_MACOS}"
 
-# The cross-platform permission is what makes Briefcase add the hardened-runtime
-# com.apple.security.device.microphone entitlement (and the usage string). A bare
-# macOS.info NSMicrophoneUsageDescription gives a Developer ID build no entitlement,
-# and CoreAudio then records silence.
+# permission.microphone makes Briefcase write the usage string. Its entitlement,
+# com.apple.security.device.microphone, is the App Sandbox key; a non-sandboxed
+# Developer ID app needs the Hardened Runtime key audio-input, or CoreAudio
+# records silence.
 [tool.briefcase.app.{APP_NAME}.permission]
 microphone = "Kuulas records narration and takes from your microphone."
+
+[tool.briefcase.app.{APP_NAME}.macOS.entitlement]
+"com.apple.security.device.audio-input" = true
 
 [tool.briefcase.app.{APP_NAME}.macOS.info]
 NSHighResolutionCapable = true
