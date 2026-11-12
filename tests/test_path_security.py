@@ -277,6 +277,49 @@ def test_check_replace_media_rejects_relative_and_traversal(tmp_path):
         session.close()
 
 
+def test_import_media_rejects_relative_and_traversal(tmp_path):
+    import numpy as np  # noqa: PLC0415
+    import soundfile as sf  # noqa: PLC0415
+
+    session = Session(tmp_path / "Show.kuulas")
+    folder = tmp_path / "recordings"
+    folder.mkdir()
+    good_file = folder / "good.wav"
+    sf.write(str(good_file), np.zeros((48000,), dtype=np.float32), 48000,
+             subtype="PCM_16")
+    try:
+        from kuulas.media import MediaError  # noqa: PLC0415
+
+        for bad in ["relative/take.wav", str(folder / ".." / "recordings" / "take.wav"),
+                    "bad\0path", "", "x" * 4097]:
+            with pytest.raises(MediaError):
+                session.import_media([bad])
+            with pytest.raises(MediaError):
+                session.import_media_report([bad])
+
+        # Batch with one good and one bad path: good one imports, bad one fails in report
+        project, report = session.import_media_report(
+            [str(good_file), "relative/bad.wav"]
+        )
+        assert len(report) == 2
+        assert report[0].ok is True
+        assert report[0].media is not None
+        assert report[1].ok is False
+        assert isinstance(report[1].error, MediaError)
+        assert len(project.tracks) == 1
+
+        # FIFO is rejected without opening/hanging
+        fifo = folder / "test.fifo"
+        try:
+            os.mkfifo(fifo)
+            with pytest.raises(MediaError):
+                session.import_media([str(fifo)])
+        except (AttributeError, OSError):
+            pass
+    finally:
+        session.close()
+
+
 def test_export_rejects_relative_and_traversal_folder(tmp_path):
     import numpy as np  # noqa: PLC0415
     import soundfile as sf  # noqa: PLC0415

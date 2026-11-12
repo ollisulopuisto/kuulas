@@ -736,10 +736,37 @@ class MediaStore:
                 raise r.error
         return [r.media for r in results]
 
+    def _validate_path(self, path: Path) -> Path:
+        import stat  # noqa: PLC0415
+
+        try:
+            raw = os.fspath(path)
+        except TypeError:
+            msg = str(path or "")[:200]
+            raise MediaError("error.media.not_a_file", name=msg) from None
+        if not isinstance(raw, str) or not raw.strip() or "\0" in raw or len(raw) > 4096:
+            raise MediaError("error.media.not_a_file", name=str(raw or "")[:200])
+        p = Path(raw)
+        if not p.is_absolute() or ".." in p.parts:
+            raise MediaError("error.media.not_a_file", name=raw[:200])
+        try:
+            st = p.stat()
+            if not stat.S_ISREG(st.st_mode):
+                raise MediaError("error.media.not_a_file", name=raw[:200])
+        except OSError as e:
+            # A pulled drive fails here first, before anything is opened: say so,
+            # with the drive to reconnect, as _explain does for a failed read.
+            if e.errno in VANISHED_ERRNOS:
+                raise MediaError("error.media.source_vanished", name=p.name,
+                                 drive=drive_of(p)) from None
+            raise MediaError("error.media.not_a_file", name=raw[:200]) from None
+        return p
+
     def _attempt(self, path: Path, copy: bool) -> ImportResult:
         notes: list[Note] = []
         try:
-            return ImportResult(path, self._import(path, copy, notes), None, notes)
+            valid_path = self._validate_path(path)
+            return ImportResult(path, self._import(valid_path, copy, notes), None, notes)
         except KuulasError as e:
             err: Exception = e
         except Exception as e:  # noqa: BLE001 - whatever it is, it costs this file only

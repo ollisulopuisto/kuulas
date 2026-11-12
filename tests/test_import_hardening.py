@@ -9,6 +9,7 @@ import os
 import shutil
 import stat
 import struct
+import threading
 import time
 from collections import namedtuple
 from pathlib import PurePosixPath, PureWindowsPath
@@ -299,6 +300,96 @@ def test_a_session_whose_every_file_fails_changes_nothing(tmp_path, broken):
         assert not s.history.can_undo
     finally:
         s.close()
+
+
+def test_a_missing_file_fails_only_its_own_slot_in_the_report(tmp_path):
+    s = Session(tmp_path / "Talk.kuulas")
+    try:
+        good = tmp_path / "good.wav"
+        sf.write(good, noise(1.0, seed=9), RATE, subtype="PCM_16")
+        gone = tmp_path / "missing.wav"
+        p, report = s.import_media_report([str(good), str(gone)])
+        assert [t.name for t in p.tracks] == ["good"]
+        assert [r.ok for r in report] == [True, False]
+        assert report[1].error.key == "error.media.not_a_file"
+        assert s.last_import_report == report
+    finally:
+        s.close()
+
+
+def test_a_request_of_only_missing_files_reports_them_and_changes_nothing(tmp_path):
+    s = Session(tmp_path / "Talk.kuulas")
+    try:
+        gone = [str(tmp_path / "a.wav"), str(tmp_path / "b.wav")]
+        with pytest.raises(MediaError) as err:
+            s.import_media_report(gone)
+        assert err.value.key == "error.media.all_failed"
+        assert [r.ok for r in s.last_import_report] == [False, False]
+        assert [str(r.path) for r in s.last_import_report] == gone
+        assert s.state.tracks == ()
+        assert not s.history.can_undo
+    finally:
+        s.close()
+
+
+def test_a_single_missing_file_is_reported_before_raising(tmp_path):
+    s = Session(tmp_path / "Talk.kuulas")
+    try:
+        gone = str(tmp_path / "gone.wav")
+        with pytest.raises(MediaError) as err:
+            s.import_media_report([gone])
+        assert err.value.key == "error.media.not_a_file"
+        assert [r.ok for r in s.last_import_report] == [False]
+        assert str(s.last_import_report[0].path) == gone
+    finally:
+        s.close()
+
+
+def test_a_named_pipe_is_refused_without_blocking_the_import(tmp_path, store):
+    fifo = tmp_path / "pipe.wav"
+    os.mkfifo(fifo)
+
+    done = []
+
+    def attempt():
+        done.append(store.import_batch([fifo]))
+
+    # stat() must refuse the pipe before anyone opens it for reading; an
+    # open would block forever waiting for a writer.
+    worker = threading.Thread(target=attempt, daemon=True)
+    worker.start()
+    worker.join(timeout=10)
+    assert done, "importing a named pipe must not hang"
+    [r] = done[0]
+    assert not r.ok
+    assert r.error.key == "error.media.not_a_file"
+
+
+@pytest.mark.parametrize("code", [errno.EIO, errno.ENXIO])
+def test_a_drive_lost_during_the_path_check_names_the_drive(store, tmp_path, monkeypatch, code):
+    """The up-front stat() is the first thing to touch a pulled drive; its EIO or
+    ENXIO must reach the user as 'reconnect the drive', not 'unreadable file'."""
+    src = tmp_path / "card" / "take.wav"
+    src.parent.mkdir()
+    sf.write(src, noise(0.5, seed=3), RATE, subtype="PCM_16")
+    monkeypatch.setattr(media_mod, "drive_of", lambda _p: "ZOOM H6")
+    real_stat = type(src).stat
+
+    def pulled(self, *a, **k):
+        if self.name == "take.wav":
+            raise OSError(code, os.strerror(code))
+        return real_stat(self, *a, **k)
+
+    monkeypatch.setattr(type(src), "stat", pulled)
+    [r] = store.import_batch([src])
+    assert not r.ok
+    assert r.error.key == "error.media.source_vanished"
+    assert r.error.params["drive"] == "ZOOM H6"
+
+
+def test_a_missing_file_is_still_not_a_file(store, tmp_path):
+    [r] = store.import_batch([tmp_path / "nope.wav"])
+    assert r.error.key == "error.media.not_a_file"
 
 
 # -- hung decoders -------------------------------------------------------------
