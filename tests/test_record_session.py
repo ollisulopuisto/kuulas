@@ -1536,6 +1536,19 @@ def test_live_start_keeps_the_cached_status_when_the_recheck_cannot_reach_the_re
         rs.close()
 
 
+def _recorder_unreachable(rs):
+    """Make a fresh status request fail, as when the recorder itself died."""
+    real = rs._command
+
+    def dead(cmd, **kw):
+        if cmd == "status":
+            raise RecordError("error.record.unavailable", status=503)
+        return real(cmd, **kw)
+
+    rs._command = dead
+    return real
+
+
 def test_recorder_loss_stops_the_live_runner_so_the_next_take_can_start_one(
         session, recorder):
     rs = _live_rs(session, recorder)
@@ -1543,7 +1556,9 @@ def test_recorder_loss_stops_the_live_runner_so_the_next_take_can_start_one(
         rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
                  track_id=None, name="Olli", at=0, live_transcription=True)
         wait_until(lambda: rs._live_runner is not None, timeout=10)
+        real = _recorder_unreachable(rs)
         rs._after_disconnect()  # the recorder died with the take
+        rs._command = real
         assert rs._live_runner is None
         assert rs._live_enabled is False
     finally:
@@ -1559,7 +1574,9 @@ def test_recorder_loss_registers_the_lost_take_so_its_import_waits_for_the_flush
                         track_id=None, name="Olli", at=0, live_transcription=True)
         take = view["take"]
         wait_until(lambda: rs._live_runner is not None, timeout=10)
+        real = _recorder_unreachable(rs)
         rs._after_disconnect()
+        rs._command = real
         pending = rs._live_pending
         assert pending is not None
         assert pending["take"] == take
@@ -1569,29 +1586,20 @@ def test_recorder_loss_registers_the_lost_take_so_its_import_waits_for_the_flush
         rs.close()
 
 
-def test_a_watcher_reconnect_to_the_surviving_take_resumes_live_transcription(
+def test_a_watcher_drop_with_the_recorder_still_recording_keeps_live_transcription(
         session, recorder):
     rs = _live_rs(session, recorder)
     try:
         rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
                  track_id=None, name="Olli", at=0, live_transcription=True)
         wait_until(lambda: rs._live_runner is not None, timeout=10)
-        survived = rs._command("status", timeout=5.0)
+        runner = rs._live_runner
+        status = dict(rs._status)
         rs._after_disconnect()  # only the watcher socket dropped
-        assert rs._live_runner is None
-
-        class Reconnected:
-            closed = True
-
-            def request(self, *args, **kwargs):
-                return {"status": survived}
-
-            def next_event(self, timeout):
-                return None
-
-        rs._listen(Reconnected())
-        assert rs._live_enabled is True
-        assert rs._live_runner is not None
+        assert rs._live_runner is runner  # same runner: its words are kept
+        assert rs._live_enabled is True  # the opt-in is never reported off
+        assert rs._live_pending is None
+        assert rs._status == status
     finally:
         rs.stop("two_step")
         rs.close()
