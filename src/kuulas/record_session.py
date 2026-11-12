@@ -132,6 +132,8 @@ class RecordSession:
         #: Builds the warm speech engine for live take transcription (owner,
         #: 2026-11-01); None = no live transcript (the engine is not on this Mac).
         self._live_engine_factory = live_engine_factory
+        # Live ASR is an explicit per-take opt-in; audio capture never depends on it.
+        self._live_enabled = False
         self._live_runner: live_transcribe.LiveTranscribeRunner | None = None
         self._live_done: live_transcribe.LiveTranscribeSidecar | None = None
         # The finished take's flush + import coordination (see _live_stop):
@@ -347,9 +349,12 @@ class RecordSession:
             "notices": list(self._notices) if (recording and ours) else [],
             "pending": self.pending(running_take=take if ours else None),
             "hold_ms": self.hold_ms,
-            # The take-so-far's words exist only when an engine is wired (owner,
-            # 2026-11-01): the view keeps itself open for them after a start.
-            "live_transcript": self._live_engine_factory is not None,
+            "live_transcript_available": self._live_engine_factory is not None,
+            "live_transcript_enabled": (self._live_enabled
+                                         and self._live_engine_factory is not None),
+            # Compatibility for existing record-view callers: this is the take's state.
+            "live_transcript": (self._live_enabled
+                                and self._live_engine_factory is not None),
         }
 
     def arm(self, *, device: dict | None, preroll_s: float, channel: int | None = None,
@@ -453,11 +458,12 @@ class RecordSession:
     def start(self, *, device: dict | None, at: int, channels: list[dict] | None = None,
               channel: int | None = None, track_id: str | None = None,
               name: str = "", cart_track: str | None = None,
-              latency_ms: float = 0.0) -> dict:
+              latency_ms: float = 0.0, live_transcription: bool = False) -> dict:
         """Record a take into this project's ``recordings/``. ``channels``: one
         ``{channel, track_id, name}`` per device channel to record (WP12b), each onto
         its own track (``track_id`` None or ``"new"``: a new speech track named
-        ``name``). ``channel``/``track_id``/``name`` are the one-channel form."""
+        ``name``). ``channel``/``track_id``/``name`` are the one-channel form.
+        Live transcription starts only when ``live_transcription`` is true."""
         if self.session.read_only:
             holder = self.session.package.locked_by or {}
             raise ops.EditError("error.history.read_only", host=holder.get("host", "?"))
@@ -473,6 +479,8 @@ class RecordSession:
                 raise RecordError("error.record.cart_track_records")
         if at < 0:
             raise RecordError("error.record.bad_request", detail="at")
+        with self._lock:
+            self._live_enabled = bool(live_transcription and self._live_engine_factory)
         self.folder.mkdir(parents=True, exist_ok=True)
         for _attempt in range(3):  # another take may appear in between: next number
             take = rt.next_take(os.listdir(self.folder), [lane.name for lane in lanes],
@@ -498,6 +506,8 @@ class RecordSession:
                 rt.remove_plan(self.folder, take)
                 if e.key == "error.record.take_exists":
                     continue
+                with self._lock:
+                    self._live_enabled = False
                 raise
             with self._lock:
                 self._status, self._available = answer, True
@@ -815,7 +825,10 @@ class RecordSession:
     # risk to the take: the watcher only pokes; engine trouble loses a lane.
 
     def _live_start(self, status: dict) -> None:
-        if self._live_engine_factory is None or self._live_runner is not None:
+        with self._lock:
+            enabled = self._live_enabled
+        if (not enabled or self._live_engine_factory is None
+                or self._live_runner is not None):
             return
         # Segment 1 of each lane (a take past the 4 GB segment boundary keeps
         # transcribing only on its first segment for now).
@@ -848,10 +861,13 @@ class RecordSession:
         # flush and the import are done (either order). A flush that outlives
         # LIVE_FLUSH_TIMEOUT_S is cancelled and whatever words exist are
         # handed off - the take is never at risk, the status stays honest.
-        runner, self._live_runner = self._live_runner, None
+        with self._lock:
+            flush = self._live_enabled
+            self._live_enabled = False
+            runner, self._live_runner = self._live_runner, None
         if runner is None:
             return
-        runner.stop(flush=True, block=False)
+        runner.stop(flush=flush, block=False)
         self._live_done = runner.sidecar
         if take is None:  # closing: nothing to hand off
             return
@@ -873,6 +889,27 @@ class RecordSession:
             threading.Thread(target=self._live_flush_waiter, args=(runner,),
                              name="kuulas-live-flush", daemon=True).start()
         self._maybe_live_handoff()
+
+    def set_live_transcription(self, enabled: bool) -> dict:
+        """Opt the current take in or out without pausing its audio capture."""
+        status = self.status()
+        if not status["recording"] or not status["ours"]:
+            raise RecordError("error.record.not_recording", status=409)
+        if enabled and self._live_engine_factory is None:
+            raise RecordError("error.live_engine.unavailable", status=409)
+        with self._lock:
+            self._live_enabled = bool(enabled)
+            runner = self._live_runner
+        if enabled:
+            if runner is None:
+                self._live_start(status)
+            else:
+                runner.resume()
+        elif runner is not None:
+            runner.pause()
+        updated = self.status()
+        self.publish({"type": "record", "kind": "status", "status": updated})
+        return updated
 
     def _live_flush_waiter(self, runner) -> None:
         done = runner.wait(self.LIVE_FLUSH_TIMEOUT_S)

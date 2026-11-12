@@ -1191,7 +1191,7 @@ def test_live_transcript_words_arrive_while_the_take_runs(session, recorder):
             {"word": "kokouksesta", "start": 1.6, "end": 2.2}]))
     try:
         view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
-                        track_id=None, name="Olli", at=0)
+                        track_id=None, name="Olli", at=0, live_transcription=True)
         assert view["recording"]
         # The first full 5 s chunk lands while the take still records.
         wait_until(lambda: published.kinds("live_transcript"), timeout=30)
@@ -1242,7 +1242,7 @@ def test_slow_engine_never_blocks_stop_and_the_words_land(session, recorder):
         live_engine_factory=lambda: slow_engine)
     try:
         rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
-                 track_id=None, name="Olli", at=0)
+                 track_id=None, name="Olli", at=0, live_transcription=True)
         wait_until(lambda: published.kinds("live_transcript"), timeout=30)
         live_before_stop = [w["w"] for w in rs.live_transcript_words()]
         assert live_before_stop  # the first chunk landed before the stop
@@ -1285,7 +1285,7 @@ def test_hung_engine_times_out_and_hands_off_what_exists(session, recorder,
         live_engine_factory=lambda: hung_engine)
     try:
         rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
-                 track_id=None, name="Olli", at=0)
+                 track_id=None, name="Olli", at=0, live_transcription=True)
         time.sleep(2.0)  # the runner is stuck inside the first engine call
         rs.stop("two_step")  # returns: the take finalizes despite the hang
         wait_until(lambda: not rs.status()["recording"], timeout=20)
@@ -1301,7 +1301,8 @@ def test_hung_engine_times_out_and_hands_off_what_exists(session, recorder,
 def test_status_reports_live_transcript_availability(session, recorder):
     rs = live(session, recorder)
     try:
-        assert rs.status()["live_transcript"] is False
+        assert rs.status()["live_transcript_available"] is False
+        assert rs.status()["live_transcript_enabled"] is False
     finally:
         rs.close()
     rs = RecordSession(
@@ -1310,8 +1311,83 @@ def test_status_reports_live_transcript_availability(session, recorder):
         spawn=no_spawn, retry_s=0.1,
         live_engine_factory=lambda: (lambda audio, rate: []))
     try:
-        assert rs.status()["live_transcript"] is True
+        assert rs.status()["live_transcript_available"] is True
+        assert rs.status()["live_transcript_enabled"] is False
     finally:
+        rs.close()
+
+
+def test_live_transcription_is_off_by_default(session, recorder):
+    published = Published()
+    rs = RecordSession(
+        session, published,
+        connect=lambda: RecorderClient.connect(recorder.socket_path, timeout=20),
+        spawn=no_spawn, retry_s=0.1,
+        live_engine_factory=lambda: (lambda audio, rate: []))
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0)
+        assert view["live_transcript_available"] is True
+        assert view["live_transcript_enabled"] is False
+        time.sleep(0.2)
+        assert published.kinds("live_transcript") == []
+    finally:
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_live_transcription_can_be_enabled_and_disabled_mid_take(session, recorder):
+    published = Published()
+    rs = RecordSession(
+        session, published,
+        connect=lambda: RecorderClient.connect(recorder.socket_path, timeout=20),
+        spawn=no_spawn, retry_s=0.1,
+        live_engine_factory=lambda: (lambda audio, rate: [
+            {"word": "kesken", "start": 1.0, "end": 1.4}]))
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0)
+        assert view["live_transcript_enabled"] is False
+
+        enabled = rs.set_live_transcription(True)
+        assert enabled["live_transcript_enabled"] is True
+        wait_until(lambda: published.kinds("live_transcript"), timeout=30)
+        assert "kesken" in [w["w"] for w in rs.live_transcript_words()]
+
+        disabled = rs.set_live_transcription(False)
+        assert disabled["live_transcript_enabled"] is False
+        time.sleep(0.2)  # let any chunk already in the engine finish
+        ticks = rs._live_runner.ticks
+        time.sleep(0.2)
+        assert rs._live_runner.ticks == ticks
+    finally:
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_live_transcription_can_pause_and_resume_during_a_take(session):
+    class Runner:
+        paused = False
+        def pause(self):
+            self.paused = True
+        def resume(self):
+            self.paused = False
+
+    rs = RecordSession(session, watch=False,
+                       live_engine_factory=lambda: (lambda audio, rate: []))
+    runner = Runner()
+    rs._live_runner = runner
+    rs.status = lambda: {"recording": True, "ours": True}
+    try:
+        rs.set_live_transcription(False)
+        assert runner.paused is True
+        assert rs._live_enabled is False
+
+        rs.set_live_transcription(True)
+        assert runner.paused is False
+        assert rs._live_enabled is True
+    finally:
+        rs._live_runner = None
         rs.close()
 
 

@@ -33,6 +33,7 @@ import {
   initialRows,
   liveHits,
   liveTail,
+  liveTranscriptPreference,
   liveTranscriptVisible,
   meterLabels,
   pickDevice,
@@ -51,6 +52,7 @@ const STOP_MODE_KEY = "recordStopMode";
 const DEVICE_KEY = "recordDevice";
 const CHANNELS_KEY = "recordChannels"; // the channels last recorded, as a list of numbers
 const PREROLL_KEY = "recordPreroll";
+const LIVE_TRANSCRIPT_KEY = "recordLiveTranscript";
 const FLOOR_DB = -60;
 const RING = 2 * Math.PI * 52; // the stop ring's circumference (r = 52 in its 120 box)
 
@@ -123,6 +125,8 @@ export function createRecordView({
   let playOthers = prefs.get(OTHERS_KEY) === "1";
   let delayMs = Number(prefs.get(DELAY_KEY)) || 0;
   let cartTrack = String(prefs.get(CART_KEY) ?? "");
+  let liveTranscriptPreferenceOn = liveTranscriptPreference(prefs.get(LIVE_TRANSCRIPT_KEY));
+  let liveTogglePending = false;
   // The take drawn on the timeline lanes while it records (owner, 2026-10-23).
   const liveTake = createLiveTake();
   const notices = [];
@@ -287,6 +291,11 @@ export function createRecordView({
     setup.channels = el("fieldset", "record-channels");
     setup.channels.append(el("legend", "form-heading", t("ui.record.channels")));
     box.append(setup.channels);
+    const liveToggle = el("input");
+    liveToggle.type = "checkbox";
+    setup.liveToggle = row(t("ui.record.live_transcription"), liveToggle);
+    setup.liveHelp = el("p", "record-message record-live-help");
+    box.append(setup.liveHelp);
     setup.preroll = row(t("ui.record.preroll"), el("select"), true);
     // The track clips played from the cart go on while the take records (cart-model.js).
     setup.cart = row(t("ui.record.cart_track"), el("select"), true);
@@ -320,6 +329,7 @@ export function createRecordView({
       prefs.set(OTHERS_KEY, playOthers ? "1" : "0");
       syncPlaybackOptions();
     });
+    liveToggle.addEventListener("change", () => void changeLiveTranscript(liveToggle.checked));
     delayBox.addEventListener("change", () => {
       delayMs = Math.min(2000, Math.max(0, Number(delayBox.value) || 0));
       delayBox.value = String(delayMs);
@@ -491,6 +501,7 @@ export function createRecordView({
     if (!message && problem) message = t(problem);
     setup.message.textContent = message;
     setup.record.disabled = !chosen || stopping || problem !== null;
+    syncLiveTranscriptControls();
   }
 
   function renderDisk(node) {
@@ -573,6 +584,7 @@ export function createRecordView({
           cartTrack,
           playOthers,
           latencyMs: delayMs,
+          liveTranscription: liveTranscriptPreferenceOn && liveTranscriptAvailable(),
         }),
       );
       notices.length = 0;
@@ -591,7 +603,7 @@ export function createRecordView({
       // With a live transcript the view stays open: its words and search are the
       // point (Esc hides, Space brings it back); without one, the take goes on
       // behind the editor as before.
-      if (!status?.live_transcript) hide();
+      if (!status?.live_transcript_enabled) hide();
     } catch (error) {
       setup.message.textContent = error.message;
       setup.record.disabled = false;
@@ -638,10 +650,16 @@ export function createRecordView({
     rec.stop.addEventListener("lostpointercapture", () => release());
     rec.liveBox = el("section", "record-transcript");
     rec.liveBox.hidden = true;
-    const liveHead = el("p", "record-transcript-label", t("ui.record.live_transcript"));
+    const liveHead = el("div", "record-transcript-head");
+    const liveTitle = el("span", "record-transcript-label", t("ui.record.live_transcript"));
+    const liveToggleLabel = el("label", "record-live-toggle");
+    rec.liveToggle = el("input");
+    rec.liveToggle.type = "checkbox";
+    liveToggleLabel.append(rec.liveToggle, el("span", "", t("ui.record.live_transcription")));
+    liveHead.append(liveTitle, liveToggleLabel);
     rec.liveFlushing = el("span", "record-transcript-flushing", t("ui.record.live_flushing"));
     rec.liveFlushing.hidden = true;
-    liveHead.append(" ", rec.liveFlushing);
+    liveTitle.append(" ", rec.liveFlushing);
     rec.liveSearch = el("input", "record-transcript-search");
     rec.liveSearch.dataset.dialogEnterLocal = ""; // Enter types here, never arms the stop
     rec.liveSearch.type = "search";
@@ -649,8 +667,10 @@ export function createRecordView({
     rec.liveSearch.setAttribute("aria-label", t("ui.record.live_search"));
     rec.liveTail = el("p", "record-transcript-tail");
     rec.liveTail.setAttribute("aria-live", "polite");
+    rec.liveStatus = el("p", "record-transcript-state");
+    rec.liveStatus.setAttribute("aria-live", "polite");
     rec.liveHits = el("ul", "record-transcript-hits");
-    rec.liveBox.append(liveHead, rec.liveSearch, rec.liveTail, rec.liveHits);
+    rec.liveBox.append(liveHead, rec.liveStatus, rec.liveSearch, rec.liveTail, rec.liveHits);
     rec.liveSearch.addEventListener("input", () => {
       clearTimeout(searchTimer);
       const q = rec.liveSearch.value.trim();
@@ -661,6 +681,10 @@ export function createRecordView({
       }
       searchTimer = setTimeout(() => void searchLive(q), 300);
     });
+    rec.liveToggle.addEventListener(
+      "change",
+      () => void changeLiveTranscript(rec.liveToggle.checked),
+    );
     box.append(
       rec.take,
       rec.elapsed,
@@ -691,10 +715,23 @@ export function createRecordView({
     const visible = liveTranscriptVisible(phase(), liveFlushing);
     rec.liveBox.hidden = !visible;
     if (!visible) return;
+    syncLiveTranscriptControls();
     rec.liveFlushing.hidden = !liveFlushing;
-    rec.liveTail.textContent = liveWords.length ? liveTail(liveWords) : t("ui.record.live_none");
+    rec.liveTail.textContent = liveWords.length
+      ? liveTail(liveWords)
+      : status?.live_transcript_enabled === true
+        ? t("ui.record.live_none")
+        : "";
+    const enabled = status?.live_transcript_enabled === true;
+    rec.liveStatus.textContent = !liveTranscriptAvailable()
+      ? t("ui.record.live_transcript_unavailable")
+      : enabled || liveFlushing
+        ? t("ui.record.live_transcript_on")
+        : t("ui.record.live_transcript_off");
+    rec.liveSearch.disabled = !enabled;
+    rec.liveTail.hidden = !enabled && !liveFlushing && liveWords.length === 0;
     const query = rec.liveSearch.value.trim();
-    rec.liveHits.hidden = !query;
+    rec.liveHits.hidden = !query || !enabled;
     rec.liveHits.replaceChildren(
       ...liveHits(searchHits, liveTrackNames(), FLICKS_PER_SECOND).map((hit) =>
         el(
@@ -968,11 +1005,22 @@ export function createRecordView({
   const slimMarker = slim
     ? el("button", "button record-slim-marker", t("ui.record.add_marker"))
     : null;
+  const slimLiveTranscript = slim ? el("label", "record-slim-live") : null;
+  const slimLiveCheckbox = slim ? el("input") : null;
   if (slim) {
     slimMarker.type = "button";
     slimMarker.title = t("ui.record.add_marker_title");
     slimMarker.addEventListener("click", () => addMarker());
-    slim.append(slimMarker);
+    slimLiveCheckbox.type = "checkbox";
+    slimLiveTranscript.append(
+      slimLiveCheckbox,
+      el("span", "", t("ui.record.live_transcription_short")),
+    );
+    slimLiveCheckbox.addEventListener(
+      "change",
+      () => void changeLiveTranscript(slimLiveCheckbox.checked),
+    );
+    slim.append(slimLiveTranscript, slimMarker);
     slim.hidden = true;
     chip.after(slim);
   }
@@ -1035,6 +1083,7 @@ export function createRecordView({
       slim.hidden = !recording();
       slimMarker.textContent = t("ui.record.add_marker");
       slimMarker.title = t("ui.record.add_marker_title");
+      syncLiveTranscriptControls();
     }
     renderCornerStop();
   }
@@ -1061,6 +1110,10 @@ export function createRecordView({
       if (rec.liveSearch) rec.liveSearch.value = "";
     }
     status = next;
+    if (next?.recording && next.live_transcript_enabled !== undefined) {
+      liveTranscriptPreferenceOn = Boolean(next.live_transcript_enabled);
+      prefs.set(LIVE_TRANSCRIPT_KEY, liveTranscriptPreferenceOn ? "1" : "0");
+    }
     if (next?.recording && next.ours) {
       position = Math.max(position, next.position_frames ?? 0);
       if (!liveTake.active) {
@@ -1135,6 +1188,61 @@ export function createRecordView({
     prefs.set(STOP_MODE_KEY, stopMode);
     newGesture();
     render();
+  }
+
+  function liveTranscriptAvailable() {
+    return status?.live_transcript_available === true;
+  }
+
+  function syncLiveTranscriptControls() {
+    const available = liveTranscriptAvailable();
+    let enabled = liveTranscriptPreferenceOn;
+    if (recording())
+      enabled = liveTogglePending
+        ? liveTranscriptPreferenceOn
+        : status?.live_transcript_enabled === true;
+    else if (liveFlushing) enabled = true;
+    const unavailableHint = available ? "" : t("ui.record.live_transcript_unavailable");
+    for (const input of [setup.liveToggle, rec.liveToggle, slimLiveCheckbox]) {
+      if (!input) continue;
+      input.checked = available && enabled;
+      input.disabled =
+        !available || liveTogglePending || liveFlushing || (recording() && !status?.ours);
+      if (input.parentElement) input.parentElement.title = unavailableHint;
+    }
+    if (setup.liveHelp) {
+      setup.liveHelp.textContent = available
+        ? t("ui.record.live_transcript_help")
+        : t("ui.record.live_transcript_unavailable");
+    }
+  }
+
+  async function changeLiveTranscript(enabled) {
+    if (!liveTranscriptAvailable() || liveTogglePending) return;
+    const wasRecording = recording();
+    const previous = wasRecording
+      ? status?.live_transcript_enabled === true
+      : liveTranscriptPreferenceOn;
+    liveTranscriptPreferenceOn = Boolean(enabled);
+    prefs.set(LIVE_TRANSCRIPT_KEY, liveTranscriptPreferenceOn ? "1" : "0");
+    liveTogglePending = wasRecording;
+    syncLiveTranscriptControls();
+    if (!wasRecording) {
+      render();
+      return;
+    }
+    try {
+      setStatus(await api.setLiveTranscript(liveTranscriptPreferenceOn));
+      if (liveTranscriptPreferenceOn && !dialog.open) show();
+    } catch (error) {
+      liveTranscriptPreferenceOn = previous;
+      prefs.set(LIVE_TRANSCRIPT_KEY, previous ? "1" : "0");
+      notify(error.message);
+    } finally {
+      liveTogglePending = false;
+      syncLiveTranscriptControls();
+      render();
+    }
   }
 
   function offerPending(pending) {

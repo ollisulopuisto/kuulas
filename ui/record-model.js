@@ -80,6 +80,7 @@ export function startRequest({
   cartTrack,
   playOthers = false,
   latencyMs = 0,
+  liveTranscription = false,
 }) {
   const body = {
     device: device ? { index: device.index, name: device.name } : null,
@@ -90,6 +91,7 @@ export function startRequest({
     // delay between what is heard and what is captured, cut from the take's head (ms).
     play_others: Boolean(playOthers),
     latency_ms: Math.min(2000, Math.max(0, Number(latencyMs) || 0)),
+    live_transcription: Boolean(liveTranscription),
   };
   if (lanes) return { ...body, channels: lanes };
   return {
@@ -98,6 +100,11 @@ export function startRequest({
     track_id: target === "new" ? null : target,
     name: (name ?? "").trim(),
   };
+}
+
+/** A missing user preference means the resource-intensive live transcription stays off. */
+export function liveTranscriptPreference(value) {
+  return value === "1";
 }
 
 // -- several channels of one device (WP12b) -------------------------------------------------

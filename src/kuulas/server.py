@@ -342,6 +342,8 @@ class RecordStartBody(BaseModel):
     cart_track: str | None = None
     # Play every track the take does not record onto, from the take's start (headphones!).
     play_others: bool = False
+    # The optional, local speech-to-text runner (off by default).
+    live_transcription: bool = False
     # The delay between what was heard and what was captured, cut from the take's head.
     latency_ms: float = 0.0
 
@@ -370,6 +372,10 @@ class RecordStopBody(BaseModel):
 
 class RecordImportBody(BaseModel):
     takes: list[str]
+
+
+class RecordLiveTranscriptBody(BaseModel):
+    enabled: bool
 
 
 # -- the live channel's fan-out ------------------------------------------------
@@ -1853,6 +1859,10 @@ def create_app(session, engine, *, language: str | None = None,
         return {"live": True, "flushing": flushing,
                 "words": recorder.live_transcript_words(track)}
 
+    @app.post("/api/record/live-transcript")
+    def record_live_transcript_toggle(body: RecordLiveTranscriptBody):
+        return need_recorder().set_live_transcription(body.enabled)
+
     monitoring = {"on": False}
 
     def stop_monitoring():
@@ -1871,7 +1881,8 @@ def create_app(session, engine, *, language: str | None = None,
             engine.stop()
         view = rec.start(device=body.device, channels=body.channels, channel=body.channel,
                          track_id=body.track_id, name=body.name, at=body.at,
-                         cart_track=body.cart_track, latency_ms=body.latency_ms)
+                         cart_track=body.cart_track, latency_ms=body.latency_ms,
+                         live_transcription=body.live_transcription)
         if body.play_others:
             ids = rec.take_track_ids(view.get("take", ""))
             silent = {tid: [(0, 2**62)] for tid in ids}

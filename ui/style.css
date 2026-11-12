@@ -5444,6 +5444,34 @@ legend.form-heading {
   align-items: center;
   gap: var(--space-2);
 }
+.record-slim-live,
+.record-live-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+}
+.record-slim-live {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.record-slim-live input,
+.record-live-toggle input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+.record-live-help,
+.record-transcript-state {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  margin: 0;
+}
+.record-transcript-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
 .record-slim[hidden] {
   display: none;
 }
@@ -6341,6 +6369,10 @@ legend.form-heading {
   font-size: var(--text-sm);
   font-weight: 600;
   margin: 0;
+}
+.record-view .record-live-toggle {
+  font-size: var(--text-xs);
+  font-weight: 400;
 }
 .record-view .record-transcript-flushing {
   font-weight: 400;

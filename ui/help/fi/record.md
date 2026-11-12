@@ -7,6 +7,8 @@ related: [track, timeline]
 ---
 Äänitä yksi tai useampi tulokanava omille raidoilleen: {key:transport.record} avaa äänitysnäkymän. Valitse tulo, kanava ja raita (tai uusi raita) ja paina Äänitä. Otto alkaa toistokohdasta ja ilmestyy siihen leikkeenä, kun pysäytät.
 
+- Reaaliaikainen litterointi on oletuksena pois päältä. Ota **Reaaliaikainen litterointi** käyttöön äänitysnäkymässä ennen äänitystä tai napsauta valintaa punaisen Äänitetään-merkin vieressä äänityksen aikana. Asetusta voi muuttaa myös äänitysnäkymässä. Kuulas käyttää paikallista Orukeetia; sanat näkyvät pienellä viiveellä ja lisätään oton litteraattiin, kun otto tuodaan projektiin. Valinta muistetaan.
+
 - Ennakko: et voi painaa Äänitä liian myöhään. Kun äänitysnäkymä on auki, tuloa kuunnellaan ja viimeiset 60 sekuntia pidetään muistissa; otto alkaa niin paljon ennen Äänitä-painallusta, ja leike sijoitetaan niin, että ennakko päättyy toistokohtaan (aikajanan alun yli menevä osa leikataan pois). Valitse pois, 10, 30, 60 tai 120 sekuntia: {key:record.preroll} tai Ennakko-asetus Lisäasetuksissa. Näkymä kertoo "Valmiina: kuunnellaan, ei äänitetä", kun tämä on päällä. Levylle ei kirjoiteta mitään ennen kuin painat Äänitä; näkymän sulkeminen, sovelluksen sulkeminen tai kaatuminen hävittää puskurin.
 
 - Kuuntele mikrofonia äänikortin omasta suoramonitoroinnista. Lisäasetuksissa voit ottaa muiden raitojen toiston käyttöön; käytä kuulokkeita, jotta mikrofoni ei tallenna niitä.
