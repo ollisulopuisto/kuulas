@@ -440,6 +440,8 @@ export function registerAppCommands(registry, { actions, app }) {
   def("help.keys", () => app.openKeys());
   def("help.open", () => app.openHelp());
   def("help.whats_new", () => app.openWhatsNew(null));
+  // The core-loop onboarding card: opens even while hidden or finished (core-loop-panel.js).
+  def("help.core_loop", () => app.openCoreLoop());
   def("help.search", () => app.openSearch());
   // Help > Record a performance report… and Help > Log level (no project needed: they are
   // about the app, and a slow app is exactly when someone needs them).

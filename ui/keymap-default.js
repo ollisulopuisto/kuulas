@@ -1879,6 +1879,14 @@ export const DEFAULT_KEYMAP = [
   },
   { id: "help.keys", keys: { mac: "?", other: "?" }, context: "global", labelKey: "cmd.help.keys" },
   {
+    // The core-loop onboarding card (core-loop-panel.js): no key of its own; the Help menu
+    // and the palette reopen it.
+    id: "help.core_loop",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.help.core_loop",
+  },
+  {
     id: "help.whats_new",
     keys: { mac: null, other: null },
     context: "global",

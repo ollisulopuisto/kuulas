@@ -158,8 +158,13 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       id,
       () => {
         const plan = build(app.getState());
-        if (plan?.refuse) refuse(plan);
-        else if (plan) send(plan);
+        // A refusal is told, not run: the registry counts it as "did not run".
+        if (plan?.refuse) {
+          refuse(plan);
+          return { refused: true };
+        }
+        if (plan) send(plan);
+        return undefined;
       },
       (state) => build(state) !== null,
       explain(id),

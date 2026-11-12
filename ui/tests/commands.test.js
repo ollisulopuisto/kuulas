@@ -51,6 +51,18 @@ describe("the command registry", () => {
     assert.equal(registry.can("bad", {}), false);
   });
 
+  test("a command that refuses at run time did not run: no listeners, false", () => {
+    const registry = createRegistry();
+    const ran = [];
+    registry.onRun((id) => ran.push(id));
+    registry.register("cut", () => ({ refused: true }));
+    assert.equal(registry.run("cut", null), false);
+    assert.deepEqual(ran, []);
+    registry.register("ok", () => {});
+    assert.equal(registry.run("ok", null), true);
+    assert.deepEqual(ran, ["ok"]);
+  });
+
   test("a command that cannot apply does not run", () => {
     const registry = createRegistry();
     let ran = 0;

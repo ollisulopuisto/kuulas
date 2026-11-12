@@ -59,12 +59,18 @@ export function createRegistry() {
         return null;
       }
     },
-    /** Run it. With a state, a command that cannot apply is not run. Returns whether it ran. */
+    /**
+     * Run it. With a state, a command that cannot apply is not run. A command may also
+     * refuse at run time (it says why itself, e.g. an edit plan's refusal): it returns
+     * { refused: true } and counts as not run, so the run listeners (the recent list,
+     * the use hints, the core-loop card) never tick for it. Returns whether it ran.
+     */
     run(id, event, state) {
       const command = commands.get(id);
       if (!command || command.planned) return false;
       if (state !== undefined && !this.can(id, state)) return false;
-      command.run(event);
+      const outcome = command.run(event);
+      if (outcome?.refused === true) return false;
       for (const listener of listeners) {
         try {
           listener(id);

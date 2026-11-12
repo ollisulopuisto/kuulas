@@ -591,6 +591,7 @@ export const MENU = [
       ]),
       item("help.open"),
       item("help.keys"),
+      item("help.core_loop"),
       item("help.whats_new"),
       {
         kind: "submenu",

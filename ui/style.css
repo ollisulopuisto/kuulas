@@ -5228,6 +5228,119 @@ legend.form-heading {
   font-variant-numeric: tabular-nums;
 }
 
+/* Core-loop onboarding (core-loop-panel.js): a card at the bottom of the timeline stack.
+   Non-modal on purpose - the loop is tried by editing while the card stays open. */
+.core-loop {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-4);
+  transform: translateX(-50%);
+  z-index: 4;
+  width: min(560px, calc(100% - 2 * var(--space-6)));
+  max-height: calc(100% - var(--ruler-h) - 2 * var(--space-4));
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+}
+.cl-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.cl-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
+}
+.cl-progress {
+  font-size: var(--text-xs);
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+.cl-intro {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.cl-row {
+  display: grid;
+  grid-template-columns: var(--space-5) 7.5rem 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+}
+.cl-row:last-child {
+  border-bottom: 0;
+}
+.cl-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 1px solid var(--text-tertiary);
+  border-radius: 50%;
+  color: transparent;
+  font-size: 0.6rem;
+}
+.cl-row.done .cl-dot {
+  color: var(--surface-raised);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.cl-row.flash {
+  background: var(--accent-subtle);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cl-row {
+    transition: background-color 0.35s ease-out;
+  }
+}
+.cl-keys {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.cl-keys kbd {
+  min-width: 1.55rem;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--button-border);
+  border-bottom-width: 3px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-panel);
+  text-align: center;
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+}
+.cl-name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+}
+.cl-hint {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.cl-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
 /* The Material tab (material-panel.js): filters, a search field and one row per recording with
    a bar of what the edit plays (used), only mutes (cut) and leaves out (unused). */
 #panel-material {
