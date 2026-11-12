@@ -128,8 +128,17 @@ universal_build = false
 # Briefcase installs the wheels for the minimum version it is told.
 min_os_version = "{MIN_MACOS}"
 
+# permission.microphone makes Briefcase write the usage string. Its entitlement,
+# com.apple.security.device.microphone, is the App Sandbox key; a non-sandboxed
+# Developer ID app needs the Hardened Runtime key audio-input, or CoreAudio
+# records silence.
+[tool.briefcase.app.{APP_NAME}.permission]
+microphone = "Kuulas records narration and takes from your microphone."
+
+[tool.briefcase.app.{APP_NAME}.macOS.entitlement]
+"com.apple.security.device.audio-input" = true
+
 [tool.briefcase.app.{APP_NAME}.macOS.info]
-NSMicrophoneUsageDescription = "Kuulas records narration and takes from your microphone."
 NSHighResolutionCapable = true
 
 # A project is a folder; the exported type conforms to com.apple.package so Finder shows
