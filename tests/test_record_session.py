@@ -1549,38 +1549,79 @@ def _recorder_unreachable(rs):
     return real
 
 
+class _Hello:
+    """A reconnected watcher whose hello reports ``status``."""
+
+    closed = True
+
+    def __init__(self, status):
+        self._status = status
+
+    def request(self, *args, **kwargs):
+        return {"status": self._status}
+
+    def next_event(self, timeout):
+        return None
+
+
 def test_recorder_loss_stops_the_live_runner_so_the_next_take_can_start_one(
+        session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0, live_transcription=True)
+        wait_until(lambda: rs._live_runner is not None, timeout=10)
+        real = _recorder_unreachable(rs)
+        rs._after_disconnect()  # the status probe fails: nothing is concluded yet
+        rs._command = real
+        assert rs._live_runner is not None
+        assert rs._live_enabled is True
+        # The next hello shows an idle recorder: the take is over.
+        rs._listen(_Hello({"state": "idle"}))
+        assert rs._live_runner is None
+        assert rs._live_enabled is False
+        pending = rs._live_pending
+        assert pending is not None
+        assert pending["take"] == view["take"]  # its import waits for the flush
+        assert pending["runner"] is not None
+    finally:
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_a_failed_status_probe_then_a_reconnect_to_the_same_take_keeps_live_words(
         session, recorder):
     rs = _live_rs(session, recorder)
     try:
         rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
                  track_id=None, name="Olli", at=0, live_transcription=True)
         wait_until(lambda: rs._live_runner is not None, timeout=10)
+        runner = rs._live_runner
+        survived = rs._command("status", timeout=5.0)
         real = _recorder_unreachable(rs)
-        rs._after_disconnect()  # the recorder died with the take
+        rs._after_disconnect()  # a transient failure, not a lost take
         rs._command = real
-        assert rs._live_runner is None
-        assert rs._live_enabled is False
+        rs._listen(_Hello(survived))
+        assert rs._live_runner is runner
+        assert rs._live_enabled is True
+        assert rs._live_pending is None
     finally:
         rs.stop("two_step")
         rs.close()
 
 
-def test_recorder_loss_registers_the_lost_take_so_its_import_waits_for_the_flush(
+def test_a_take_that_stopped_while_the_watcher_was_away_frees_the_live_slot(
         session, recorder):
     rs = _live_rs(session, recorder)
     try:
         view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
                         track_id=None, name="Olli", at=0, live_transcription=True)
-        take = view["take"]
         wait_until(lambda: rs._live_runner is not None, timeout=10)
-        real = _recorder_unreachable(rs)
-        rs._after_disconnect()
-        rs._command = real
-        pending = rs._live_pending
-        assert pending is not None
-        assert pending["take"] == take
-        assert pending["runner"] is not None  # the import waits on this flush
+        rs._after_disconnect()  # the recorder still answers: same take, kept
+        assert rs._live_runner is not None
+        rs._listen(_Hello({"state": "idle"}))  # it stopped before we re-subscribed
+        assert rs._live_runner is None
+        assert rs._live_pending["take"] == view["take"]
     finally:
         rs.stop("two_step")
         rs.close()

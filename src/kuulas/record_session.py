@@ -135,6 +135,7 @@ class RecordSession:
         # Live ASR is an explicit per-take opt-in; audio capture never depends on it.
         self._live_enabled = False
         self._live_runner: live_transcribe.LiveTranscribeRunner | None = None
+        self._live_take: str | None = None  # the take that runner transcribes
         self._live_done: live_transcribe.LiveTranscribeSidecar | None = None
         # The finished take's flush + import coordination (see _live_stop):
         # {"runner", "take", "imported", "flushed", "waiting"} under _lock.
@@ -819,6 +820,7 @@ class RecordSession:
         self._set_available(True)
         self.publish({"type": "record", "kind": "status",
                       "status": self._view(status, True)})
+        self._reconcile_live(status)
         recovered = [r for r in status.get("recovered") or []
                      if r.get("take") and self._ours(r)]
         if recovered:
@@ -886,6 +888,7 @@ class RecordSession:
                          and current.get("take") == take)
                 if still:
                     self._live_runner = runner
+                    self._live_take = take
             if not still:
                 runner.stop(flush=False, block=False)
                 return
@@ -1093,6 +1096,19 @@ class RecordSession:
         if ours and kind != "started":
             self._notice(event)
 
+    def _reconcile_live(self, status: dict) -> None:
+        """After a (re)connect: a live runner whose take is no longer the one being
+        recorded is stopped under its own take, so its import waits for the flush and
+        the next take can start a runner. The same take keeps runner and opt-in."""
+        with self._lock:
+            runner, take = self._live_runner, self._live_take
+        if runner is None:
+            return
+        if (self._recording(status) and self._ours(status)
+                and status.get("take") == take):
+            return
+        self._live_stop(take)
+
     def _after_disconnect(self) -> None:
         """The recorder went away. If it was writing our take, it died with it: a fresh
         recorder repairs the files at its start, and the take is offered for import."""
@@ -1117,11 +1133,8 @@ class RecordSession:
         self._set_available(False)
         if self._closed.is_set() or not was_ours:
             return
-        # The take died with the recorder: its live runner must not keep the slot,
-        # or the next take could never start one (_live_start sees it as taken).
-        # Registered under the lost take's name, so importing it waits for the
-        # runner's flush like any stopped take.
-        self._live_stop(lost_take)
+        # The live runner and the opt-in stay until a reconnect shows what the
+        # recorder holds (_reconcile_live): a failed status probe proves nothing.
         notice = {"key": "record.event.recorder_lost", "level": "alarm", "params": {}}
         self._notices.append(notice)
         self.publish({"type": "record", "kind": "notice", **notice})
