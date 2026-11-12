@@ -1102,6 +1102,9 @@ class RecordSession:
         self._set_available(False)
         if self._closed.is_set() or not was_ours:
             return
+        # The take died with the recorder: its live runner must not keep the slot,
+        # or the next take could never start one (_live_start sees it as taken).
+        self._live_stop()
         notice = {"key": "record.event.recorder_lost", "level": "alarm", "params": {}}
         self._notices.append(notice)
         self.publish({"type": "record", "kind": "notice", **notice})

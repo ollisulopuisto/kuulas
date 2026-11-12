@@ -1534,3 +1534,18 @@ def test_live_start_keeps_the_cached_status_when_the_recheck_cannot_reach_the_re
         rs._command = real
         rs.stop("two_step")
         rs.close()
+
+
+def test_recorder_loss_stops_the_live_runner_so_the_next_take_can_start_one(
+        session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                 track_id=None, name="Olli", at=0, live_transcription=True)
+        wait_until(lambda: rs._live_runner is not None, timeout=10)
+        rs._after_disconnect()  # the recorder died with the take
+        assert rs._live_runner is None
+        assert rs._live_enabled is False
+    finally:
+        rs.stop("two_step")
+        rs.close()
