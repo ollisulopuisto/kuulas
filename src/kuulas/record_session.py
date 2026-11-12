@@ -134,6 +134,7 @@ class RecordSession:
         self._live_engine_factory = live_engine_factory
         # Live ASR is an explicit per-take opt-in; audio capture never depends on it.
         self._live_enabled = False
+        self._live_resume_take: str | None = None
         self._live_runner: live_transcribe.LiveTranscribeRunner | None = None
         self._live_done: live_transcribe.LiveTranscribeSidecar | None = None
         # The finished take's flush + import coordination (see _live_stop):
@@ -819,6 +820,14 @@ class RecordSession:
         self._set_available(True)
         self.publish({"type": "record", "kind": "status",
                       "status": self._view(status, True)})
+        with self._lock:
+            resume, self._live_resume_take = self._live_resume_take, None
+        if (resume and status.get("take") == resume and self._recording(status)
+                and self._ours(status)):
+            # The take outlived the watcher's connection: keep its live words.
+            with self._lock:
+                self._live_enabled = True
+            self._live_start(self.status())
         recovered = [r for r in status.get("recovered") or []
                      if r.get("take") and self._ours(r)]
         if recovered:
@@ -1098,13 +1107,20 @@ class RecordSession:
         recorder repairs the files at its start, and the take is offered for import."""
         with self._lock:
             was_ours = self._ours(self._status) and self._recording(self._status)
+            lost_take = self._status.get("take") if was_ours else None
+            live_was_on = self._live_enabled
             self._status = {"state": "idle"}
+            # Only the watcher socket may have dropped: if a reconnect finds this
+            # same take still recording, live transcription resumes (_listen).
+            self._live_resume_take = lost_take if live_was_on else None
         self._set_available(False)
         if self._closed.is_set() or not was_ours:
             return
         # The take died with the recorder: its live runner must not keep the slot,
         # or the next take could never start one (_live_start sees it as taken).
-        self._live_stop()
+        # Registered under the lost take's name, so importing it waits for the
+        # runner's flush like any stopped take.
+        self._live_stop(lost_take)
         notice = {"key": "record.event.recorder_lost", "level": "alarm", "params": {}}
         self._notices.append(notice)
         self.publish({"type": "record", "kind": "notice", **notice})

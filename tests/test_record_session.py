@@ -1549,3 +1549,49 @@ def test_recorder_loss_stops_the_live_runner_so_the_next_take_can_start_one(
     finally:
         rs.stop("two_step")
         rs.close()
+
+
+def test_recorder_loss_registers_the_lost_take_so_its_import_waits_for_the_flush(
+        session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0, live_transcription=True)
+        take = view["take"]
+        wait_until(lambda: rs._live_runner is not None, timeout=10)
+        rs._after_disconnect()
+        pending = rs._live_pending
+        assert pending is not None
+        assert pending["take"] == take
+        assert pending["runner"] is not None  # the import waits on this flush
+    finally:
+        rs.stop("two_step")
+        rs.close()
+
+
+def test_a_watcher_reconnect_to_the_surviving_take_resumes_live_transcription(
+        session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                 track_id=None, name="Olli", at=0, live_transcription=True)
+        wait_until(lambda: rs._live_runner is not None, timeout=10)
+        survived = rs._command("status", timeout=5.0)
+        rs._after_disconnect()  # only the watcher socket dropped
+        assert rs._live_runner is None
+
+        class Reconnected:
+            closed = True
+
+            def request(self, *args, **kwargs):
+                return {"status": survived}
+
+            def next_event(self, timeout):
+                return None
+
+        rs._listen(Reconnected())
+        assert rs._live_enabled is True
+        assert rs._live_runner is not None
+    finally:
+        rs.stop("two_step")
+        rs.close()
