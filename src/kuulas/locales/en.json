@@ -1,4 +1,7 @@
 {
+  "dmg.welcome": "Welcome",
+  "dmg.install": "Drag the app to Applications to install.",
+  "dmg.open": "Open from Applications.",
   "ui.loudness.pending": "Measuring loudness…",
   "ui.loudness.unavailable": "Loudness not measured",
   "ui.loudness.updating": "updating measurement",

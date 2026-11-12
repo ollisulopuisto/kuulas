@@ -129,6 +129,7 @@ fi
 built="$(ls "$work"/stage/dist/*.dmg | head -1)"
 dmg="$out/Kuulas $version.dmg"
 cp "$built" "$dmg"
+python3 "$here/packaging/dmg/restyle.py" "$dmg" Kuulas.app "$here/packaging/dmg/welcome-kuulas.png"
 
 if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
   echo "== sign dmg"
