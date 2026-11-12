@@ -1507,3 +1507,30 @@ def test_live_start_after_the_take_ended_makes_no_runner(session, recorder):
         assert rs._live_runner is None
     finally:
         rs.close()
+
+
+def test_live_start_keeps_the_cached_status_when_the_recheck_cannot_reach_the_recorder(
+        session, recorder):
+    rs = _live_rs(session, recorder)
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0, live_transcription=True)
+        rs._live_enabled = True
+        cached = dict(rs._status)
+        assert rs._recording(cached)
+        assert rs._ours(cached)
+        real = rs._command
+
+        def flaky(cmd, **kw):
+            if cmd == "status":
+                raise RecordError("error.record.unavailable", status=503)
+            return real(cmd, **kw)
+
+        rs._command = flaky
+        rs._live_start(view)
+        assert rs._status == cached  # not replaced by idle: meters keep running
+        assert rs._live_runner is not None  # the take is still ours: the worker starts
+    finally:
+        rs._command = real
+        rs.stop("two_step")
+        rs.close()

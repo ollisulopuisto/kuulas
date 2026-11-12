@@ -872,10 +872,17 @@ class RecordSession:
                      "statuses": statuses}))
             # Recheck before publishing: the take may have stopped, or live
             # transcription been switched off, while the runner was built.
-            current = self.status()
+            # A read that never replaces the cached status: if the recorder cannot
+            # be reached now, the last status heard still names this take, and the
+            # meters and levels (which follow that cache) must keep running.
+            try:
+                current = self._command("status", timeout=5.0)
+            except RecordError:
+                with self._lock:
+                    current = dict(self._status)
             with self._lock:
                 still = (self._live_enabled and self._live_runner is None
-                         and current.get("recording") and current.get("ours")
+                         and self._recording(current) and self._ours(current)
                          and current.get("take") == take)
                 if still:
                     self._live_runner = runner
