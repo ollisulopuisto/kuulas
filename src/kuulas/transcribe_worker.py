@@ -61,7 +61,9 @@ class _Status:
         self.lock = threading.Lock()
         self.data: dict = {"state": "queued", "progress": 0.0, "message": "",
                            "indeterminate": True, "log": [], "pid": os.getpid(),
-                           "host": bgjobs._hostname(), "started": bgjobs.now_iso(),
+                           "host": bgjobs._hostname(), "boot": bgjobs.boot_id(),
+                           "machine": bgjobs.machine_id(),
+                           "started": bgjobs.now_iso(),
                            "finished": None, "error": None}
         self.last = 0.0
         self.dirty = False

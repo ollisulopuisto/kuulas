@@ -6,7 +6,11 @@ and outlives the editor:
 * ``<id>.json``: what to do (written once, before anything starts): backend,
   audio paths as resolved, model, language, the Colab settings as they were,
   the host that owns it and the transcript revision each media had at submit.
-* ``<id>.status.json``: the worker's own progress, replaced atomically.
+* ``<id>.status.json``: the worker's own progress, replaced atomically. Its
+  ``host``, ``machine``, ``pid`` and ``boot`` say who runs it; a
+  ``queued``/``running`` job whose boot token is not this machine's current one
+  is ``interrupted``, because a rebooted machine can reuse the pid for an
+  unrelated process.
 * ``<id>.<media>.words.json``: the result per media, in the Colab contract's
   shape (``colab_transcribe.read_words_json`` reads it strictly). The worker
   never opens the project database; the editor ingests (``Session``).
@@ -36,6 +40,7 @@ from . import toolpath
 from .clock import FLICKS
 from .messages import KuulasError, t
 from .package import _hostname, _pid_alive, write_json_atomic
+from .processes import boot_id, machine_id
 
 log = logging.getLogger("kuulas.bgjobs")
 
@@ -65,6 +70,55 @@ def _parse(text: object) -> datetime | None:
 
 def jobs_dir(folder: Path | str) -> Path:
     return Path(folder) / JOBS_DIR
+
+
+def _same_host(a: object, b: object) -> bool:
+    """Do two recorded hostnames name the same computer?
+
+    macOS reports one Mac as ``name`` and ``name.local`` (and the case varies with
+    the network), so an exact string compare made the owner's own jobs "foreign":
+    shown as running on his computer, refusing to cancel or restart. Differences
+    of case and of one trailing ``.local`` are the same machine; anything more is
+    not (two Macs sharing a Dropbox project must keep their own jobs).
+    """
+    if not isinstance(a, str) or not isinstance(b, str) or not a or not b:
+        return False
+
+    def norm(host: str) -> str:
+        host = host.strip().lower()
+        return host[:-6] if host.endswith(".local") else host
+
+    return norm(a) == norm(b)
+
+
+def job_is_mine(job: dict) -> bool:
+    """Does this machine own the job?
+
+    A recorded machine token decides when both sides have one: hostnames lie in
+    both directions (one Mac is ``name`` and ``name.local``; two Macs can also
+    collide under exactly those spellings, and normalization alone would hand
+    each the other's jobs). When the job names its machine but the local probe
+    fails, ownership is unproven and the job is foreign until the probe
+    recovers; falling back to a collidable hostname would hand control to the
+    wrong computer. The hostname compare is the fallback only for jobs written
+    before the token existed.
+    """
+    recorded = job.get("machine")
+    if isinstance(recorded, str):
+        current = machine_id()
+        return current is not None and recorded == current
+    return _same_host(job.get("host"), _hostname())
+
+
+def _boot_from_an_earlier_boot(recorded: object, current: str | None) -> bool:
+    """Does a recorded boot token prove a reboot? Only a comparable token can:
+    the short-lived ``linux-<btime>`` form was a wall clock that moved with clock
+    sync, so it proves nothing and falls back to the pid check."""
+    if not isinstance(recorded, str) or current is None:
+        return False
+    if re.fullmatch(r"linux-\d+", recorded):  # the unreleased btime form
+        return False
+    return recorded != current
 
 
 def _job_path(folder: Path | str, job_id: str, suffix: str) -> Path:
@@ -133,10 +187,11 @@ def create_job(folder: Path | str, *, backend: str, items: list[dict],
         "local_engine": local_engine,
         "previous": previous, "forced": forced,
         "allow_low_memory": bool(allow_low_memory), "host": _hostname(),
-        "created": now_iso()})
+        "machine": machine_id(), "created": now_iso()})
     write_json_atomic(status_file(folder, job_id), {
         "state": "queued", "progress": 0.0, "message": "", "indeterminate": True,
-        "log": [], "pid": None, "host": _hostname(), "finished": None})
+        "log": [], "pid": None, "host": _hostname(), "boot": boot_id(),
+        "machine": machine_id(), "finished": None})
     return job_id
 
 
@@ -179,7 +234,7 @@ def describe(folder: Path | str, job_id: str) -> dict | None:
     if job is None:
         return None
     status = read_json(status_file(folder, job_id)) or {}
-    mine = job.get("host") == _hostname()
+    mine = job_is_mine(job)
     state = status.get("state") if isinstance(status.get("state"), str) else "queued"
     error = _error_of(status.get("error"))
     if state in {"queued", "running"} and mine:
@@ -187,7 +242,11 @@ def describe(folder: Path | str, job_id: str) -> dict | None:
         created = _parse(job.get("created"))
         old = created is not None and (
             datetime.now(UTC) - created).total_seconds() > QUEUED_GRACE_S
-        if (isinstance(pid, int) and not _pid_alive(pid)) or (pid is None and old):
+        if (_boot_from_an_earlier_boot(status.get("boot"), boot_id())
+                or (isinstance(pid, int) and not _pid_alive(pid))
+                or (pid is None and old)):
+            # The worker is gone (killed, logout, reboot). A bare pid cannot say so
+            # across a reboot: the number may belong to an unrelated process now.
             state = "interrupted"
             error = _error_of({"key": "error.transcribe.interrupted"})
     marker = read_json(marker_file(folder, job_id)) or {}

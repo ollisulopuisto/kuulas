@@ -40,3 +40,47 @@ def test_windows_process_groups_and_signals_are_platform_specific(monkeypatch):
     processes.signal_process_group(process, signal.SIGTERM)
     processes.signal_process_group(process, 9)
     assert process.sent == [0, "terminate", "kill"]
+
+
+def test_a_failed_probe_is_retried_not_cached(monkeypatch):
+    """A transient failure (a sysctl timeout, a half-mounted /proc) must not be
+    cached: the next call sees the token and stale jobs reconcile."""
+    monkeypatch.delitem(processes._CACHE, "boot", raising=False)
+    monkeypatch.setattr(processes, "_FAILED_PROBE_RETRY_S", 0.0)
+    calls = []
+
+    def probe():
+        calls.append(1)
+        return None if len(calls) == 1 else "this-boot"
+
+    monkeypatch.setattr(processes, "_probe_boot_id", probe)
+    assert processes.boot_id() is None
+    assert processes.boot_id() == "this-boot"
+
+
+def test_a_successful_probe_is_read_once(monkeypatch):
+    monkeypatch.delitem(processes._CACHE, "boot", raising=False)
+    calls = []
+
+    def probe():
+        calls.append(1)
+        return "this-boot"
+
+    monkeypatch.setattr(processes, "_probe_boot_id", probe)
+    assert processes.boot_id() == processes.boot_id() == "this-boot"
+    assert len(calls) == 1
+
+
+def test_a_failed_probe_backs_off_before_retrying(monkeypatch):
+    """A persistently failing probe must not stall every jobs listing: failures
+    retry after a backoff, not on every call."""
+    monkeypatch.delitem(processes._CACHE, "boot", raising=False)
+    calls = []
+
+    def probe():
+        calls.append(1)
+
+    monkeypatch.setattr(processes, "_probe_boot_id", probe)
+    assert processes.boot_id() is None
+    assert processes.boot_id() is None
+    assert len(calls) == 1
