@@ -21,3 +21,9 @@ export const tabTitle = (name, combos) =>
 
 /** The key shown on the tab: the first shown combo whole, modifier included ("" if unbound). */
 export const tabHint = (shown) => shown[0] ?? "";
+
+/**
+ * A tab's accessible name when it can carry a count badge: "Candidates (3)" while the badge
+ * shows, the bare name at zero, matching the toolbar rail's "label (badge)" announcement.
+ */
+export const tabAccessibleName = (name, count) => (count > 0 ? `${name} (${count})` : name);

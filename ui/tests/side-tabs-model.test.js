@@ -10,7 +10,7 @@ import * as i18n from "../i18n.js";
 import { ICONS } from "../icons.js";
 import { formatCombo } from "../keymap-config.js";
 import { DEFAULT_KEYMAP } from "../keymap-default.js";
-import { tabHint, tabMode, tabTitle } from "../side-tabs-model.js";
+import { tabAccessibleName, tabHint, tabMode, tabTitle } from "../side-tabs-model.js";
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
 const locales = fileURLToPath(new URL("../../src/kuulas/locales/", import.meta.url));
@@ -41,6 +41,13 @@ test("tabTitle is the name with its keys", () => {
   assert.equal(tabTitle("History", ["Alt+5"]), "History (Alt+5)");
   assert.equal(tabTitle("History", ["Alt+5", "F6"]), "History (Alt+5, F6)");
   assert.equal(tabTitle("History", []), "History");
+});
+
+test("tabAccessibleName includes the open-count badge only when it shows", () => {
+  // The candidates tab's badge is hidden at zero; the accessible name must match what is seen.
+  assert.equal(tabAccessibleName("Candidates", 0), "Candidates");
+  assert.equal(tabAccessibleName("Candidates", 3), "Candidates (3)");
+  assert.equal(tabAccessibleName("Ehdokkaat", 12), "Ehdokkaat (12)");
 });
 
 test("tabHint is the whole shown key, modifier included, never a bare digit", () => {

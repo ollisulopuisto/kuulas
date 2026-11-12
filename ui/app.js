@@ -183,7 +183,7 @@ import { seriesChip } from "./series-model.js";
 import { adoptRequest, createSeriesShelf } from "./series-shelf.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
-import { tabHint, tabMode, tabTitle } from "./side-tabs-model.js";
+import { tabAccessibleName, tabHint, tabMode, tabTitle } from "./side-tabs-model.js";
 import { SIDEBAR_KEY, sidebarPref, sidebarShown, toggleSidebar } from "./sidebar-model.js";
 import { normaliseSilence } from "./silence-model.js";
 import { createSilencePanel } from "./silence-panel.js";
@@ -281,6 +281,9 @@ const GAIN_DIGITS = (value) => (Number.isInteger(value) ? 0 : 1);
 // Each side tab: tooltip "Name (Mod+n)", aria-keyshortcuts, the whole key ("⌘n") as its hint, and
 // the step (full / tight / compact / minimal) that keeps the strip on one row.
 let tabKeyEntries = null;
+// The candidates tab's open-count badge, mirrored into its accessible name (screen readers
+// otherwise miss the count; the badge is aria-hidden by being hidden at zero only).
+let candidatesOpen = 0;
 function applyTabs() {
   const platform = detectPlatform();
   for (const [id, tab] of Object.entries(SIDE_TAB_COMMANDS)) {
@@ -290,7 +293,10 @@ function applyTabs() {
     const combos = tabKeyEntries ? shortcutsFor(id, tabKeyEntries) : [];
     const shown = combos.map((combo) => formatCombo(combo, platform));
     button.title = tabTitle(name, shown);
-    button.setAttribute("aria-label", name);
+    button.setAttribute(
+      "aria-label",
+      tab === "candidates" ? tabAccessibleName(name, candidatesOpen) : name,
+    );
     button.setAttribute(
       "aria-keyshortcuts",
       combos.map((c) => c.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control")).join(" "),
@@ -4797,8 +4803,13 @@ function render(state, patch, previous = null) {
     candidatesPanel.update(state);
   if (touched("candidateSummary")) {
     const open = state.candidateSummary?.open ?? 0;
+    candidatesOpen = open;
     $("cand-count").hidden = open === 0;
     $("cand-count").textContent = String(open);
+    $("tab-candidates").setAttribute(
+      "aria-label",
+      tabAccessibleName(t("ui.tabs.candidates"), open),
+    );
     layoutTabs();
   }
   if (touched("sidebarShown")) {
