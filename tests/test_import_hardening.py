@@ -366,7 +366,9 @@ def test_a_named_pipe_is_refused_without_blocking_the_import(tmp_path, store):
 
 
 @pytest.mark.parametrize("code", [errno.EIO, errno.ENXIO])
-def test_a_drive_lost_during_the_path_check_names_the_drive(store, tmp_path, monkeypatch, code):
+def test_a_drive_lost_during_the_path_check_names_the_drive(
+    store, tmp_path, monkeypatch, code
+):
     """The up-front stat() is the first thing to touch a pulled drive; its EIO or
     ENXIO must reach the user as 'reconnect the drive', not 'unreadable file'."""
     src = tmp_path / "card" / "take.wav"
