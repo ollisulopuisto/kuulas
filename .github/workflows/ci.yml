@@ -274,6 +274,9 @@ jobs:
           path: podcast
       - uses: astral-sh/setup-uv@v7
       - run: uv sync
+      # Audio decoding tests need ffmpeg and libsndfile/PortAudio, as in the full suites.
+      - name: ffmpeg and audio libraries (Linux)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1
       - name: Prepare pytest report directory
         run: uv run python -c "from pathlib import Path; Path('test-results').mkdir(exist_ok=True)"
       - name: Run changed Python test modules
