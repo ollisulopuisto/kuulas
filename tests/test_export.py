@@ -323,10 +323,12 @@ def test_streaming_master_skips_the_memory_refusal(session, out, monkeypatch):
     # must not refuse it (it is only in force on the old path).
     monkeypatch.setattr(export, "physical_memory", lambda: 1024)
     monkeypatch.setattr(export, "_streams", lambda: True)
+    key = None
     try:
         run(session, out, master_lufs=-16.0)
     except export.ExportError as e:
-        assert e.key != "error.export.master_memory"
+        key = e.key
+    assert key != "error.export.master_memory"
 
 
 def test_how_much_mastering_fits():

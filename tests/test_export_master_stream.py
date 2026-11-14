@@ -21,7 +21,8 @@ RESULT = SimpleNamespace(boost_db=1.25, lufs=-16.0, cost_lu=0.1, reached=True)
 def candidate_streaming(monkeypatch):
     """These tests exercise the streaming path whatever the module default is.
 
-    The default itself is pinned in test_export_master_default.py, which has no such fixture."""
+    The default itself is pinned in test_export_master_default.py (no such fixture).
+    """
     monkeypatch.setattr(export, "STREAM_MASTERING_ENABLED", True)
 
 
