@@ -1528,7 +1528,9 @@ def test_live_start_keeps_the_cached_status_when_the_recheck_cannot_reach_the_re
 
         rs._command = flaky
         rs._live_start(view)
-        assert rs._status == cached  # not replaced by idle: meters keep running
+        # Not replaced by idle: meters keep running. The poller advances
+        # position_frames between the copy and this check, so leave it out.
+        assert {**rs._status, "position_frames": 0} == {**cached, "position_frames": 0}
         assert rs._live_runner is not None  # the take is still ours: the worker starts
     finally:
         rs._command = real
