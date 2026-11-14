@@ -64,3 +64,12 @@ test("only the playing chip shows Stop", () => {
   });
   assert.equal(previewButton(null, "a").playing, false);
 });
+
+test("with animation on the meter redraws every frame; off, once a second", async () => {
+  const { previewDue, PREVIEW_STEP_MS } = await import("../clipboard-preview.js");
+  assert.equal(PREVIEW_STEP_MS, 1000);
+  assert.equal(previewDue(1016, 1000, false), true);
+  assert.equal(previewDue(1016, 1000, true), false);
+  assert.equal(previewDue(1999, 1000, true), false);
+  assert.equal(previewDue(2000, 1000, true), true);
+});
