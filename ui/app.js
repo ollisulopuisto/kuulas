@@ -596,14 +596,14 @@ function startPlayheadTicker() {
 
 // The clipboard preview (WP46) has a clock of its own: its anchors ("preview" on the live
 // channel) fill the playing chip's progress meter and never move the timeline's playhead.
-// With animation off the meter steps four times a second instead of every frame.
+// With animation off the meter steps once a second instead of every frame (1 fps or 60, nothing between).
 const cartQueue = createCartQueue();
 let previewClock = createPlayheadClock();
 let previewEnd = null;
 let previewEndedSeq = null; // the newest "no preview plays" heard
 let previewTicking = false;
 let previewDrawn = 0;
-const PREVIEW_STEP_MS = 250;
+const PREVIEW_STEP_MS = 1000;
 function startClipboardPreview(id, seq) {
   previewClock = createPlayheadClock();
   previewClock.setOffset(playheadClock.offset());
