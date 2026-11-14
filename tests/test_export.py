@@ -309,11 +309,26 @@ def test_mastering_refuses_programmes_too_long_for_memory(session, out, monkeypa
 def test_mastering_refuses_what_would_not_fit_in_memory(session, out, monkeypatch):
     # speechmix masters the whole programme in RAM (~80 B per sample): a
     # master that would take the Mac into swap is refused, not started.
+    # This is the old whole-programme path's guard; the streaming master checks disk.
+    monkeypatch.setattr(export, "STREAM_MASTERING_ENABLED", False)
     monkeypatch.setattr(export, "physical_memory", lambda: 1024)
     with pytest.raises(export.ExportError) as e:
         run(session, out, master_lufs=-16.0)
     assert e.value.key == "error.export.master_memory"
     assert list(out.rglob("*")) == []
+
+
+def test_streaming_master_skips_the_memory_refusal(session, out, monkeypatch):
+    # The disk-backed master does not hold the programme in RAM, so the RAM estimate
+    # must not refuse it (it is only in force on the old path).
+    monkeypatch.setattr(export, "physical_memory", lambda: 1024)
+    monkeypatch.setattr(export, "_streams", lambda: True)
+    key = None
+    try:
+        run(session, out, master_lufs=-16.0)
+    except export.ExportError as e:
+        key = e.key
+    assert key != "error.export.master_memory"
 
 
 def test_how_much_mastering_fits():

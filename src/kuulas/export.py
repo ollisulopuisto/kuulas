@@ -60,8 +60,10 @@ BLOCK_SECONDS = 10
 #: Mastering holds the whole programme in memory (float64 inside speechmix),
 #: so longer than this is refused with a message (and see master_fits).
 MAX_MASTER_SECONDS = 3 * 3600
-#: Keep the established mastering recipe until streaming acceptance is complete.
-STREAM_MASTERING_ENABLED = False
+#: Master through speechmix's disk-backed ``master_stream`` (same -16 LUFS result as
+#: ``programme.master``, bounded memory). The old whole-programme path stays as the
+#: fallback when the installed speechmix has no ``master_stream`` (see ``_streams``).
+STREAM_MASTERING_ENABLED = True
 #: What speechmix's ``programme.master`` holds per sample of the programme
 #: (per channel): the float64 copy, the lifted signal, the peak stage's and
 #: the limiter's per-sample curves and the round before. Measured 2026-10-20
@@ -73,6 +75,16 @@ MASTER_BYTES_PER_SAMPLE = 40
 #: with a message (export unmastered) instead of swapping the Mac to a halt.
 #: On 24 GB that is ~55 minutes of stereo.
 MASTER_MEMORY_SHARE = 0.5
+
+
+def _streams() -> bool:
+    """Whether the disk-backed master runs: it is on and speechmix has it.
+
+    podcast and Kuulas can be updated independently, so an older speechmix falls
+    back to the whole-programme master instead of failing the export."""
+    return STREAM_MASTERING_ENABLED and (
+        callable(getattr(programme, "master_stream", None))
+        and callable(getattr(programme, "master_scratch_bytes", None)))
 
 
 def physical_memory() -> int:
@@ -747,9 +759,7 @@ def _mastered(job: _Job, sink, channels: int, render, target_lufs: float, worker
     analysis scratch; this function owns and closes the rendered source on every
     outcome, before the outer export removes its partial output.
     """
-    if not STREAM_MASTERING_ENABLED or not (
-            callable(getattr(programme, "master_stream", None))
-            and callable(getattr(programme, "master_scratch_bytes", None))):
+    if not _streams():
         # podcast and Kuulas can be updated independently. Never make the
         # existing -16 LUFS feature depend on an unmerged/newer shared API.
         return _mastered_legacy(job, sink, channels, render, target_lufs, workers,
@@ -1024,7 +1034,9 @@ def _single(job: _Job, target: Path, n: int, workers: int,
     if lufs is not None and job.frames / job.rate > MAX_MASTER_SECONDS:
         raise _fail("error.export.too_long_to_master",
                     hours=MAX_MASTER_SECONDS // 3600)
-    if lufs is not None and not master_fits(job.frames, 2):
+    # The RAM estimate is the whole-programme master's; the disk-backed one checks free
+    # disk in ``_mastered`` instead.
+    if lufs is not None and not _streams() and not master_fits(job.frames, 2):
         raise _fail("error.export.master_memory",
                     minutes=master_minutes_that_fit(2, job.rate))
 

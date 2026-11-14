@@ -19,7 +19,10 @@ RESULT = SimpleNamespace(boost_db=1.25, lufs=-16.0, cost_lu=0.1, reached=True)
 
 @pytest.fixture(autouse=True)
 def candidate_streaming(monkeypatch):
-    """Candidate path is tested explicitly, not enabled in production yet."""
+    """These tests exercise the streaming path whatever the module default is.
+
+    The default itself is pinned in test_export_master_default.py (no such fixture).
+    """
     monkeypatch.setattr(export, "STREAM_MASTERING_ENABLED", True)
 
 
@@ -338,3 +341,13 @@ def test_streaming_remains_disabled_until_acceptance(tmp_path, source, monkeypat
     result, _blocks, scratch = adapter(tmp_path, source)
     assert result["boost_db"] == 0.0  # sub-second reference skips target search
     assert scratch == []
+
+
+def test_older_speechmix_falls_back_to_the_whole_programme_master(monkeypatch):
+    monkeypatch.delattr(export.programme, "master_stream", raising=False)
+    assert export._streams() is False
+
+
+def test_switch_off_falls_back_to_the_whole_programme_master(monkeypatch):
+    monkeypatch.setattr(export, "STREAM_MASTERING_ENABLED", False)
+    assert export._streams() is False

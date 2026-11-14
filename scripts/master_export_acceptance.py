@@ -57,10 +57,8 @@ def run(minutes: int, root: Path) -> dict:
         peaks = {'rss': process.memory_info().rss, 'disk': 0}
         try:
             session.import_media([str(source)])
-            # This process alone opts in. No config, user preference, production
-            # default or stored project flag changes.
-            require(export.STREAM_MASTERING_ENABLED is False, "Legacy default changed")
-            export.STREAM_MASTERING_ENABLED = True
+            # Streaming is the default; make sure this run measures it.
+            require(export.STREAM_MASTERING_ENABLED is True, "Streaming default changed")
             # Acceptance-only bypass: the production preflight estimates the old
             # full-length algorithm. Measure the candidate here, do not ship a
             # guessed replacement RAM threshold or change legacy protection.
