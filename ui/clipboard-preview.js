@@ -49,3 +49,11 @@ export function previewButton(playing, entryId) {
     labelKey: on ? "ui.clipboard.preview_stop" : "ui.clipboard.preview",
   };
 }
+
+/** With animation off the meter steps once a second (1 fps or 60, nothing between). */
+export const PREVIEW_STEP_MS = 1000;
+
+/** Whether the meter redraws at `now`: every frame when animated, else once per step. */
+export function previewDue(now, drawn, stepped) {
+  return !stepped || now - drawn >= PREVIEW_STEP_MS;
+}

@@ -21,7 +21,7 @@ import { implicitPortionTarget } from "./clip-silence.js";
 import { entryTitle } from "./clipboard.js";
 import { createClipboardDrag } from "./clipboard-drag.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
-import { previewFraction, previewPlaying, previewStop } from "./clipboard-preview.js";
+import { previewDue, previewFraction, previewPlaying, previewStop } from "./clipboard-preview.js";
 import { createClock } from "./clock.js";
 import { createColabDialogs } from "./colab-dialog.js";
 import {
@@ -603,7 +603,6 @@ let previewEnd = null;
 let previewEndedSeq = null; // the newest "no preview plays" heard
 let previewTicking = false;
 let previewDrawn = 0;
-const PREVIEW_STEP_MS = 1000;
 function startClipboardPreview(id, seq) {
   previewClock = createPlayheadClock();
   previewClock.setOffset(playheadClock.offset());
@@ -635,7 +634,7 @@ function tickPreview(now) {
     return;
   }
   const stepped = document.documentElement.dataset.motion === "off";
-  if (!stepped || now - previewDrawn >= PREVIEW_STEP_MS) {
+  if (previewDue(now, previewDrawn, stepped)) {
     previewDrawn = now;
     const frame = previewClock.playing() ? previewClock.frameAt(now) : 0;
     clipboardPanel.progress(previewFraction(frame, previewEnd));
