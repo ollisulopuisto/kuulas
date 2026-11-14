@@ -338,3 +338,18 @@ def test_streaming_remains_disabled_until_acceptance(tmp_path, source, monkeypat
     result, _blocks, scratch = adapter(tmp_path, source)
     assert result["boost_db"] == 0.0  # sub-second reference skips target search
     assert scratch == []
+
+
+def test_streaming_is_the_default():
+    assert export.STREAM_MASTERING_ENABLED is True
+    assert export._streams() is callable(getattr(export.programme, "master_stream", None))
+
+
+def test_older_speechmix_falls_back_to_the_whole_programme_master(monkeypatch):
+    monkeypatch.delattr(export.programme, "master_stream", raising=False)
+    assert export._streams() is False
+
+
+def test_switch_off_falls_back_to_the_whole_programme_master(monkeypatch):
+    monkeypatch.setattr(export, "STREAM_MASTERING_ENABLED", False)
+    assert export._streams() is False
