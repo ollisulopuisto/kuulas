@@ -70,8 +70,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 | # | Requirement | State |
 |---|---|---|
-| R1 | Multitrack editor | core done (model, edits, mixer); UI next |
-| R2 | Buses (track groups) | core done: routing, gain, pan, mute; UI next |
+| R1 | Multitrack editor | core done (model, edits, mixer); UI built (`ui/timeline.js`, `ui/lanes.js`, `ui/inspector*.js`, WP4 is ◐); owner checks in `docs/M1-VERIFY.md` |
+| R2 | Buses (track groups) | core done: routing, gain, pan, mute; UI exists (`ui/bus-collapse.js`, `ui/bus-role.js`); not checked here whether every bus control has UI |
 | R3 | Signal processing from the podcast pipeline, not reimplemented | done: `speechmix` + `nhsx` imported as path deps (pan laws, speech grid, duck masks, duck envelopes) |
 | R4 | Automixer support | ducking → editable track automation done; voice-chain backend variants shipped; Inspector toggle awaits WP4 |
 | R5 | Transcription, local and Colab | local Orukeet through the shared podcast CLI (Apple-silicon MLX) and Colab runner built; Colab model selector offers Whisper large-v3-turbo and Parakeet Ultra (v26.10.30.1); faster-whisper removed from local execution and dependencies; GUI model setup built, packaged TLS fix in v26.10.27.4; real Colab run still unverified |
@@ -79,7 +79,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R7 | Clip ops Hindenburg lacks: clip volume, pan, gain automation | done in core |
 | R8 | Mac, Linux, Windows | GitHub Actions matrix: full tests on macOS and Linux; Windows editor tests and desktop smoke, with Unix recorder/analysis/transcription workers and macOS automixer and DMG build-script tests excluded; macOS DMG build |
 | R9 | Never lose work; smart undo | done: every edit fsynced to SQLite, undo tree keeps branches, drags coalesce |
-| R10 | **High priority.** Hindenburg-level keyboard editing; every UI feature ships with its keys | keymap taken from the Hindenburg PRO shortcut list; UI next |
+| R10 | **High priority.** Hindenburg-level keyboard editing; every UI feature ships with its keys | keymap taken from the Hindenburg PRO shortcut list; default keymap and cheat sheet built (`ui/keymap-default.js`, `ui/cheatsheet.js`, generated `docs/KEYS.md`); shortcut audit still open (see the unscheduled notes) |
 | R11 | Pro Cut Auto-Silence: mute what does not cross the threshold | done in core (speechmix grid + duck masks → implicit source-frame clip ranges; only edited portions become ordinary clips) |
 | R12 | Auto crossfade only where non-adjacent audio is joined | done |
 | R13 | Media identified by content hash; survives rename/move | done (SHA-256 ids, every seen path remembered) |
@@ -121,7 +121,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R41 | Snappy UI, multithreaded throughout: heavy work never blocks; edits under 50 ms; 60 fps; no underruns during heavy jobs; background jobs yield to interaction | API and engine done (WP2, WP3: edit round trip 14 ms on the heavy hour); UI render budgets in WP4; jobs done (WP9, v26.10.16.14) |
 | R42 | Smart caching: everything derived from a recording is computed once and survives every edit; one memory budget | planned: ground rule 15, WP36 |
 | R43 | Remembered settings; quick actions without repeated dialogs; helpful messages with Undo | planned: ground rule 16, WP35 |
-| R44 | Navigation: time zoom with snap levels, Z toggles close/wide view, waveform and lane height zoom, scrolling, overview, follow modes, clear keyboard focus | planned: WP4 |
+| R44 | Navigation: time zoom with snap levels, Z toggles close/wide view, waveform and lane height zoom, scrolling, overview, follow modes, clear keyboard focus | UI parts exist (`ui/ruler-zoom.js`, `ui/snap.js`, `ui/overview.js`, `ui/follow.js`, `ui/lane-sizing.js`); not checked here whether the Z close/wide toggle and waveform height zoom are complete; WP4 is ◐ |
 | R45 | Single-key shortcuts for editing (as in Hindenburg); Mod only for file and app actions | planned: WP5 |
 | R46 | Autosave on every edit; Mod+S saves a named version; exports are versioned (v1, v2…) without overwrites, skipped when unchanged, traceable | export versioning done (WP11, v26.10.16.14); autosave/named versions planned: WP5, WP31 |
 | R47 | Export the whole edit or just a selection; export each track as its own aligned file (dry or as heard, whole or selection) so you can edit in kuulas and mix in Logic | done: WP11 in v26.10.16.14 (API; export dialog is UI work) |
