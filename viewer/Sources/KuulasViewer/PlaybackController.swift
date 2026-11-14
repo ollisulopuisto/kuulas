@@ -52,7 +52,10 @@ final class PlaybackController: ObservableObject {
         playing = true
         timer?.invalidate()
         let token = revision
-        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+        // While playing, the playhead is in motion: update at 60 fps. The design
+        // rule is 1 fps or 60 fps, nothing in between - 20 fps read as a stutter.
+        // Paused or ended, the timer is invalidated and nothing ticks.
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             player.position { [weak self] position, active in
                 guard let self, token == self.revision, self.playing else { return }
                 self.frame = Double(position)
