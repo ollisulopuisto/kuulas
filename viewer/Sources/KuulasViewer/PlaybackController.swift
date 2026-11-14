@@ -52,7 +52,7 @@ final class PlaybackController: ObservableObject {
         playing = true
         timer?.invalidate()
         let token = revision
-        timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             player.position { [weak self] position, active in
                 guard let self, token == self.revision, self.playing else { return }
                 self.frame = Double(position)
