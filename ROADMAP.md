@@ -199,7 +199,7 @@ sizes: `docs/PLAN.md`, section "Triage".
   "reject" inside the candidates panel and "stop" everywhere else [recommended]; or give
   stop another key. Also open: Mod+T for import (waits for the desktop window) and the
   palette's "Recent" group. (The Play button's key chip already follows remaps: `ui/command-shortcuts.js`
-  fills it from the live keymap and `ui/app.js` refreshes it on a remap; there is no test of the chip text.)
+  fills it from the live keymap and `ui/app.js` refreshes it on a remap.)
 
 - **WP44 merge thresholds need real recordings.** On the synthetic four-voice
   fixtures the starting values (open stretches under 0.4 s closed up, closed stretches
