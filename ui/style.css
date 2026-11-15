@@ -1212,6 +1212,9 @@ input.has-ab {
 #timeline {
   touch-action: none;
 }
+.playhead-layer {
+  pointer-events: none;
+}
 .marker-label-rename {
   position: absolute;
   z-index: 4;
