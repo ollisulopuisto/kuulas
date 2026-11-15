@@ -213,12 +213,20 @@ describe("the editing commands", () => {
       h.registry.run(id, null, state);
       assert.deepEqual(h.patches, [], `${id}: nothing is cleared before the edit is done`);
       h.sent[0].done({ project, clipboard: { ok: true, entry: "e9" } });
-      assert.deepEqual(h.patches.at(-1), {
-        inPoint: null,
-        outPoint: null,
-        rangeTracks: new Set(),
-        selection: new Set(),
-      });
+      assert.deepEqual(
+        h.patches.find((patch) => patch.inPoint === null),
+        {
+          inPoint: null,
+          outPoint: null,
+          rangeTracks: new Set(),
+          selection: new Set(),
+        },
+      );
+      if (["edit.cut", "edit.cut_track", "edit.lift_cut"].includes(id))
+        assert.ok(
+          h.patches.some((patch) => patch.materialsScope === "clipboard"),
+          id,
+        );
     }
   });
 
@@ -583,6 +591,7 @@ describe("the clipboard commands (WP46)", () => {
     await Promise.resolve();
     assert.match(h.toasts[0][0], /^ui\.edit\.toast\.copy/);
     assert.deepEqual(h.toasts[0][1], { undo: false });
+    assert.ok(h.patches.some((patch) => patch.materialsScope === "clipboard"));
   });
 
   test("X is a cut that goes to the clipboard: one edit, then the list is refreshed", () => {
@@ -591,6 +600,7 @@ describe("the clipboard commands (WP46)", () => {
     h.registry.run("edit.cut", null, state);
     assert.equal(h.sent[0].op, "clipboard_cut");
     h.sent[0].done({ project, clipboard: { ok: true, entry: "e9" } });
+    assert.ok(h.patches.some((patch) => patch.materialsScope === "clipboard"));
     assert.equal(h.refreshed(), 1);
   });
 
@@ -606,6 +616,7 @@ describe("the clipboard commands (WP46)", () => {
     assert.match(h.toasts[0][0], /^ui\.edit\.toast\.cut_uncopied/);
     assert.match(h.toasts[0][0], /disk full/);
     assert.deepEqual(h.toasts[0][1], { undo: true });
+    assert.ok(!h.patches.some((patch) => patch.materialsScope === "clipboard"));
   });
 
   test("Backspace removes selected clips without touching the clipboard", () => {

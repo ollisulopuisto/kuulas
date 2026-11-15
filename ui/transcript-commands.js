@@ -98,6 +98,7 @@ export function registerTranscriptCommands(registry, { app, t }) {
           ? app.copy({ ...range, track_ids: tracks, name })
           : Promise.resolve(false);
       void copying.then(async (copied) => {
+        if (copied) app.patch?.({ materialsScope: "clipboard" });
         if (!(await app.cutWords(plan.args.indices))) return;
         if (range) app.seek?.(range.start);
         const key = copied ? "ui.transcript.toast.cut" : "ui.transcript.toast.cut_uncopied";
