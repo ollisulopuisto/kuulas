@@ -95,6 +95,7 @@ import {
   trackHues,
 } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
+import { drawPlayhead as paintPlayhead } from "./playhead-render.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
 import { scopeSpans } from "./range-scope.js";
 import { rulerTicks } from "./ruler.js";
@@ -146,7 +147,6 @@ const GUESSED_ALPHA = 0.55;
 // The in/out marks are drawn at this opacity while selected clips, not the range, are what the
 // next edit touches (intent.js).
 const MARKS_VEILED_ALPHA = 0.35;
-const PLAYHEAD_CAP = 5.5;
 const SEAM_ALPHA = 0.7;
 const NOTCH_PX = 4;
 const MARK_FONT_PX = 10;
@@ -175,12 +175,14 @@ export function createTimeline({
   stack,
   waveCanvas,
   overlayCanvas,
+  playheadCanvas,
   getState,
   actions,
   playheadAt = (state) => state.playhead,
   liveTake = null,
 }) {
   const overlay = overlayCanvas.getContext("2d");
+  const playhead = playheadCanvas.getContext("2d");
   // Clips whose waveform clips after gain (WP57): clip id -> dB above full scale, as the
   // painter judged the visible columns. Drives the tooltip and the red gain line.
   let clipOvers = {};
@@ -208,6 +210,7 @@ export function createTimeline({
   let rangeBand = null; // a range being dragged: { fromFrame, toFrame, tracks, alt, touched } or null
   let bands = []; // the open candidates in pixels (candidates-model.js), per redraw
   let overlayQueued = false;
+  let playheadQueued = false;
   let waveQueued = false;
   let lastWaveKey = "";
   let jobId = 0;
@@ -217,6 +220,7 @@ export function createTimeline({
     lastWaveKey = "";
     requestWaveforms();
     requestOverlay();
+    requestPlayhead();
   };
   const dark = matchMedia("(prefers-color-scheme: dark)");
   dark.addEventListener("change", refreshTheme);
@@ -233,10 +237,13 @@ export function createTimeline({
     };
     if (overlayCanvas.width !== backing.width) overlayCanvas.width = backing.width;
     if (overlayCanvas.height !== backing.height) overlayCanvas.height = backing.height;
+    if (playheadCanvas.width !== backing.width) playheadCanvas.width = backing.width;
+    if (playheadCanvas.height !== backing.height) playheadCanvas.height = backing.height;
     lastWaveKey = "";
     actions.resized(size);
     requestWaveforms();
     requestOverlay();
+    requestPlayhead();
   }
   const observer = new ResizeObserver(measure);
   observer.observe(stack);
@@ -276,6 +283,24 @@ export function createTimeline({
     requestAnimationFrame(() => {
       overlayQueued = false;
       drawOverlay();
+    });
+  }
+
+  function requestPlayhead() {
+    if (playheadQueued) return;
+    playheadQueued = true;
+    requestAnimationFrame(() => {
+      playheadQueued = false;
+      const state = getState();
+      paintPlayhead(playhead, {
+        frame: state.project ? playheadAt(state) : Number.NaN,
+        scroll: state.scroll,
+        zoom: state.zoom,
+        width: size.width,
+        height: size.height,
+        ratio: size.ratio,
+        color: theme.playhead,
+      });
     });
   }
 
@@ -348,7 +373,6 @@ export function createTimeline({
       drawEdgeGhost(state, layout);
     }
     if (clipSession?.dragging) drawMoveGhost(state, layout);
-    drawPlayhead(state, height);
   }
 
   // A clip edge being dragged (WP6): a thin line at the new edge, the clip's new outline and,
@@ -1864,27 +1888,6 @@ export function createTimeline({
     }
   }
 
-  function drawPlayhead(state, height) {
-    const x = Math.round(frameToX(playheadAt(state), state.scroll, state.zoom)) + 0.5;
-    if (x < -6 || x > size.width + 6) return;
-    overlay.strokeStyle = theme.playhead;
-    overlay.fillStyle = theme.playhead;
-    overlay.lineWidth = 1;
-    overlay.beginPath();
-    overlay.moveTo(x, 0);
-    overlay.lineTo(x, height);
-    overlay.stroke();
-    // The cap: a pentagon in the ruler, so the playhead reads at a glance.
-    overlay.beginPath();
-    overlay.moveTo(x - PLAYHEAD_CAP, 0);
-    overlay.lineTo(x + PLAYHEAD_CAP, 0);
-    overlay.lineTo(x + PLAYHEAD_CAP, 6);
-    overlay.lineTo(x, 11);
-    overlay.lineTo(x - PLAYHEAD_CAP, 6);
-    overlay.closePath();
-    overlay.fill();
-  }
-
   // -- pointer and wheel -----------------------------------------------------------
 
   function locate(event) {
@@ -2886,7 +2889,11 @@ export function createTimeline({
 
   measure();
   return {
-    redraw: requestOverlay,
+    redraw() {
+      requestOverlay();
+      requestPlayhead();
+    },
+    redrawPlayhead: requestPlayhead,
     redrawWaveforms: requestWaveforms,
     refreshTheme,
     size: () => size,

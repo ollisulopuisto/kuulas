@@ -569,8 +569,8 @@ const transport = createTransport({
   jump: (frame) => playheadClock.jump(frame, performance.now()),
 });
 
-// While playing: every animation frame the timeline's cursor is drawn from the clock, and
-// the state's playhead (clock, transcript, follow) follows at most ~30 times a second.
+// While playing: the cursor has its own cheap canvas and follows the clock every animation frame;
+// the state's playhead (transcript, follow) follows at most ~30 times a second.
 const PLAYHEAD_STATE_MS = 33;
 let ticking = false;
 let lastPlayheadPush = 0;
@@ -580,7 +580,7 @@ function tickPlayhead(now) {
     ticking = false;
     return;
   }
-  timeline.redraw();
+  timeline.redrawPlayhead();
   const frame = playheadClock.frameAt(now);
   if (frame !== state.playhead && now - lastPlayheadPush >= PLAYHEAD_STATE_MS) {
     lastPlayheadPush = now;
@@ -4276,6 +4276,7 @@ const timeline = createTimeline({
   stack: $("timeline-stack"),
   waveCanvas: $("wave"),
   overlayCanvas: $("timeline"),
+  playheadCanvas: $("playhead"),
   getState,
   playheadAt: playheadNow,
   actions: {
