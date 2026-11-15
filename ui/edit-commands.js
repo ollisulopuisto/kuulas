@@ -144,7 +144,15 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
           });
         }
         // A cut adds an entry; a paste may follow a rename elsewhere: look again.
-        if (plan.op.startsWith("clipboard_")) app.refreshClipboard?.();
+        if (plan.op.startsWith("clipboard_")) {
+          if (
+            (plan.op === "clipboard_cut" || plan.op === "clipboard_lift_cut") &&
+            response?.clipboard?.ok
+          ) {
+            app.patch({ materialsScope: "clipboard" });
+          }
+          app.refreshClipboard?.();
+        }
       },
     });
   }
@@ -200,7 +208,10 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       if (!plan) return;
       if (plan.refuse) return refuse(plan);
       void app.copy(plan.body).then((ok) => {
-        if (ok) app.toast(t(plan.toast.key, plan.toast.values), { undo: false });
+        if (ok) {
+          app.patch({ materialsScope: "clipboard" });
+          app.toast(t(plan.toast.key, plan.toast.values), { undo: false });
+        }
       });
     },
     (s) => copyPlan(s, t) !== null,
