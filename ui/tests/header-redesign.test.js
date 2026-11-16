@@ -14,6 +14,6 @@ test("compact headers show the channel and current gain and pan", () => {
 
 test("narrow headers expand their controls to the lane height", () => {
   assert.match(css, /--heads-w: calc\(120px \+ var\(--rail-w\)\)/);
-  assert.match(source, /parts\.flyout\.style\.height =/);
+  assert.match(source, /flyout\.style\.height =/);
   assert.match(css, /\.bus-header:hover \.th-controls/);
 });
