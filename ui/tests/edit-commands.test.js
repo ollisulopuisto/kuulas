@@ -658,6 +658,14 @@ describe("the clipboard commands (WP46)", () => {
     }
   });
 
+  test("a marked paste tells the user that In and Out set the target", () => {
+    const state = withClip({ inPoint: S, outPoint: 2 * S });
+    const h = setup(state);
+    h.registry.run("edit.paste", null, state);
+    h.sent[0].done({ project, clipboard: { placed: 1, missing: [] } });
+    assert.match(h.toasts[0][0], /ui\.edit\.paste_marked/);
+  });
+
   test("a paste that lacked recordings says so, and one that placed nothing offers no Undo", () => {
     const state = withClip();
     const h = setup(state);

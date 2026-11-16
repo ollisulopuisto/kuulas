@@ -1602,6 +1602,7 @@
   "ui.clipboard.target.same": "Samat raidat",
   "ui.clipboard.target.current": "Nykyinen raita",
   "ui.edit.label.paste": "Liitä",
+  "ui.edit.paste_marked": "Liitä In-pisteeseen {start}, rajana Out {end}",
   "ui.edit.label.paste_insert": "Liitä ja lisää",
   "ui.edit.toast.copy": {
     "one": "Leikepöydälle kopioitu {count} leike",

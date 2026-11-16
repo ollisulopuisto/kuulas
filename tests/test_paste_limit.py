@@ -86,6 +86,25 @@ def test_insert_with_out_shifts_by_the_limited_length():
     assert plan_paste(p, one(5_000), 1_000, "insert", out=99_000).shift == 5_000
 
 
+def test_range_overwrite_preserves_audio_where_a_clipboard_clip_is_missing():
+    p = project(Clip("existing", "ma", 0, 0, 10_000))
+    e = entry(4_000,
+              ClipRef(A, 0, 1_000, rel_start=0, track_slot=0),
+              ClipRef("c" * 64, 0, 1_000, rel_start=2_000, track_slot=0))
+    got = paste(p, e, 1_000, out=4_000)
+    assert any(c.start <= 3_000 and c.end >= 4_000 for c in got.tracks[0].clips)
+
+
+def test_range_overwrite_keeps_audio_between_pasted_clips():
+    p = project(Clip("existing", "ma", 0, 0, 10_000))
+    e = entry(4_000,
+              ClipRef(A, 50_000, 1_000, rel_start=0, track_slot=0),
+              ClipRef(A, 60_000, 1_000, rel_start=3_000, track_slot=0))
+    got = paste(p, e, 1_000, out=5_000)
+    assert any(c.start == 2_000 and c.end == 4_000 and c.offset == 2_000
+               for c in got.tracks[0].clips)
+
+
 def test_an_empty_range_places_nothing():
     got = plan_paste(project(Clip("x", "ma", 0, 0, 5_000)), one(1_000), 1_000,
                      "overwrite", out=1_000)

@@ -44,6 +44,7 @@ import {
   ungroupPlan,
 } from "./edit-plans.js";
 import { idleReason } from "./edit-reasons.js";
+import { frameToTime } from "./format.js";
 import { rememberCut } from "./ghost-marker.js";
 import { toggleScopeMode } from "./range-scope.js";
 import { selectAllIds } from "./selection.js";
@@ -85,7 +86,12 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       values.count = changedTracks(before, response.project).length;
       if (values.count === 0) return app.toast(t("ui.edit.toast.nothing"), { undo: false });
     }
-    app.toast(t(variant?.key ?? plan.toast.key, values), { undo: variant?.undo !== false });
+    let message = t(variant?.key ?? plan.toast.key, values);
+    if (plan.pasteRange && response?.clipboard?.placed > 0) {
+      const { start, end, rate } = plan.pasteRange;
+      message += ` · ${t("ui.edit.paste_marked", { start: frameToTime(start, rate), end: frameToTime(end, rate) })}`;
+    }
+    app.toast(message, { undo: variant?.undo !== false });
   }
 
   function send(plan) {

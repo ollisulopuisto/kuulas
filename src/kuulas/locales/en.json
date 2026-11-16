@@ -1606,6 +1606,7 @@
   "ui.clipboard.target.same": "Same tracks",
   "ui.clipboard.target.current": "Current track",
   "ui.edit.label.paste": "Paste",
+  "ui.edit.paste_marked": "Paste at In {start}, limited by Out {end}",
   "ui.edit.label.paste_insert": "Paste and insert",
   "ui.edit.toast.copy": {
     "one": "Copied {count} clip to the clipboard",
