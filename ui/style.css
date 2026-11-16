@@ -3819,11 +3819,6 @@ input[type="text"] {
 .track-header:not(.compact) .th-controls > .fader-label {
   display: none;
 }
-:root:not([data-density="compact"])
-  .track-header.bus-header:not(.current, :hover, :focus-within)
-  .th-controls {
-  visibility: visible;
-}
 .bus-header:not(.compact) {
   display: grid;
   grid-template-rows: 28px 28px;
@@ -6417,7 +6412,7 @@ legend.form-heading {
 }
 .track-header[data-track] .th-top {
   display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto 12px;
+  grid-template-columns: 8px minmax(0, 1fr) auto 16px;
   align-items: center;
   gap: 2px;
   min-width: 0;
@@ -6440,7 +6435,7 @@ legend.form-heading {
   grid-column: 4;
   display: grid;
   place-items: center;
-  width: 22px;
+  width: 16px;
   height: 24px;
   padding: 0;
   border: 1px solid transparent;
@@ -6481,7 +6476,7 @@ legend.form-heading {
   font-size: 9px;
 }
 .track-header.strip[data-track] .th-disclosure {
-  grid-column: 3;
+  grid-column: 4;
   width: 16px;
   height: 16px;
 }
@@ -6593,12 +6588,12 @@ legend.form-heading {
    the larger controls open on hover or keyboard focus. */
 .editor[data-rail="labels"],
 .editor[data-rail="icons"] {
-  --heads-w: calc(120px + var(--rail-w));
-  --heads-w-min: calc(120px + var(--rail-w));
+  --heads-w: calc(148px + var(--rail-w));
+  --heads-w-min: calc(148px + var(--rail-w));
 }
 .editor[data-rail="off"] {
-  --heads-w: 120px;
-  --heads-w-min: 120px;
+  --heads-w: 148px;
+  --heads-w-min: 148px;
 }
 .track-header[data-track] .track-compact-summary {
   position: absolute;

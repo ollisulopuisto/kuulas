@@ -70,6 +70,7 @@ if (bus) {
     top: rect(bus.querySelector(".th-top")),
     parts,
     controls: rect(bus.querySelector(".th-controls")),
+    controlsVisibility: getComputedStyle(bus.querySelector(".th-controls")).visibility,
     summary: rect(bus.querySelector(".bus-compact-summary")),
     columns: getComputedStyle(bus).gridTemplateColumns,
   };

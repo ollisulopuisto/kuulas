@@ -21,6 +21,9 @@ const chrome = [
 ].find((path) => path && existsSync(path));
 const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
 const MIN_NAME_PX = 28;
+// A short real name ("panu", "Karde") must show whole, not as "p...": about four letters.
+const READABLE_PLAIN_PX = 52;
+const READABLE_GROUPED_PX = 40;
 
 let server;
 let port;
@@ -77,10 +80,16 @@ for (const density of ["comfortable", "compact"]) {
       assert.equal(grouped.length, 2);
       assert.equal(plain.length, 2);
       for (const item of [...grouped, ...plain]) {
-        assert.equal(item.header.width, 120);
+        assert.equal(item.header.width, 148);
         assert.ok(item.width >= MIN_NAME_PX, `name column ${item.width}px`);
       }
       assert.ok(bus.name.width >= MIN_NAME_PX, `bus name ${bus.name.width}px`);
+      for (const item of grouped) {
+        assert.ok(item.width >= READABLE_GROUPED_PX, `grouped name ${item.width}px`);
+      }
+      for (const item of plain) {
+        assert.ok(item.width >= READABLE_PLAIN_PX, `plain name ${item.width}px`);
+      }
     });
   }
   test(`${density} density: a bus header is one column wide and its summary stays inside it`, async () => {
@@ -89,6 +98,8 @@ for (const density of ["comfortable", "compact"]) {
     assert.ok(bus.summary.left >= bus.header.left - 0.5);
     assert.ok(bus.summary.left + bus.summary.width <= bus.header.left + bus.header.width + 0.5);
     assert.ok(bus.controls.width >= 100, `bus controls ${bus.controls.width}px`);
+    // The summary and the controls share one row: only one of them shows at rest.
+    assert.equal(bus.controlsVisibility, "hidden");
   });
   test(`${density} density: double-clicking a grouped and an ungrouped name renames it`, async () => {
     for (const open of ["Bob", "Last"]) {
