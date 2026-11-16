@@ -6586,3 +6586,96 @@ legend.form-heading {
 .track-controls-flyout[data-track] .th-controls .slider-control.bus-fader {
   grid-column: 1 / -1;
 }
+
+/* Compact headers leave more room for the waveform. Values remain visible at rest;
+   the larger controls open on hover or keyboard focus. */
+.editor[data-rail="labels"],
+.editor[data-rail="icons"] {
+  --heads-w: calc(120px + var(--rail-w));
+  --heads-w-min: calc(120px + var(--rail-w));
+}
+.editor[data-rail="off"] {
+  --heads-w: 120px;
+  --heads-w-min: 120px;
+}
+.track-header[data-track] .track-compact-summary {
+  position: absolute;
+  top: 28px;
+  left: 12px;
+  right: 6px;
+  height: 16px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--surface-panel);
+}
+.track-header.strip[data-track] .track-compact-summary,
+.track-header.micro-controls[data-track] .track-compact-summary {
+  display: none;
+}
+.track-controls-flyout {
+  padding: 4px;
+  gap: 4px;
+  overflow-x: hidden;
+}
+.track-controls-flyout .track-flyout-meta {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.track-controls-flyout .th-controls {
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: 4px;
+}
+.track-controls-flyout .slider-control.pan {
+  min-width: 28px;
+  grid-template-columns: 28px;
+}
+.bus-header:not(.compact) {
+  display: grid;
+  grid-template-rows: 28px minmax(0, 1fr);
+  padding: 0 4px 0 8px;
+  overflow: hidden;
+}
+.bus-header .th-top {
+  display: flex;
+  width: 100%;
+  gap: 2px;
+}
+.bus-header .bus-name {
+  min-width: 0;
+}
+.bus-header .bus-role,
+.bus-header .bus-reapply {
+  display: none;
+}
+:root .track-header.bus-header:not(:hover, :focus-within) .th-controls {
+  visibility: hidden;
+}
+.track-header.bus-header .th-controls {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: 4px;
+}
+.track-header.bus-header:hover .th-controls,
+.track-header.bus-header:focus-within .th-controls {
+  visibility: visible;
+}
+.bus-compact-summary {
+  grid-row: 2;
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bus-header .th-controls {
+  grid-row: 2;
+  grid-column: 1;
+}
+.bus-header:hover .bus-compact-summary,
+.bus-header:focus-within .bus-compact-summary {
+  visibility: hidden;
+}
