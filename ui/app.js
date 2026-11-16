@@ -567,6 +567,7 @@ const transport = createTransport({
   freeze: () => playheadClock.stop(performance.now()),
   settle: (status) => playheadClock.settle(status.position),
   jump: (frame) => playheadClock.jump(frame, performance.now()),
+  here: () => playheadNow(),
 });
 
 // While playing: the cursor has its own cheap canvas and follows the clock every animation frame;

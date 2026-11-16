@@ -13,9 +13,11 @@ import { press } from "./shuttle.js";
 /**
  * `freeze()` (optional): the playhead clock stops now and gives the frame it shows, so a
  * stop shows at once (the engine's answer then lands it on the heard frame); `settle(status)`
- * hands every stopped answer to the clock; `jump(frame)` moves it for a seek while playing.
+ * hands every stopped answer to the clock; `jump(frame)` moves it for a seek while playing;
+ * `here()` is the frame the cursor is drawn at now (the state's playhead lags it by up to a
+ * push interval), what a restart while playing must continue from.
  */
-export function createTransport({ post, getState, setState, onError, freeze, settle, jump }) {
+export function createTransport({ post, getState, setState, onError, freeze, settle, jump, here }) {
   // Quick J/K/L presses arrive before the engine has answered the last one: the ladder
   // climbs from the speed asked for (`intended`), and the requests go out in order.
   let intended = null;
@@ -73,10 +75,10 @@ export function createTransport({ post, getState, setState, onError, freeze, set
      */
     resendLoop() {
       const state = getState();
-      const { playing, playhead, speed = 1 } = state;
+      const { playing, speed = 1 } = state;
       // Only a plain or fast run takes a loop; a shuttle (any other speed) does not.
       if (!playing || speed !== (state.fast ? effective(state.fast) : 1)) return Promise.resolve();
-      return run("play", playhead, null, null, playOptions());
+      return run("play", here?.() ?? state.playhead, null, null, playOptions());
     },
     stop: () => stopNow(),
     /**
@@ -88,7 +90,9 @@ export function createTransport({ post, getState, setState, onError, freeze, set
     fastChanged(before, after) {
       const { playing, playhead, speed = 1 } = getState();
       if (!playing) return Promise.resolve();
-      if (before.active !== after.active) return run("play", playhead, null, null, playOptions());
+      if (before.active !== after.active) {
+        return run("play", here?.() ?? playhead, null, null, playOptions());
+      }
       // `speed` is the engine's last answer and lags a held key; any speed but 1 means the
       // running stretch is there to be told.
       if (after.active && before.fast !== after.fast && speed !== 1) {
