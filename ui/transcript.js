@@ -21,7 +21,12 @@ import {
   nextMatch,
   prevMatch,
 } from "./transcript-find.js";
-import { followWord, transcriptFollowStep, transcriptPlaybackStep } from "./transcript-follow.js";
+import {
+  followWord,
+  scrollTranscript,
+  transcriptFollowStep,
+  transcriptPlaybackStep,
+} from "./transcript-follow.js";
 import {
   alsoRemovedIndices,
   buildParagraphs,
@@ -713,9 +718,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   }
 
   function scrollTo(value) {
-    const next = Math.max(0, value);
-    lastSetTop = next;
-    root.scrollTop = next;
+    lastSetTop = scrollTranscript(root, value);
   }
 
   // -- the word under the play cursor and the selection (class changes only) ------------------

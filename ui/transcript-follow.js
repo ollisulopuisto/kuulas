@@ -1,4 +1,9 @@
 // The transcript unlocks on a user scroll and stays unlocked until the user asks to follow.
+export function scrollTranscript(root, value) {
+  root.scrollTop = Math.max(0, value);
+  return root.scrollTop;
+}
+
 export function transcriptFollowStep({ paused }, event) {
   if (event.type === "manual-scroll") return { paused: true };
   if (event.type === "follow" || event.type === "play-start") return { paused: false };
