@@ -144,7 +144,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R56 | Auto-Silence stays implicit until edited, belongs to the measured clip, and materializes only the portion the user changes (owner, 2026-10-24) | done in core: source-frame clip ranges; M and edge dragging create ordinary clips |
 | R57 | Compare: non-destructive previews and A/B by listening (cuts, values, tracks, takes, edits, voice presets), level matched, blind mode, keep one or discard all | planned: WP45 (builds on WP24.2) |
 | R58 | Extensive clipboard with history: cut copies and ripples, delete leaves the gap, entries kept as references, a Clipboard panel, four paste forms, across projects | built in part: WP46 is ◐, merged v26.10.18.62 and unverified by eye (`src/kuulas/clipboard*.py`, `ui/clipboard-panel.js`, `ui/clipboard.js`, `ui/clipboard-preview.js`); open items are listed in the WP46 note below |
-| R59 | Contextual help from v1 (help key for the focused thing, hints and keys in menus, searchable help index, translated help as data) | built in part: WP48 is ◐ (`ui/help-panel.js`, `ui/help.js`, `ui/help/index.json` with `en` and `fi`); the hover-tip system is still to be built; not checked how much of the focused-thing help key exists |
+| R59 | Contextual help from v1 (help key for the focused thing, hints and keys in menus, searchable help index, translated help as data) | built in part: WP48 is ◐ (`ui/help-panel.js`, `ui/help.js`, `ui/help/index.json` with `en` and `fi`); the hover-tip mechanism exists: `installTooltips` in `ui/tooltip.js` draws a tip for any element with a `data-tip` attribute and `ui/app.js` installs it at startup, with `data-tip` set in 8 places in `ui/*.js`; what is not built or not checked is whether every action's hint and key is wired to a tip (the `cmd.*.hint` strings are the intended text), and how much of the focused-thing help key exists |
 | R60 | Onboarding (first-run welcome, sample project, guided tour, progressive tips) | first part built on main 2026-11-12: a card at the bottom of the timeline teaches I, O, Shift+Cmd+Space, X, P and ticks each when the command really runs (`ui/core-loop-panel.js`; DOM and model tested, not seen on a Mac); first-run welcome, sample project, tour and tips still planned later: WP48 |
 | R61 | The waveform drawn at its real size: clip gain and track gain change its height (owner, 2026-10-18) | requested: WP57 |
 | R62 | Clipping shown on the waveform (red) when the clip or track gain makes it too loud (owner, 2026-10-18) | requested: WP57 |
@@ -230,7 +230,7 @@ sizes: `docs/PLAN.md`, section "Triage".
   to try buses first, so a way to create and assign a bus is being built (UI).
 - **Owner answers, 2026-10-18 (second card round):** tips (Q23) are **hover tips**: hovering over
   an action shows its short hint and its key, instead of a timed tip every N minutes (the
-  `cmd.*.hint` strings are the text; a hover-tip system is still to be built, WP48). The
+  `cmd.*.hint` strings are the text; the hover-tip mechanism itself now exists in `ui/tooltip.js`; wiring every action to it is WP48). The
   status list for WP51 is right as listed. `speechmix.mix_blend(raw, render100, m, wet_shift=None)`
   is a **yes** for the podcast repo (the owner must tell the podcast session; this session cannot
   reach it). Q11 (what clicking a collapsed bus selects) waits until collapsing a bus exists in
