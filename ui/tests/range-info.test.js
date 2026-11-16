@@ -1,6 +1,33 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { formatRangeInfo, rangeInfo, rangeLine } from "../range-info.js";
+import { formatRangeInfo, pasteRangeNotice, rangeInfo, rangeLine } from "../range-info.js";
+
+test("marked paste target is visible only when the clipboard can be pasted", () => {
+  const t = (key, values) => `${key} ${values.start} ${values.end}`;
+  const format = (frame) => `T${frame}`;
+  assert.equal(
+    pasteRangeNotice(
+      { project: {}, clipboard: [{ id: "e" }], inPoint: 12, outPoint: 20 },
+      1,
+      format,
+      t,
+    ),
+    "ui.edit.paste_marked T12 T20",
+  );
+  assert.equal(
+    pasteRangeNotice({ project: {}, clipboard: [], inPoint: 12, outPoint: 20 }, 1, format, t),
+    null,
+  );
+  assert.equal(
+    pasteRangeNotice(
+      { project: {}, clipboard: [{ id: "e" }], inPoint: 12, outPoint: null },
+      1,
+      format,
+      t,
+    ),
+    null,
+  );
+});
 
 const project = {
   tracks: [

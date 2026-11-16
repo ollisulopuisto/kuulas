@@ -1434,6 +1434,10 @@ input[type="text"] {
   width: 22px;
   padding: 0;
 }
+.paste-range-info {
+  flex: none;
+  color: var(--warn-text);
+}
 .statusbar .button[aria-pressed="true"] {
   color: var(--warn-text);
 }

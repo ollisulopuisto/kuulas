@@ -94,10 +94,9 @@ def test_overwrite_removes_exactly_the_covered_stretch():
 
     got = plan_paste(p, e, 1_000, "overwrite", {0: "ta", 1: "tb", 2: "tc"})
 
-    # Overwrite stays in place and reports the covered stretch on every
-    # target track that has material under it, once, in project order.
+    # Each target loses only material actually covered by a pasted clip.
     assert got.shift == 0
-    assert got.removed == (("ta", 1_000, 3_000), ("tb", 1_000, 3_000))
+    assert got.removed == (("ta", 1_000, 3_000), ("tb", 1_100, 2_000))
     assert got.placements == (
         ("ta", "a" * 64, 1_000, 0, 2_000, 0.0, 0.0, 0, 0, False),
         ("tb", "b" * 64, 1_100, 0, 900, 0.0, 0.0, 0, 0, False))

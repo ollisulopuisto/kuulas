@@ -383,7 +383,10 @@ export function pastePlan(state, { mode, target } = {}) {
     },
     key,
     { count: entry.clips },
-    { variant: pasteVariant },
+    {
+      variant: pasteVariant,
+      more: marked ? { pasteRange: { start: inPoint, end: outPoint, rate: rateOf(state) } } : {},
+    },
   );
 }
 

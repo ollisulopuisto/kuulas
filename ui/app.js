@@ -166,7 +166,7 @@ import { nextPreroll, prerollLabel } from "./preroll.js";
 import { createProjectDialog } from "./project-dialog.js";
 import { patchClip } from "./provisional.js";
 import { normaliseQuickMute, QUICK_MUTE_KEY } from "./quick-mute.js";
-import { rangeLine } from "./range-info.js";
+import { pasteRangeNotice, rangeLine } from "./range-info.js";
 import { rememberRange, stepRangeMemory } from "./range-memory.js";
 import {
   clearTrackSelection,
@@ -4589,6 +4589,10 @@ function updateRangeInfo() {
   const text = rangeLine(state, rate(), frameToTime, t);
   el.hidden = text === null;
   if (text !== null) el.textContent = text;
+  const pasteInfo = $("paste-range-info");
+  const pasteText = pasteRangeNotice(state, rate(), frameToTime, t);
+  pasteInfo.hidden = pasteText === null;
+  if (pasteText !== null) pasteInfo.textContent = pasteText;
 }
 let lastLoopKey = "null";
 
@@ -4634,7 +4638,7 @@ function render(state, patch, previous = null) {
     // The hour form is wider, so the corner sets it smaller.
     $("timecode").classList.toggle("hour", time.split(":").length > 2);
   }
-  if (touched("project", "selection", "inPoint", "outPoint")) updateRangeInfo();
+  if (touched("project", "selection", "inPoint", "outPoint", "clipboard")) updateRangeInfo();
   if (touched("project", "series")) updateSeriesChip(state);
   if (touched("project", "inPoint", "outPoint")) marksCorner.render(state);
   if (touched("render")) renderListenView.update(state);
