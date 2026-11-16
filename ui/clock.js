@@ -75,9 +75,9 @@ export function createClock({ el, getState, rate, limit, format, jump, spot, not
     input.focus();
     input.select();
     input.addEventListener("keydown", (event) => {
-      if (event.isComposing || event.keyCode === 229) return;
       // Typing must not reach the keymap: + and - are zoom keys, digits are commands.
       event.stopPropagation();
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === "Enter") {
         event.preventDefault();
         const frame = resolveTime(fieldValue(entry), {

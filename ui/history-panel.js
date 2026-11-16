@@ -314,8 +314,8 @@ export function createHistoryPanel({
       }
     };
     input.addEventListener("keydown", (event) => {
-      if (event.isComposing || event.keyCode === 229) return;
       event.stopPropagation();
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === "Enter") finish(true);
       else if (event.key === "Escape") finish(false);
     });

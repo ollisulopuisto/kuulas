@@ -40,8 +40,8 @@ export function createMarkersPanel({ root, actions }) {
         dataset: { id: item.id, action: "rename-input" },
       });
       name.addEventListener("keydown", (event) => {
-        if (event.isComposing || event.keyCode === 229) return;
         event.stopPropagation();
+        if (event.isComposing || event.keyCode === 229) return;
         if (event.key === "Enter") {
           editing = null;
           actions.rename(item.id, name.value);

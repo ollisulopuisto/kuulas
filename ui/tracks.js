@@ -154,8 +154,8 @@ function editableReadout(control, { parse, current, text, format, write, scale =
       write(value);
     };
     field.addEventListener("keydown", (e) => {
-      if (e.isComposing || e.keyCode === 229) return;
       e.stopPropagation();
+      if (e.isComposing || e.keyCode === 229) return;
       if (e.key === "Enter") finish(true);
       else if (e.key === "Escape") finish(false);
     });

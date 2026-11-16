@@ -149,3 +149,31 @@ describe("every flagged Enter handler guards IME composition", () => {
     }
   }
 });
+
+// Devin review (PR #216, tracks.js): a handler that previously stopped every
+// keydown must keep doing so - the guard goes AFTER stopPropagation, or a
+// composing Escape bubbles to dismissFlyoutOnEscape and closes the flyout.
+const CONTAINED = {
+  "clipboard-panel.js": [117, 616],
+  "clock.js": [77],
+  "history-panel.js": [316],
+  "markers-panel.js": [42],
+  "marks-corner.js": [160],
+  "timeline.js": [1948],
+  "tracks.js": [156],
+};
+
+describe("contained handlers keep stopPropagation ahead of the guard", () => {
+  for (const [file, lines] of Object.entries(CONTAINED)) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8").split("\n");
+    for (const line of lines) {
+      test(`${file}:${line}`, () => {
+        const head = source.slice(line, line + 5).join("\n");
+        const stop = head.indexOf("stopPropagation()");
+        const guard = head.indexOf("isComposing");
+        assert.notEqual(stop, -1, "no stopPropagation near the listener; re-check containment");
+        assert.ok(stop < guard, "stopPropagation must run before the composition guard");
+      });
+    }
+  }
+});
