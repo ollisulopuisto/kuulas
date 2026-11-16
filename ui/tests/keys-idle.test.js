@@ -76,6 +76,25 @@ function setup({ context = "timeline", canRun = [], modal = false, platform = "o
 }
 
 describe("a key that cannot act says why instead of beeping", () => {
+  test("Cmd+Backspace removes selected clips from the timeline or transcript panel", () => {
+    for (const context of ["timeline", "transcript"]) {
+      const { keymap, calls } = setup({ context, platform: "mac", canRun: ["edit.remove_clips"] });
+      const event = press({ key: "Backspace", code: "Backspace", metaKey: true });
+      assert.equal(keymap.handle(event), true);
+      assert.deepEqual(calls, ["edit.remove_clips"]);
+    }
+  });
+
+  test("Cmd+Backspace inside transcript text is left for normal text editing", () => {
+    const { keymap, calls } = setup({
+      context: "transcript",
+      platform: "mac",
+      canRun: ["edit.remove_clips"],
+    });
+    const event = press({ key: "Backspace", code: "Backspace", metaKey: true, target: field });
+    assert.equal(keymap.handle(event), false);
+    assert.deepEqual(calls, []);
+  });
   test("X with nothing marked: handled, default prevented, the reason shown, nothing run", () => {
     const { keymap, calls, idle } = setup();
     const event = press(X);
