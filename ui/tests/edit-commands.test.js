@@ -604,6 +604,27 @@ describe("the clipboard commands (WP46)", () => {
     assert.equal(h.refreshed(), 1);
   });
 
+  test("a successful cut selects the new project clipboard entry and clears a hidden shelf filter", () => {
+    const state = base({
+      inPoint: 2 * S,
+      outPoint: 6 * S,
+      clipboardView: "shared",
+      clipboardFilter: "old",
+      clipboardSelected: "old",
+    });
+    const h = setup(state);
+    h.registry.run("edit.cut", null, state);
+    h.sent[0].done({ project, clipboard: { ok: true, entry: "e9" } });
+    assert.ok(
+      h.patches.some(
+        (patch) =>
+          patch.clipboardView === "project" &&
+          patch.clipboardFilter === "" &&
+          patch.clipboardSelected === "e9",
+      ),
+    );
+  });
+
   test("a cut whose copy failed tells the user in the toast, with Undo", () => {
     const state = base({ inPoint: 2 * S, outPoint: 6 * S });
     const h = setup(state);

@@ -149,7 +149,12 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
             (plan.op === "clipboard_cut" || plan.op === "clipboard_lift_cut") &&
             response?.clipboard?.ok
           ) {
-            app.patch({ materialsScope: "clipboard" });
+            app.patch({
+              materialsScope: "clipboard",
+              clipboardView: "project",
+              clipboardFilter: "",
+              clipboardSelected: response.clipboard.entry,
+            });
           }
           app.refreshClipboard?.();
         }
@@ -209,7 +214,12 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       if (plan.refuse) return refuse(plan);
       void app.copy(plan.body).then((ok) => {
         if (ok) {
-          app.patch({ materialsScope: "clipboard" });
+          app.patch({
+            materialsScope: "clipboard",
+            clipboardView: "project",
+            clipboardFilter: "",
+            clipboardSelected: null,
+          });
           app.toast(t(plan.toast.key, plan.toast.values), { undo: false });
         }
       });
