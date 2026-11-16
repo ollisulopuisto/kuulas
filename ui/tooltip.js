@@ -19,34 +19,75 @@ export function tipPlacement(pointer, size, view) {
   return { left: Math.max(EDGE, left), top: Math.max(EDGE, top) };
 }
 
-/** One tip box for the whole page, shown while the pointer is over an element with data-tip. */
+export const REST_MS = 600; // how long the pointer must rest before a hint appears
+const REST_SLOP = 4; // px of movement that still counts as resting
+
+/**
+ * Calls `onRest` once the pointer has stayed within a few pixels of one spot, over the same `key`
+ * (the text it would show), for REST_MS. Any larger move, or a new key, calls `onMove` and starts
+ * the wait again; `cancel` stops it.
+ */
+export function createRestDelay({ onRest, onMove, timers = globalThis }) {
+  let origin = null;
+  let key = null;
+  let timer = null;
+  function cancel() {
+    timers.clearTimeout(timer);
+    timer = null;
+    origin = null;
+    key = null;
+    onMove();
+  }
+  function move(x, y, next) {
+    if (origin && next === key && Math.hypot(x - origin.x, y - origin.y) <= REST_SLOP) return;
+    timers.clearTimeout(timer);
+    origin = { x, y };
+    key = next;
+    onMove();
+    timer = timers.setTimeout(onRest, REST_MS);
+  }
+  return { move, cancel };
+}
+
+/** One tip box for the whole page, shown once the pointer rests on an element with data-tip. */
 export function installTooltips(doc = document) {
   const box = doc.createElement("div");
   box.className = "hover-tip";
   box.setAttribute("role", "tooltip");
   box.hidden = true;
   doc.body.append(box);
-  doc.addEventListener(
-    "pointermove",
-    (event) => {
-      const text = event.target.closest?.("[data-tip]")?.dataset.tip ?? "";
-      if (!text) {
-        box.hidden = true;
-        return;
-      }
-      if (box.textContent !== text) box.textContent = text;
+  let last = null;
+  const rest = createRestDelay({
+    onMove() {
+      box.hidden = true;
+    },
+    onRest() {
+      box.textContent = last.text;
       box.hidden = false;
       const at = tipPlacement(
-        { x: event.clientX, y: event.clientY },
+        { x: last.x, y: last.y },
         { width: box.offsetWidth, height: box.offsetHeight },
         { width: window.innerWidth, height: window.innerHeight },
       );
       box.style.left = `${at.left}px`;
       box.style.top = `${at.top}px`;
     },
+  });
+  doc.addEventListener(
+    "pointermove",
+    (event) => {
+      const text = event.target.closest?.("[data-tip]")?.dataset.tip ?? "";
+      if (!text) {
+        rest.cancel();
+        return;
+      }
+      last = { text, x: event.clientX, y: event.clientY };
+      rest.move(event.clientX, event.clientY, text);
+    },
     { capture: true },
   ); // first, so a handler that stops the event below cannot hide the tip
-  doc.documentElement.addEventListener("pointerleave", () => {
-    box.hidden = true;
-  });
+  for (const type of ["pointerdown", "keydown", "wheel"]) {
+    doc.addEventListener(type, rest.cancel, { capture: true, passive: true });
+  }
+  doc.documentElement.addEventListener("pointerleave", rest.cancel);
 }

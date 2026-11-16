@@ -1906,9 +1906,6 @@ input[type="text"] {
       "heads timeline side"
       "status status status";
   }
-  .keyhints {
-    display: none;
-  }
 }
 @media (max-height: 759px) and (min-width: 1100px) {
   .editor {
@@ -2437,10 +2434,10 @@ input[type="text"] {
 .hover-tip {
   position: fixed;
   z-index: 60;
-  max-width: 320px;
+  max-width: 240px;
   padding: var(--space-1) var(--space-2);
   color: var(--text);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   line-height: 1.35;
   background: var(--surface-raised);
   border: 1px solid var(--border-strong);

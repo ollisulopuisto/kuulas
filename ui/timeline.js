@@ -119,6 +119,7 @@ import {
 } from "./sync-state.js";
 import { readTheme } from "./theme.js";
 import { createTileStore } from "./tiles.js";
+import { createRestDelay } from "./tooltip.js";
 import { selectionBounds, wordAtTime } from "./transcript-model.js";
 import { pickLevel, waveformColumns } from "./waveform.js";
 import { createWaveformLayer } from "./waveform-layer.js";
@@ -1997,8 +1998,29 @@ export function createTimeline({
     else if (hit.clip && Object.hasOwn(clipOvers, hit.clip.id))
       text = overLabel(clipOvers[hit.clip.id], t, (value) => formatNumber(value, { digits: 1 }));
     else if (hit.clip) text = syncTooltip(getState(), hit.clip);
-    if (text) overlayCanvas.dataset.tip = text;
-    else delete overlayCanvas.dataset.tip;
+    restHint = text.replaceAll("\n", " · ");
+    if (text) hintRest.move(event.clientX, event.clientY, text);
+    else hintRest.cancel();
+  }
+  // What a clip, gate or sync badge says on hover goes in the status bar once the pointer rests,
+  // not in a box over the waveform; it goes away as soon as the pointer moves.
+  let restHint = "";
+  let hintShown = false;
+  const hintRest = createRestDelay({
+    onMove() {
+      if (!hintShown) return;
+      hintShown = false;
+      actions.hint?.("");
+    },
+    onRest() {
+      if (altTargetClip !== null) return;
+      hintShown = true;
+      actions.hint?.(restHint);
+    },
+  });
+  // A key or the wheel also ends a shown hint, so the key hints come back while editing.
+  for (const type of ["keydown", "wheel"]) {
+    window.addEventListener(type, hintRest.cancel, { capture: true, passive: true });
   }
   // The ruler scrub (WP26): a drag on the ruler plays the audio under the pointer at the
   // pointer's speed, tape-style (up to 2x) and as grains above. Release plays on as before.
@@ -2092,6 +2114,7 @@ export function createTimeline({
     if (overlayCanvas.style.cursor !== cursor) overlayCanvas.style.cursor = cursor;
   });
   overlayCanvas.addEventListener("pointerleave", () => {
+    hintRest.cancel();
     pointerFrame = null;
     lastPointerHit = null;
     if (altTargetClip !== null) {
@@ -2338,6 +2361,7 @@ export function createTimeline({
     if (edgeSession) endEdge(false);
   });
   overlayCanvas.addEventListener("pointerdown", (event) => {
+    hintRest.cancel();
     if (!getState().project || event.button !== 0) return;
     overlayCanvas.focus();
     const hit = hitAt(event);
