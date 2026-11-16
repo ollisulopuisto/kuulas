@@ -134,7 +134,7 @@ const GUARDED = {
   "marks-corner.js": [160],
   "timeline.js": [1949],
   "tracks.js": [115, 156, 838],
-  "transcript.js": [1139, 1404],
+  "transcript.js": [1142, 1407],
 };
 
 describe("every flagged Enter handler guards IME composition", () => {

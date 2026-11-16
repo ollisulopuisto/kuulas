@@ -38,8 +38,8 @@ class PastePlan:
     entry's refs still hold theirs, so the wiring can read them there.
     ``shift`` is the frames later material moves right by (0 for an
     overwrite). ``removed`` holds the ``(track_id, start, end)``
-    stretches an overwrite replaces, in project track order, one per
-    target track that has material under the paste. ``missing`` holds
+    stretches an overwrite replaces, in project track order. Separate
+    pasted clips can produce separate stretches. ``missing`` holds
     the media digests the project does not have, sorted and unique;
     their clips are not placed.
     """
@@ -140,14 +140,18 @@ def plan_paste(project: Project, entry: Entry, at: int,
         length = max(0, min(length, out - at))
     if mode == _INSERT:
         return PastePlan(tuple(placements), length, (), missing)
-    end = at + length
-    landed = set(targets.values())
-    # A clip is under the paste when it overlaps it by at least one
-    # frame; one that only touches an edge is not.
-    removed = tuple(
-        (track.id, at, end)
-        for track in project.tracks
-        if end > at and track.id in landed
-        and any(not (clip.end <= at or end <= clip.start)
-                for clip in track.clips))
-    return PastePlan(tuple(placements), 0, removed, missing)
+    removed = []
+    for track in project.tracks:
+        intervals = sorted((start, start + clip_length)
+                           for target, _, start, _, clip_length, *_ in placements
+                           if target == track.id)
+        merged = []
+        for start, end in intervals:
+            if merged and start <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+            else:
+                merged.append((start, end))
+        removed.extend(
+            (track.id, start, end) for start, end in merged
+            if any(clip.start < end and clip.end > start for clip in track.clips))
+    return PastePlan(tuple(placements), 0, tuple(removed), missing)

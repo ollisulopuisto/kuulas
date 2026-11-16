@@ -604,6 +604,27 @@ describe("the clipboard commands (WP46)", () => {
     assert.equal(h.refreshed(), 1);
   });
 
+  test("a successful cut selects the new project clipboard entry and clears a hidden shelf filter", () => {
+    const state = base({
+      inPoint: 2 * S,
+      outPoint: 6 * S,
+      clipboardView: "shared",
+      clipboardFilter: "old",
+      clipboardSelected: "old",
+    });
+    const h = setup(state);
+    h.registry.run("edit.cut", null, state);
+    h.sent[0].done({ project, clipboard: { ok: true, entry: "e9" } });
+    assert.ok(
+      h.patches.some(
+        (patch) =>
+          patch.clipboardView === "project" &&
+          patch.clipboardFilter === "" &&
+          patch.clipboardSelected === "e9",
+      ),
+    );
+  });
+
   test("a cut whose copy failed tells the user in the toast, with Undo", () => {
     const state = base({ inPoint: 2 * S, outPoint: 6 * S });
     const h = setup(state);
@@ -656,6 +677,14 @@ describe("the clipboard commands (WP46)", () => {
       assert.equal(sent.args.at, S);
       assert.equal(sent.args.out, 2 * S);
     }
+  });
+
+  test("a marked paste tells the user that In and Out set the target", () => {
+    const state = withClip({ inPoint: S, outPoint: 2 * S });
+    const h = setup(state);
+    h.registry.run("edit.paste", null, state);
+    h.sent[0].done({ project, clipboard: { placed: 1, missing: [] } });
+    assert.match(h.toasts[0][0], /ui\.edit\.paste_marked/);
   });
 
   test("a paste that lacked recordings says so, and one that placed nothing offers no Undo", () => {

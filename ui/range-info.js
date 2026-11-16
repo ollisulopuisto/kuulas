@@ -2,6 +2,23 @@
 // it ends and how long it is. Pure (frames in, text out), so `node --test` covers it.
 import { selectionSpan } from "./view.js";
 
+/** The target used by Paste when both marks are set. */
+export function pasteRangeNotice(state, rate, format, t) {
+  const { project, clipboard, inPoint, outPoint } = state;
+  if (
+    !project ||
+    !clipboard?.length ||
+    !Number.isFinite(inPoint) ||
+    !Number.isFinite(outPoint) ||
+    inPoint >= outPoint
+  )
+    return null;
+  return t("ui.edit.paste_marked", {
+    start: format(inPoint, rate),
+    end: format(outPoint, rate),
+  });
+}
+
 /**
  * The section to report, in frames, or null when there is nothing to show.
  * Complete in/out marks (out after in) win over a selection, as for Shift+Z; a lone
