@@ -1,6 +1,25 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { followWord, transcriptFollowStep, transcriptPlaybackStep } from "../transcript-follow.js";
+import {
+  followWord,
+  scrollTranscript,
+  transcriptFollowStep,
+  transcriptPlaybackStep,
+} from "../transcript-follow.js";
+
+test("a programmatic scroll records the position actually accepted by the browser", () => {
+  let top = 0;
+  const root = {
+    get scrollTop() {
+      return top;
+    },
+    set scrollTop(value) {
+      top = Math.min(100, value);
+    },
+  };
+  assert.equal(scrollTranscript(root, 500), 100);
+  assert.equal(root.scrollTop, 100);
+});
 
 describe("transcript follow unlock", () => {
   test("manual scrolling while playing unlocks transcript follow", () => {
