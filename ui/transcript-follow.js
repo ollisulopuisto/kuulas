@@ -13,3 +13,13 @@ export function transcriptPlaybackStep({ paused, wasPlaying }, playing) {
     wasPlaying: nowPlaying,
   };
 }
+
+/**
+ * The word to scroll into view for the playhead: none while playing after a manual scroll; else
+ * the word under it, or in a pause the last word started. A stopped playhead always follows,
+ * because moving it is the user's own act.
+ */
+export function followWord({ playing, paused, at, before }) {
+  if (playing && paused) return -1;
+  return at >= 0 ? at : before;
+}

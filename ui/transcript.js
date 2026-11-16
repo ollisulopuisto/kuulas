@@ -21,7 +21,7 @@ import {
   nextMatch,
   prevMatch,
 } from "./transcript-find.js";
-import { transcriptFollowStep, transcriptPlaybackStep } from "./transcript-follow.js";
+import { followWord, transcriptFollowStep, transcriptPlaybackStep } from "./transcript-follow.js";
 import {
   alsoRemovedIndices,
   buildParagraphs,
@@ -51,6 +51,7 @@ import {
   transcriptEscape,
   visibleRange,
   wordAtTime,
+  wordBefore,
   wordRefs,
 } from "./transcript-model.js";
 import { anyActive, colabAuthState, offerRows } from "./transcript-offer.js";
@@ -776,9 +777,14 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   function followPlayback() {
     const state = getState();
-    if (!state.playing || words.length === 0) return;
-    if (paused) return;
-    if (now >= 0) reveal(now);
+    if (words.length === 0) return;
+    const word = followWord({
+      playing: state.playing,
+      paused,
+      at: now,
+      before: wordBefore(words, state.playhead ?? 0),
+    });
+    if (word >= 0) reveal(word);
   }
 
   function setPaused(value) {
