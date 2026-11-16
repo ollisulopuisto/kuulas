@@ -21,6 +21,7 @@ import {
   nextMatch,
   prevMatch,
 } from "./transcript-find.js";
+import { restoreCorrectionFocus, shouldFocusPutBack } from "./transcript-focus.js";
 import { followWord, transcriptFollowStep, transcriptPlaybackStep } from "./transcript-follow.js";
 import {
   alsoRemovedIndices,
@@ -1123,10 +1124,10 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       if (!editing) return;
       editing = null;
       const text = input.value.trim();
+      restoreCorrectionFocus(root, input);
       nodesForWords.forEach((item, n) => {
         item.textContent = `${original[n]} `;
       });
-      root.focus({ preventScroll: true });
       renderPop();
       if (save && text && text !== original.join(" ")) {
         api
@@ -1221,6 +1222,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const hit = removedHits[index];
     const scope = actions.scopeTracks?.();
     if (!hit || scope === null) return;
+    const focused = root.ownerDocument.activeElement;
     try {
       const plan = await api.putBackPlan({
         media: hit.media,
@@ -1229,10 +1231,14 @@ export function createTranscript({ root, getState, setState, api, actions }) {
         track_ids: scope,
       });
       putBack = { index, plan, scope };
+      const focusPreview = shouldFocusPutBack(root, focused);
       paintRemoved();
-      removedList
-        .querySelector('[data-act="putback-confirm"]:not(:disabled), [data-act="putback-playhead"]')
-        ?.focus();
+      if (focusPreview)
+        removedList
+          .querySelector(
+            '[data-act="putback-confirm"]:not(:disabled), [data-act="putback-playhead"]',
+          )
+          ?.focus();
     } catch (error) {
       actions.showError(error);
     }
