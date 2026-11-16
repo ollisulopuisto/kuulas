@@ -158,6 +158,7 @@ export function createMarksCorner({
       return true;
     };
     field.addEventListener("keydown", (event) => {
+      if (event.isComposing || event.keyCode === 229) return;
       // Typing must not reach the keymap (1, 2, I, O, F ... are commands).
       event.stopPropagation();
       if (event.key === "Enter") {

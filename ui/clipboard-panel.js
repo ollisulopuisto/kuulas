@@ -115,6 +115,7 @@ export function createClipboardPanel({ root, actions }) {
         dataset: { id: entry.id, action: "rename-input" },
       });
       name.addEventListener("keydown", (event) => {
+        if (event.isComposing || event.keyCode === 229) return;
         event.stopPropagation();
         if (event.key === "Enter") {
           editing = null;
@@ -613,6 +614,7 @@ export function createClipboardPanel({ root, actions }) {
         pathDraft = field.value;
       });
       field.addEventListener("keydown", (event) => {
+        if (event.isComposing || event.keyCode === 229) return;
         event.stopPropagation();
         if (event.key === "Enter") actions.openPath(field.value);
       });
