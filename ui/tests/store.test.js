@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { anchorPatch, initialState, reduceLive, serverPatch } from "../store.js";
 
+test("continuous playhead following is enabled by default", () => {
+  assert.equal(initialState().followMode, "continuous");
+  assert.equal(initialState().followPaused, false);
+});
+
 describe("a clipboard change from another window", () => {
   test("asks for the clipboard to be read again, and nothing else", () => {
     const out = reduceLive(initialState(), { type: "clipboard_changed" });

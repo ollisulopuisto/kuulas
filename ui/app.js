@@ -1189,7 +1189,7 @@ const actions = {
       autoFitTracks: false,
       collapsedBuses: new Set(),
       waveformMode: "half",
-      followMode: "page",
+      followMode: "continuous",
       sidebarTab: "inspector",
       inPoint: null,
       outPoint: null,

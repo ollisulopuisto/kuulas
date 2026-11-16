@@ -155,7 +155,7 @@ export const initialState = () => ({
   clipboardLevel: null,
   // The implicit Auto-Silence region under the latest timeline click, for M's edit target.
   implicitRangeTarget: null,
-  followMode: "page",
+  followMode: "continuous",
   followPaused: false,
   // Where the last edit happened, for the zoom anchor; null until an edit sets it.
   lastEditPoint: null,
