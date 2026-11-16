@@ -246,13 +246,27 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const parts = openId ? rows.get(openId) : null;
     if (!parts?.flyout || parts.flyout.hidden) return;
     const rect = parts.node.getBoundingClientRect();
+    const flyout = parts.flyout;
+    const gripTop =
+      parts.node.querySelector(".lane-grip")?.getBoundingClientRect().top ?? rect.bottom;
+    // Over the header, under its name row: only when the whole mixer fits above the bottom
+    // grip, so the grip stays reachable and the next header uncovered.
+    const overTop = Math.max(0, Math.min(rect.top + 28, window.innerHeight - 1));
+    flyout.style.width = `${rect.width}px`;
+    flyout.style.height = "auto";
+    flyout.style.maxHeight = "none";
+    if (overTop + flyout.offsetHeight <= gripTop) {
+      flyout.style.left = `${rect.left}px`;
+      flyout.style.top = `${overTop}px`;
+      return;
+    }
+    // A lane too short for it: beside the header, over the timeline, as before.
     const width = Math.min(264, Math.max(220, window.innerWidth - 24));
-    const left = Math.min(rect.right, Math.max(8, window.innerWidth - width - 8));
     const top = Math.max(8, Math.min(rect.top, window.innerHeight - 180));
-    parts.flyout.style.left = `${left}px`;
-    parts.flyout.style.top = `${top}px`;
-    parts.flyout.style.width = `${width}px`;
-    parts.flyout.style.maxHeight = `${Math.max(120, window.innerHeight - top - 8)}px`;
+    flyout.style.left = `${Math.min(rect.right, Math.max(8, window.innerWidth - width - 8))}px`;
+    flyout.style.top = `${top}px`;
+    flyout.style.width = `${width}px`;
+    flyout.style.maxHeight = `${Math.max(120, window.innerHeight - top - 8)}px`;
   };
   const syncFlyout = () => {
     const openId = openTrackFlyoutId(flyoutState);
@@ -365,6 +379,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     roleBadge.textContent = "!";
     roleBadge.hidden = true;
     const channelTag = el("span", "channel-tag");
+    const compactSummary = el("span", "track-compact-summary", { "aria-hidden": "true" });
     // Integrated loudness against the target (WP49); filled in by update() from the analysis.
     const loudness = el("span", "loudness-readout");
     loudness.hidden = true;
@@ -467,7 +482,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     controls.append(gain.wrap, pan.wrap);
     // A thin grab zone on the bottom edge: drag to size this lane, double-click to reset it.
     const grip = el("div", "lane-grip", { title: t("ui.track.resize"), "aria-hidden": "true" });
-    node.append(top, grip);
+    node.append(top, compactSummary, grip);
     node.addEventListener("pointerenter", () => {
       cancelClose();
       dispatchFlyout("hover", id);
@@ -664,6 +679,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       disclosure,
       gain,
       pan,
+      compactSummary,
       kind: "track",
     };
   }
@@ -688,6 +704,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const controls = el("div", "th-controls");
     const gain = slider(t("ui.bus.gain"), GAIN);
     const pan = slider(t("ui.bus.pan"), PAN);
+    const compactSummary = el("span", "bus-compact-summary", { "aria-hidden": "true" });
     pan.wrap.classList.add("pan");
     pan.wrap.classList.add("dial");
     const positionPanValue = () => {
@@ -708,7 +725,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     reapply.textContent = t("ui.bus.reapply");
     reapply.hidden = true;
     top.append(chevron, badge, name, roleLabel, reapply, buttons);
-    node.append(top, controls);
+    node.append(top, compactSummary, controls);
     const id = bus.id;
     node.addEventListener("pointerdown", () => actions.currentBus(id));
     node.addEventListener("focusin", () => actions.currentBus(id));
@@ -771,7 +788,18 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       format: panText,
       scale: 100,
     });
-    return { node, name, roleLabel, reapply, mute, gain, pan, chevron, kind: "bus" };
+    return {
+      node,
+      name,
+      roleLabel,
+      reapply,
+      mute,
+      gain,
+      pan,
+      chevron,
+      compactSummary,
+      kind: "bus",
+    };
   }
 
   // The latest project, for handlers that need a value that may have changed.
@@ -886,6 +914,13 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         const channels = monoTag(track, state.project);
         parts.channelTag.hidden = channels === null;
         parts.channelTag.textContent = channels ? t(`ui.track.tag.${channels}`) : "";
+        parts.compactSummary.textContent = [
+          channels ? t(`ui.track.tag.${channels}`) : "",
+          formatDb(track.gain_db),
+          panText(track.pan),
+        ]
+          .filter(Boolean)
+          .join(" · ");
         paintLoudness(parts.loudness, trackReadout(state.loudness, track.id));
         parts.loudness.hidden = false;
         parts.loudness.textContent = contextualReadout(state.loudness, track.id, formatNumber, t);
@@ -928,6 +963,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
               : t("ui.bus.role", { role: kindLabel(status.role) });
         }
         parts.mute.setAttribute("aria-pressed", String(bus.mute));
+        parts.compactSummary.textContent = `${formatDb(bus.gain_db)} · ${panText(bus.pan)}`;
         setSlider(parts.gain, bus.gain_db, formatDb(bus.gain_db));
         setSlider(parts.pan, Math.round(bus.pan * 100), panText(bus.pan));
         parts.pan.paintDial();

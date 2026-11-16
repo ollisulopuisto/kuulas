@@ -2018,6 +2018,10 @@ export function createTimeline({
       actions.hint?.(restHint);
     },
   });
+  // A key or the wheel also ends a shown hint, so the key hints come back while editing.
+  for (const type of ["keydown", "wheel"]) {
+    window.addEventListener(type, hintRest.cancel, { capture: true, passive: true });
+  }
   // The ruler scrub (WP26): a drag on the ruler plays the audio under the pointer at the
   // pointer's speed, tape-style (up to 2x) and as grains above. Release plays on as before.
   let rulerScrub = null;

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import { createRestDelay, REST_MS, tipPlacement } from "../tooltip.js";
 
@@ -104,5 +105,12 @@ describe("createRestDelay", () => {
     rest.cancel();
     advance(REST_MS * 2);
     assert.deepEqual(calls, ["move", "move"]);
+  });
+});
+
+describe("status-bar hints in narrow windows", () => {
+  test("no media rule hides every .keyhints element, which would hide the menu and clip hint", () => {
+    const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+    assert.doesNotMatch(css, /\n\s+\.keyhints \{\s*display: none;/);
   });
 });

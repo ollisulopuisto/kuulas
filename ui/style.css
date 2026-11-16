@@ -1906,9 +1906,6 @@ input[type="text"] {
       "heads timeline side"
       "status status status";
   }
-  .keyhints {
-    display: none;
-  }
 }
 @media (max-height: 759px) and (min-width: 1100px) {
   .editor {
@@ -6410,14 +6407,19 @@ legend.form-heading {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   align-content: center;
-  padding: 0 6px 0 12px;
+  padding: 0 4px 0 12px;
   row-gap: 0;
+}
+/* A member's indent comes out of the same 120px as the controls, so it is only the spine
+   and the indent token: the name column keeps its width (header-redesign browser test). */
+.track-header[data-bus][data-track]:not(.bus-header, .merged) {
+  padding-left: calc(var(--spine-w) + var(--indent-member));
 }
 .track-header[data-track] .th-top {
   display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto 22px;
+  grid-template-columns: 10px minmax(0, 1fr) auto 12px;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
   height: 100%;
 }
@@ -6585,4 +6587,102 @@ legend.form-heading {
 }
 .track-controls-flyout[data-track] .th-controls .slider-control.bus-fader {
   grid-column: 1 / -1;
+}
+
+/* Compact headers leave more room for the waveform. Values remain visible at rest;
+   the larger controls open on hover or keyboard focus. */
+.editor[data-rail="labels"],
+.editor[data-rail="icons"] {
+  --heads-w: calc(120px + var(--rail-w));
+  --heads-w-min: calc(120px + var(--rail-w));
+}
+.editor[data-rail="off"] {
+  --heads-w: 120px;
+  --heads-w-min: 120px;
+}
+.track-header[data-track] .track-compact-summary {
+  position: absolute;
+  top: 28px;
+  left: 12px;
+  right: 6px;
+  height: 16px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--surface-panel);
+}
+.track-header.strip[data-track] .track-compact-summary,
+.track-header.micro-controls[data-track] .track-compact-summary {
+  display: none;
+}
+.track-controls-flyout {
+  padding: 4px;
+  gap: 4px;
+  overflow-x: hidden;
+}
+.track-controls-flyout .track-flyout-meta {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.track-controls-flyout .th-controls {
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: 4px;
+}
+.track-controls-flyout .slider-control.pan {
+  min-width: 28px;
+  grid-template-columns: 28px;
+}
+.bus-header .bus-chevron {
+  width: 20px;
+}
+.bus-header:not(.compact) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 28px minmax(0, 1fr);
+  padding: 0 4px 0 8px;
+  overflow: hidden;
+}
+.bus-header .th-top {
+  display: flex;
+  width: 100%;
+  gap: 2px;
+}
+.bus-header .bus-name {
+  min-width: 0;
+}
+.bus-header .bus-role,
+.bus-header .bus-reapply {
+  display: none;
+}
+:root .track-header.bus-header:not(:hover, :focus-within) .th-controls {
+  visibility: hidden;
+}
+.track-header.bus-header .th-controls {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: 4px;
+}
+.track-header.bus-header:hover .th-controls,
+.track-header.bus-header:focus-within .th-controls {
+  visibility: visible;
+}
+.bus-compact-summary {
+  grid-row: 2;
+  grid-column: 1;
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bus-header .th-controls {
+  grid-row: 2;
+  grid-column: 1;
+}
+.bus-header:hover .bus-compact-summary,
+.bus-header:focus-within .bus-compact-summary {
+  visibility: hidden;
 }
