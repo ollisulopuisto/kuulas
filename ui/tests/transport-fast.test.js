@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 import { createTransport } from "../transport.js";
 
 // What the transport sends the engine for fast listening (WP26); nothing plays.
-function harness(initial = {}) {
+function harness(initial = {}, here = undefined) {
   let state = {
     project: { tracks: [] },
     playhead: 100,
@@ -26,6 +26,7 @@ function harness(initial = {}) {
       state = { ...state, ...p };
     },
     onError: (e) => calls.push({ error: e.message }),
+    here,
   });
   return { transport, calls };
 }
@@ -52,6 +53,15 @@ describe("fast listening in the transport", () => {
     assert.deepEqual(h.calls, [
       { action: "play", at: 500, options: { speed: 1.35, preserve_pitch: true } },
     ]);
+  });
+  test("switching while playing restarts from where the cursor is drawn, not the lagging state", async () => {
+    const h = harness({ playing: true, playhead: 500 }, () => 777);
+    await h.transport.fastChanged(off(1.35), on(1.35));
+    await h.transport.fastChanged(on(1.35), off(1.35));
+    assert.deepEqual(
+      h.calls.map((c) => c.at),
+      [777, 777],
+    );
   });
   test("switching off while playing plays on at normal speed", async () => {
     const h = harness({ playing: true, playhead: 500, speed: 1.35, fast: off(1.35) });
