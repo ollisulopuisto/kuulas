@@ -116,6 +116,7 @@ export function createClipboardPanel({ root, actions }) {
       });
       name.addEventListener("keydown", (event) => {
         event.stopPropagation();
+        if (event.isComposing || event.keyCode === 229) return;
         if (event.key === "Enter") {
           editing = null;
           actions.rename(entry.id, name.value);
@@ -614,6 +615,7 @@ export function createClipboardPanel({ root, actions }) {
       });
       field.addEventListener("keydown", (event) => {
         event.stopPropagation();
+        if (event.isComposing || event.keyCode === 229) return;
         if (event.key === "Enter") actions.openPath(field.value);
       });
       const go = button("project-go", "project-go", t("ui.clipboard.project_show"), () =>

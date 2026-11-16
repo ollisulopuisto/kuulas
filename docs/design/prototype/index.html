@@ -2744,6 +2744,7 @@ function bindToggle(input, { key, fallback, read, write, marker }) {
     act(event.altKey);
   });
   input.addEventListener("keydown", (event) => {
+    if (event.isComposing || event.keyCode === 229) return;
     if (event.key === "Enter" && event.shiftKey && !event.metaKey && !event.ctrlKey) {
       event.preventDefault();
       act(event.altKey);

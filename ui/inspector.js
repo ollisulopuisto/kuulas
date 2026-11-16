@@ -192,6 +192,7 @@ export function createInspector({
       else name.value = prev;
     };
     name.addEventListener("keydown", (event) => {
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === "Enter") {
         event.preventDefault();
         finishName();

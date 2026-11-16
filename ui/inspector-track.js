@@ -87,6 +87,7 @@ function nameInput(label, read, commit) {
     else input.value = read();
   };
   input.addEventListener("keydown", (event) => {
+    if (event.isComposing || event.keyCode === 229) return;
     if (event.key === "Enter") {
       event.preventDefault();
       finish();
@@ -230,6 +231,7 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       else speaker.value = current.speaker ?? "";
     };
     speaker.addEventListener("keydown", (event) => {
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === "Enter") {
         event.preventDefault();
         finishSpeaker();

@@ -1130,6 +1130,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       }
     };
     input.addEventListener("keydown", (event) => {
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === "Enter") {
         event.preventDefault();
         finish(true);
@@ -1389,6 +1390,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     runFind(true);
   });
   findInput.addEventListener("keydown", (event) => {
+    if (event.isComposing || event.keyCode === 229) return;
     if (event.key === "Enter") {
       event.preventDefault();
       stepFind(event.shiftKey ? -1 : 1);

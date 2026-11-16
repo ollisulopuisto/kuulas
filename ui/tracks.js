@@ -113,6 +113,7 @@ function editableReadout(control, { parse, current, text, format, write, scale =
   const { input, output } = control;
   output.title = t("ui.readout.type_hint");
   input.addEventListener("keydown", (event) => {
+    if (event.isComposing || event.keyCode === 229) return;
     if (event.key === "Enter" && !event.shiftKey && !event.altKey) {
       event.preventDefault();
       output.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
@@ -154,6 +155,7 @@ function editableReadout(control, { parse, current, text, format, write, scale =
     };
     field.addEventListener("keydown", (e) => {
       e.stopPropagation();
+      if (e.isComposing || e.keyCode === 229) return;
       if (e.key === "Enter") finish(true);
       else if (e.key === "Escape") finish(false);
     });
@@ -806,6 +808,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       }
     };
     input.addEventListener("keydown", (event) => {
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === "Enter") finish(true);
       else if (event.key === "Escape") {
         event.stopPropagation();

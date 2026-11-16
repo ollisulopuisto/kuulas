@@ -41,6 +41,7 @@ export function createMarkersPanel({ root, actions }) {
       });
       name.addEventListener("keydown", (event) => {
         event.stopPropagation();
+        if (event.isComposing || event.keyCode === 229) return;
         if (event.key === "Enter") {
           editing = null;
           actions.rename(item.id, name.value);

@@ -1947,6 +1947,7 @@ export function createTimeline({
     };
     input.addEventListener("keydown", (event) => {
       event.stopPropagation();
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.key === "Enter") {
         event.preventDefault();
         finish(true);
