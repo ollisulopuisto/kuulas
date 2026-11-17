@@ -48,6 +48,7 @@ import { frameToTime } from "./format.js";
 import { rememberCut } from "./ghost-marker.js";
 import { toggleScopeMode } from "./range-scope.js";
 import { selectAllIds } from "./selection.js";
+import { clipboardReveal } from "./sidebar-model.js";
 import { cycleKindPlan } from "./track-kind.js";
 
 /**
@@ -156,7 +157,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
             response?.clipboard?.ok
           ) {
             app.patch({
-              materialsScope: "clipboard",
+              ...clipboardReveal(app.getState()),
               clipboardView: "project",
               clipboardFilter: "",
               clipboardSelected: response.clipboard.entry,
@@ -221,7 +222,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       void app.copy(plan.body).then((ok) => {
         if (ok) {
           app.patch({
-            materialsScope: "clipboard",
+            ...clipboardReveal(app.getState()),
             clipboardView: "project",
             clipboardFilter: "",
             clipboardSelected: null,
@@ -310,15 +311,16 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   // (while recording it will also be put on the timeline), and Shift+Alt+n gives the picked
   // entry number n. Neither is an edit.
   for (let n = 1; n <= CART_SLOTS; n += 1) {
-    def(
-      `clipboard.cart_play_${n}`,
-      () => {
-        const entry = cartEntry(app.getState(), n);
-        if (!entry) app.toast(t("ui.cart.empty", { slot: n }), { undo: false });
-        else void app.previewClipboard(entry.id);
-      },
-      (s) => hasProject(s),
-    );
+    for (const id of [`clipboard.cart_play_${n}`, `clipboard.play_slot_${n}`])
+      def(
+        id,
+        () => {
+          const entry = cartEntry(app.getState(), n);
+          if (!entry) app.toast(t("ui.cart.empty", { slot: n }), { undo: false });
+          else void app.previewClipboard(entry.id);
+        },
+        (s) => hasProject(s),
+      );
     def(
       `clipboard.cart_assign_${n}`,
       () => {

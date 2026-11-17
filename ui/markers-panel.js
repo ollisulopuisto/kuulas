@@ -65,7 +65,7 @@ export function createMarkersPanel({ root, actions }) {
         "button",
         {
           type: "button",
-          class: "clip-main",
+          class: "clip-main marker-main",
           "aria-pressed": String(selected),
           title: t("ui.markers.jump", { name: item.name }),
           dataset: { id: item.id, action: "jump" },
@@ -76,6 +76,16 @@ export function createMarkersPanel({ root, actions }) {
           textContent: `${formatClock(item.seconds, 1)} · ${t(`ui.markers.kind.${item.kind}`)}${length}`,
         }),
       );
+      if (item.number != null) {
+        name.prepend(
+          el("span", {
+            class: "marker-number",
+            textContent: String(item.number),
+            "aria-hidden": "true",
+          }),
+        );
+        if (item.number <= 9) name.setAttribute("aria-keyshortcuts", String(item.number));
+      }
       name.addEventListener("click", () => actions.jump(item.id));
     }
     const button = (action, label, onClick, extra = {}) => {
@@ -130,7 +140,7 @@ export function createMarkersPanel({ root, actions }) {
     const text = leftOffText({ frame: item.frame, savedAt: item.savedAt }, rate, words, "row");
     const main = el("button", {
       type: "button",
-      class: "clip-main",
+      class: "clip-main marker-main",
       title: t("ui.resume.jump"),
       dataset: { id: LEFT_OFF_ID, action: "jump" },
     });
@@ -168,7 +178,7 @@ export function createMarkersPanel({ root, actions }) {
       "button",
       {
         type: "button",
-        class: "clip-main",
+        class: "clip-main marker-main",
         title: jump,
         dataset: { id: item.clip_id, action: "drift-jump" },
       },

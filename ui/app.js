@@ -138,7 +138,6 @@ import { createMarkersPanel } from "./markers-panel.js";
 import { implicitMarkPlan } from "./marks.js";
 import { createMarksCorner } from "./marks-corner.js";
 import { createMaterialPanel } from "./material-panel.js";
-import { createMaterialsPanel } from "./materials-panel.js";
 import { missingNotice } from "./media-copy-model.js";
 import { MENU, menuTargets } from "./menu-model.js";
 import { heldFromEvent } from "./modifiers.js";
@@ -295,7 +294,7 @@ function applyTabs() {
   const platform = detectPlatform();
   for (const [id, tab] of Object.entries(SIDE_TAB_COMMANDS)) {
     const button = $(`tab-${tab}`);
-    if (!button || id === "panel.show_clipboard") continue;
+    if (!button) continue;
     const name = t(`ui.tabs.${tab}`);
     const combos = tabKeyEntries ? shortcutsFor(id, tabKeyEntries) : [];
     const shown = combos.map((combo) => formatCombo(combo, platform));
@@ -1403,17 +1402,14 @@ const panelElements = {
   history: $("panel-history"),
   material: $("panel-material"),
 };
-const SIDEBAR_TABS = ["inspector", "history", "markers", "material", "candidates"];
+const SIDEBAR_TABS = ["inspector", "history", "markers", "clipboard", "material", "candidates"];
 
 function focusPanel(name) {
-  if (name === "clipboard") {
-    setState({ materialsScope: "clipboard" });
-    name = "material";
-  }
   // A sidebar tab that is not showing must show before it can take the focus.
   if (SIDEBAR_TABS.includes(name)) {
     setSidebar(true);
     setState({ sidebarTab: name });
+    $(`tab-${name}`).scrollIntoView({ block: "nearest", inline: "nearest" });
   }
   panelElements[name].focus();
   setState({ panel: name });
@@ -3987,10 +3983,6 @@ async function copyMaterialRecording(id) {
     return false;
   }
 }
-const materialsPanel = createMaterialsPanel({
-  root: $("panel-material"),
-  select: (scope) => setState({ materialsScope: scope }),
-});
 const materialPanel = createMaterialPanel({
   root: $("materials-recordings"),
   actions: {
@@ -4806,9 +4798,7 @@ function render(state, patch, previous = null) {
     clipboardPanel.update(state);
   if (touched("project", "markerSelected", "playhead", "inPoint", "outPoint", "syncClips"))
     markersPanel.update(state);
-  if (state.sidebarTab === "material" && touched("project", "sidebarTab", "materialsScope"))
-    loadMaterial();
-  if (touched("materialsScope", "sidebarTab", "project")) materialsPanel.update(state);
+  if (state.sidebarTab === "material" && touched("project", "sidebarTab")) loadMaterial();
   if (touched("material", "materialFilter", "materialText", "sidebarTab"))
     materialPanel.update(state);
   if (state.head && touched("head")) void refreshCandidates();

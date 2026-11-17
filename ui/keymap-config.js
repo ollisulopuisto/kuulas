@@ -23,7 +23,11 @@ export function contextsOverlap(a, b) {
   if (EXCLUDING[a]) return !EXCLUDING[a].includes(b);
   if (EXCLUDING[b]) return !EXCLUDING[b].includes(a);
   // The Markers tab also has the side panels' keys.
-  if ((a === "markers" && b === "side") || (a === "side" && b === "markers")) return true;
+  if (
+    (["markers", "clipboard"].includes(a) && b === "side") ||
+    (a === "side" && ["markers", "clipboard"].includes(b))
+  )
+    return true;
   return a === b || EVERYWHERE.has(a) || EVERYWHERE.has(b);
 }
 

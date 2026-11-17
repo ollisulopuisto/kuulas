@@ -2,7 +2,13 @@
 // into a region, Next/Previous move the playhead between markers, Delete removes the one
 // under the playhead (or the one picked in the Markers tab). Each is one undoable edit with a
 // toast that offers Undo. Keys are in keymap-default.js, the list is the Markers tab.
-import { adjacentMarker, markerAt, nextMarkerName, regionFromRange } from "./markers-model.js";
+import {
+  adjacentMarker,
+  markerAt,
+  markerRows,
+  nextMarkerName,
+  regionFromRange,
+} from "./markers-model.js";
 
 const hasProject = (state) => Boolean(state?.project);
 const markersOf = (state) => state?.project?.markers ?? [];
@@ -75,6 +81,21 @@ export function registerMarkerCommands(registry, { app, t, makeId = newMarkerId 
     hasProject(state) && adjacentMarker(markersOf(state), state.playhead, direction) !== null;
   def("marker.next", step(1), canStep(1));
   def("marker.prev", step(-1), canStep(-1));
+
+  const numbered = (state, n) =>
+    markerRows(markersOf(state), state.project?.rate ?? 48000).find((row) => row.number === n);
+  for (let n = 1; n <= 9; n += 1) {
+    def(
+      `marker.jump_${n}`,
+      () => {
+        const target = numbered(app.getState(), n);
+        if (!target) return;
+        app.jump(target.start);
+        app.patch({ markerSelected: target.id });
+      },
+      (state) => hasProject(state) && Boolean(numbered(state, n)),
+    );
+  }
 
   def(
     "marker.delete",

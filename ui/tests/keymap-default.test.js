@@ -38,6 +38,8 @@ describe("the data", () => {
   test("every label is in both catalogs", () => {
     for (const lang of ["en", "fi"]) {
       const messages = catalog(lang);
+      for (const context of CONTEXTS)
+        assert.ok(messages[`keys.context.${context}`], `${lang}: ${context}`);
       for (const entry of DEFAULT_KEYMAP) {
         assert.ok(messages[entry.labelKey], `${lang}: ${entry.labelKey}`);
       }

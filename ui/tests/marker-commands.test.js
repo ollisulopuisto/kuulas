@@ -161,3 +161,25 @@ test("the keyboard setup registers the marker commands (they would be planned ot
   const source = readFileSync(new URL("../shell-keys.js", import.meta.url), "utf8");
   assert.match(source, /registerMarkerCommands\(registry/);
 });
+
+test("number jumps use current time order, skip chapters and regions, keep panel focus", () => {
+  const s = setup({
+    panel: "markers",
+    project: {
+      markers: [
+        m("late", 300),
+        m("region", 0, { kind: "region", end: 20 }),
+        m("chapter", 50, { kind: "chapter" }),
+        m("early", 100),
+      ],
+    },
+  });
+  assert.equal(s.registry.run("marker.jump_2", null, s.get()), true);
+  assert.deepEqual(s.calls.seeks, [300]);
+  assert.equal(s.get().panel, "markers");
+  s.get().project.markers.push(m("new", 200));
+  s.registry.run("marker.jump_2", null, s.get());
+  assert.deepEqual(s.calls.seeks, [300, 200]);
+  assert.equal(s.registry.can("marker.jump_9", s.get()), false);
+  assert.equal(s.registry.can("marker.jump_1", {}), false);
+});

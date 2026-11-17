@@ -270,7 +270,7 @@ export function createKeymap({
           !EVERYWHERE.has(entry.context) &&
           entry.context !== context &&
           // The Markers tab is a side panel with keys of its own: the side panels' keys work in it too.
-          !(entry.context === "side" && context === "markers")
+          !(entry.context === "side" && ["markers", "clipboard"].includes(context))
         )
           continue;
         if (!entry.parsed.some((p) => matchesCombo(event, p, platform))) continue;

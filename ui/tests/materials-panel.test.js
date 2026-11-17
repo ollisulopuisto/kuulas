@@ -6,35 +6,38 @@ import { initialState } from "../store.js";
 import { recordOf, restoreFrom, SIDEBAR_TABS } from "../view-memory.js";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
-test("one Materials destination keeps both original panels and clipboard focus route", () => {
+test("six independent tabs keep Clipboard between Markers and Material", () => {
   const html = read("../index.html");
-  assert.equal((html.match(/role="tab"/g) || []).length, 5);
-  assert.doesNotMatch(html, /id="tab-clipboard"/);
-  assert.match(html, /id="materials-recordings"/);
-  assert.match(html, /id="panel-clipboard" data-panel="clipboard"/);
-  assert.deepEqual(SIDEBAR_TABS, ["inspector", "history", "markers", "material", "candidates"]);
-  assert.equal(nextPanel("clipboard", 1), "candidates");
+  assert.equal((html.match(/role="tab"/g) || []).length, 6);
+  assert.match(html, /id="tab-clipboard"/);
+  assert.match(html, /id="panel-clipboard" class="panel"/);
+  assert.deepEqual(SIDEBAR_TABS, [
+    "inspector",
+    "history",
+    "markers",
+    "clipboard",
+    "material",
+    "candidates",
+  ]);
+  assert.equal(nextPanel("clipboard", 1), "material");
   assert.equal(nextPanel("clipboard", -1), "markers");
-  const app = read("../app.js");
-  assert.match(app, /if \(name === "clipboard"\)/);
-  assert.match(app, /setState\(\{ materialsScope: "clipboard" \}\)/);
+  assert.doesNotMatch(read("../app.js"), /materialsScope/);
 });
-test("unused recordings are the default, switching scopes never rewrites clipboard content", () => {
-  const state = initialState();
-  assert.equal(state.materialFilter, "unused");
-  assert.equal(state.materialsScope, "recordings");
-  const panel = read("../materials-panel.js");
-  assert.doesNotMatch(panel, /clipboard\s*=|\.splice\(|\.push\(/);
-});
-test("old Clipboard tab view migrates to the unified tab and new scope is remembered", () => {
+test("old unified clipboard view migrates without stealing other destinations", () => {
   const context = { project: { tracks: [] }, width: 500, totalFrames: 0 };
-  const migrated = restoreFrom({ sidebarTab: "clipboard" }, context).patch;
-  assert.equal(migrated.sidebarTab, "material");
-  assert.equal(migrated.materialsScope, "clipboard");
-  const record = recordOf({
-    ...initialState(),
-    sidebarTab: "material",
-    materialsScope: "clipboard",
-  });
-  assert.equal(restoreFrom(record, context).patch.materialsScope, "clipboard");
+  for (const record of [
+    { sidebarTab: "clipboard" },
+    { sidebarTab: "material", materialsScope: "clipboard" },
+  ]) {
+    assert.equal(restoreFrom(record, context).patch.sidebarTab, "clipboard");
+  }
+  for (const sidebarTab of SIDEBAR_TABS) {
+    const record = recordOf({ ...initialState(), sidebarTab });
+    assert.equal(restoreFrom(record, context).patch.sidebarTab, sidebarTab);
+    assert.equal("materialsScope" in record, false);
+  }
+  assert.equal(
+    restoreFrom({ sidebarTab: "history", materialsScope: "clipboard" }, context).patch.sidebarTab,
+    "history",
+  );
 });

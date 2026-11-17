@@ -14,7 +14,6 @@ export const initialState = () => ({
   // The Material tab: the server's rows ({ rows } or null until asked), the filter and text.
   material: null,
   materialFilter: "unused",
-  materialsScope: "recordings",
   materialText: "",
   // Other project windows of this desktop app (null: not known, or a plain browser).
   otherWindows: null,

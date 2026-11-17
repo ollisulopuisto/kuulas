@@ -2,7 +2,9 @@
 // Delete (a soft cut on THIS speaker's track: the words go silent in place and the gap
 // stays); X is Cut (the stretch is ripple-deleted on every track, `cut_words`). Keys live
 // in keymap-default.js, under the "transcript" context.
+
 import { autoName, clipsInRange, describeClips } from "./clipboard.js";
+import { clipboardReveal } from "./sidebar-model.js";
 import {
   correctableWordRange,
   cutRange,
@@ -100,7 +102,7 @@ export function registerTranscriptCommands(registry, { app, t }) {
       void copying.then(async (copied) => {
         if (copied)
           app.patch?.({
-            materialsScope: "clipboard",
+            ...clipboardReveal(app.getState()),
             clipboardView: "project",
             clipboardFilter: "",
             clipboardSelected: null,

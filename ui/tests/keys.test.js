@@ -401,6 +401,7 @@ describe("keyboard focus", () => {
       "inspector",
       "history",
       "markers",
+      "clipboard",
       "material",
       "candidates",
     ]);
@@ -442,4 +443,31 @@ describe("Tab in the timeline context", () => {
     assert.equal(side.keymap.handle(tab({ target: { tagName: "BUTTON" } })), false);
     assert.deepEqual([...typing.calls, ...side.calls], []);
   });
+});
+
+describe("panel number keys stay local and Finnish-layout safe", () => {
+  for (const platform of ["mac", "other"]) {
+    for (const [context, id, n] of [
+      ["markers", "marker.jump_2", 2],
+      ["clipboard", "clipboard.play_slot_2", 2],
+      ["timeline", "nav.to_out", 2],
+    ]) {
+      test(`${platform}: ${context} digit selects its own action`, () => {
+        const { keymap, calls } = setup({ platform, context });
+        keymap.handle(press({ code: `Digit${n}`, key: String(n) }));
+        assert.deepEqual(calls, [[id]]);
+      });
+    }
+    test(`${platform}: Alt+digit remains global; typing and Shift+digit never jump`, () => {
+      for (const context of ["markers", "clipboard", "timeline", "side", "transcript"]) {
+        const { keymap, calls } = setup({ platform, context });
+        keymap.handle(press({ code: "Digit2", key: "@", altKey: true }));
+        assert.deepEqual(calls, [["clipboard.cart_play_2"]]);
+        calls.length = 0;
+        keymap.handle(press({ code: "Digit2", key: '"', shiftKey: true }));
+        keymap.handle(press({ code: "Digit2", key: "2", target: field }));
+        assert.deepEqual(calls, []);
+      }
+    });
+  }
 });
