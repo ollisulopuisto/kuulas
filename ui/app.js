@@ -1502,6 +1502,7 @@ installDialogKeys(window);
 let nameDialog = null;
 const keyboard = setupKeyboard({
   actions,
+  getCoreLoop: () => coreLoop,
   prefs,
   t,
   notify: showNotice,

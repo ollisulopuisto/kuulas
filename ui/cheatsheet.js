@@ -87,6 +87,14 @@ export function createCheatSheet({ getData, t, actions, getHeld }) {
     for (const button of buttons) button.textContent = t(`cmd.${button.dataset.id}`);
     close.textContent = t("ui.keys.close");
     body.replaceChildren();
+    // The two-step panel keys, taught where a user looks for keys (owner, 2026-11-17);
+    // a search is after something specific, so it steps aside then.
+    if (!search.value.trim()) {
+      const teach = document.createElement("p");
+      teach.className = "cheatsheet-teach";
+      teach.textContent = t("ui.keys.teach");
+      body.append(teach);
+    }
     const groups = getData(search.value);
     if (groups.length === 0) {
       const none = document.createElement("p");

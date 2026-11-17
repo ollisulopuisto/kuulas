@@ -1,8 +1,9 @@
 // The core-loop onboarding panel (core-loop-model.js): a card docked at the bottom of the
 // timeline stack, kept open while the user edits. Each row shows the key the command has
 // now (remaps show), and ticks when the command runs - app.js feeds it from the registry.
-// A non-modal section, never a dialog: the loop is tried by editing, and a modal would be
-// in the way of exactly that.
+// The two-step panelkeys row shows one example of the pattern (Cmd+3, then 3) and ticks
+// when both halves have really run. A non-modal section, never a dialog: the loop is tried
+// by editing, and a modal would be in the way of exactly that.
 
 import { CORE_LOOP, TOTAL, triedCount } from "./core-loop-model.js";
 import { keyName } from "./i18n.js";
@@ -48,7 +49,10 @@ export function createCoreLoopPanel({ root, t, platform, keyOf, undoCombo, onHid
   // when a shown combo really changed (a bare modifier press refreshes the keyboard layer
   // too, and rebuilding then would steal the focus from Hide tips).
   const signature = () =>
-    JSON.stringify([...CORE_LOOP.map((entry) => keyOf(entry.command) ?? null), undoCombo ?? null]);
+    JSON.stringify([
+      ...CORE_LOOP.map((entry) => keyOf(entry.command ?? entry.example?.panel) ?? null),
+      undoCombo ?? null,
+    ]);
   let rendered = null;
   let lastState = null;
 
@@ -56,6 +60,25 @@ export function createCoreLoopPanel({ root, t, platform, keyOf, undoCombo, onHid
     const chip = document.createElement("kbd");
     chip.textContent = label;
     return chip;
+  }
+
+  // A plain row shows its command's combo; the steps row shows the pattern as an example:
+  // the panel key, an arrow, the bare number.
+  function buildKeys(entry) {
+    const keys = document.createElement("div");
+    keys.className = "cl-keys";
+    if (entry.example) {
+      for (const part of comboParts(keyOf(entry.example.panel), platform))
+        keys.append(kbdChip(part));
+      const arrow = document.createElement("span");
+      arrow.className = "cl-arrow";
+      arrow.setAttribute("aria-hidden", "true");
+      arrow.textContent = "→";
+      keys.append(arrow, kbdChip(entry.example.key));
+      return keys;
+    }
+    for (const part of comboParts(keyOf(entry.command), platform)) keys.append(kbdChip(part));
+    return keys;
   }
 
   function buildRow(entry) {
@@ -69,9 +92,7 @@ export function createCoreLoopPanel({ root, t, platform, keyOf, undoCombo, onHid
     dot.setAttribute("aria-hidden", "true");
     dot.textContent = "✓";
 
-    const keys = document.createElement("div");
-    keys.className = "cl-keys";
-    for (const part of comboParts(keyOf(entry.command), platform)) keys.append(kbdChip(part));
+    const keys = buildKeys(entry);
 
     const text = document.createElement("div");
     const name = document.createElement("div");
@@ -81,6 +102,7 @@ export function createCoreLoopPanel({ root, t, platform, keyOf, undoCombo, onHid
     hint.className = "cl-hint";
     hint.textContent = t(`ui.coreloop.row.${entry.id}.hint`, {
       undo: undoCombo ? comboParts(undoCombo, platform).join("") : "",
+      panel: entry.example ? comboParts(keyOf(entry.example.panel), platform).join("") : "",
     });
     text.append(name, hint);
 
