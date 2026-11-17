@@ -18,3 +18,8 @@ marker numbering and jump behavior. UI dispatch tests cover all three digit cont
 text fields, modifier isolation and both platform mappings. Full UI tests, lint, focused
 Python locale/docs/page tests and synthetic before/after screenshots accompany the PR.
 No project format or dependency changes. A native macOS listening check remains untested.
+
+Devin follow-up: copying reveals Clipboard only when it does not hide the currently focused
+sidebar tab. Timeline/transcript keep keyboard focus; a focused Markers tab stays visible.
+The Clipboard shortcut section has translated English and Finnish headings. Both regressions
+were observed failing before the fixes.

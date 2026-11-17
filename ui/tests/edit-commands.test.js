@@ -777,3 +777,20 @@ describe("a drop from the Clipboard tab", () => {
     assert.equal(refreshed, 1);
   });
 });
+
+test("copy in a focused sidebar keeps its visible tab and digit context together", async () => {
+  const state = base({ panel: "markers", sidebarTab: "markers", inPoint: 0, outPoint: 4 * S });
+  const h = setup(state);
+  h.registry.run("edit.copy", null, state);
+  await new Promise((resolve) => setImmediate(resolve));
+  const final = Object.assign({}, state, ...h.patches);
+  assert.equal(final.sidebarTab, "markers");
+  assert.equal(final.panel, "markers");
+  const timeline = base({ panel: "timeline", sidebarTab: "markers", inPoint: 0, outPoint: 4 * S });
+  const second = setup(timeline);
+  second.registry.run("edit.copy", null, timeline);
+  await new Promise((resolve) => setImmediate(resolve));
+  const shown = Object.assign({}, timeline, ...second.patches);
+  assert.equal(shown.sidebarTab, "clipboard");
+  assert.equal(shown.panel, "timeline");
+});

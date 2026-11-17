@@ -32,3 +32,8 @@ export const opensSidebar = (id) => NEEDS_SIDEBAR.has(id);
 
 /** Whether the sidebar shows after command `id` runs. */
 export const sidebarAfter = (shown, id) => shown || opensSidebar(id);
+
+/** Reveal a copy without hiding the sidebar panel that still owns keyboard focus. */
+export function clipboardReveal(state) {
+  return state.panel && state.panel === state.sidebarTab ? {} : { sidebarTab: "clipboard" };
+}

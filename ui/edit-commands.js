@@ -48,6 +48,7 @@ import { frameToTime } from "./format.js";
 import { rememberCut } from "./ghost-marker.js";
 import { toggleScopeMode } from "./range-scope.js";
 import { selectAllIds } from "./selection.js";
+import { clipboardReveal } from "./sidebar-model.js";
 import { cycleKindPlan } from "./track-kind.js";
 
 /**
@@ -156,7 +157,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
             response?.clipboard?.ok
           ) {
             app.patch({
-              sidebarTab: "clipboard",
+              ...clipboardReveal(app.getState()),
               clipboardView: "project",
               clipboardFilter: "",
               clipboardSelected: response.clipboard.entry,
@@ -221,7 +222,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       void app.copy(plan.body).then((ok) => {
         if (ok) {
           app.patch({
-            sidebarTab: "clipboard",
+            ...clipboardReveal(app.getState()),
             clipboardView: "project",
             clipboardFilter: "",
             clipboardSelected: null,

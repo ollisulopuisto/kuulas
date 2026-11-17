@@ -3672,5 +3672,6 @@
   "cmd.clipboard.play_slot_4": "Cart: soita paikka 4",
   "cmd.clipboard.play_slot_5": "Cart: soita paikka 5",
   "cmd.clipboard.play_slot_6": "Cart: soita paikka 6",
-  "cmd.clipboard.play_slot_7": "Cart: soita paikka 7"
+  "cmd.clipboard.play_slot_7": "Cart: soita paikka 7",
+  "keys.context.clipboard": "Leikepöytä-välilehti"
 }
