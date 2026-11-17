@@ -2743,6 +2743,11 @@ input[type="text"] {
   height: var(--control-h);
   margin: var(--space-4) 0;
 }
+.cheatsheet-teach {
+  margin: 0 0 var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
 .cheatsheet-body {
   max-height: 58vh;
   overflow-y: auto;
@@ -5304,6 +5309,9 @@ legend.form-heading {
   display: flex;
   align-items: center;
   gap: var(--space-1);
+}
+.cl-keys .cl-arrow {
+  color: var(--text-tertiary);
 }
 .cl-keys kbd {
   min-width: 1.55rem;

@@ -2026,7 +2026,8 @@ export const DEFAULT_KEYMAP = [
 
 // The status bar shows at most three hints for the focused panel: the first three
 // of these whose command exists (a planned command is not hinted until it lands).
-// `hintKey` is the short word shown beside the key.
+// `hintKey` is the short word shown beside the key. Markers and Clipboard lead with
+// their bare-number action, the second half of the two-step pattern (owner, 2026-11-17).
 export const STATUS_HINTS = {
   timeline: [
     { id: "transport.play", hintKey: "ui.hint.play" },
@@ -2054,5 +2055,15 @@ export const STATUS_HINTS = {
     { id: "transport.play", hintKey: "ui.hint.play" },
     { id: "panel.next", hintKey: "ui.hint.panels" },
     { id: "nav.home", hintKey: "ui.hint.home" },
+  ],
+  markers: [
+    { id: "marker.jump_1", hintKey: "ui.hint.marker_jump" },
+    { id: "transport.play", hintKey: "ui.hint.play" },
+    { id: "panel.next", hintKey: "ui.hint.panels" },
+  ],
+  clipboard: [
+    { id: "clipboard.play_slot_1", hintKey: "ui.hint.cart_play" },
+    { id: "transport.play", hintKey: "ui.hint.play" },
+    { id: "panel.next", hintKey: "ui.hint.panels" },
   ],
 };

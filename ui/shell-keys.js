@@ -34,7 +34,7 @@ import {
   validateOverrides,
 } from "./keymap-config.js";
 import { DEFAULT_KEYMAP, STATUS_HINTS } from "./keymap-default.js";
-import { createKeymap, detectPlatform } from "./keys.js";
+import { createKeymap, detectPlatform, isTextField } from "./keys.js";
 import { registerLoudnessCommands } from "./loudness-commands.js";
 import { registerMarkerCommands } from "./marker-commands.js";
 import { MENU, MENU_ALIASES, resolveMenu } from "./menu-model.js";
@@ -46,6 +46,7 @@ import { registerPlaceholderCommands } from "./placeholder-commands.js";
 import { loadRecent, recordRecent, saveRecent } from "./recent-commands.js";
 import { registerSaveCommands } from "./save-commands.js";
 import { registerSelectCommands } from "./select-commands.js";
+import { createStatusTeacher, teachForCommand, teachForDeadDigit } from "./status-teach.js";
 import { subscribe } from "./store.js";
 import { registerSyncCommands } from "./sync-commands.js";
 import { registerTranscriptCommands } from "./transcript-commands.js";
@@ -92,6 +93,7 @@ export function setupKeyboard({
   onRefresh,
   prefs,
   help = null,
+  getCoreLoop = () => null,
 }) {
   const platform = detectPlatform();
   const storage = safeStorage();
@@ -316,6 +318,14 @@ export function setupKeyboard({
 
   const hintBar = document.getElementById("keyhints");
   const menuHint = document.getElementById("menu-hint");
+  // Teaching the two-step panel keys (owner, 2026-11-17): the status bar says what a bare
+  // number does right after Markers or Clipboard opens, and corrects a dead number press
+  // elsewhere. Both stop once the core-loop row for the pattern has ticked.
+  const teacher = createStatusTeacher({ menuHint, keyhints: hintBar, t });
+  registry.onRun((id) => {
+    const message = teachForCommand(id, getCoreLoop());
+    if (message) teacher.show(message);
+  });
   function renderHints() {
     if (!hintBar) return;
     const state = app.getState();
@@ -411,7 +421,25 @@ export function setupKeyboard({
       })
     )
       return;
-    if (!event.isComposing) keymap.handle(event);
+    if (!event.isComposing) {
+      const handled = keymap.handle(event);
+      if (!handled) {
+        const message = teachForDeadDigit(
+          {
+            code: event.code,
+            mod: Boolean(event.metaKey || event.ctrlKey),
+            alt: Boolean(event.altKey),
+            shift: Boolean(event.shiftKey),
+            repeat: Boolean(event.repeat),
+            typing: isTextField(event.target),
+            modal: modalOpen(),
+            context: CONTEXT_OF_PANEL[app.getState().panel] ?? "timeline",
+          },
+          getCoreLoop(),
+        );
+        if (message) teacher.show(message);
+      }
+    }
   });
   document.addEventListener("keyup", (event) => {
     tracker.update(event);

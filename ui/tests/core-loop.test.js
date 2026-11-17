@@ -20,29 +20,83 @@ import * as i18n from "../i18n.js";
 
 const read = (path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
 
-describe("the five rows", () => {
-  test("are In, Out, rehearse, remove, play-before, in action order", () => {
+describe("the rows", () => {
+  test("are In, Out, rehearse, remove, play-before and the two-step panel keys, in action order", () => {
     assert.deepEqual(
       CORE_LOOP.map((row) => row.id),
-      ["in", "out", "preview", "cut", "play"],
+      ["in", "out", "preview", "cut", "play", "panelkeys"],
     );
     assert.deepEqual(
-      CORE_LOOP.map((row) => row.command),
+      CORE_LOOP.filter((row) => row.command).map((row) => row.command),
       ["mark.in", "mark.out", "transport.rehearse", "edit.remove", "transport.play_before"],
     );
+    const panelkeys = CORE_LOOP.find((row) => row.id === "panelkeys");
+    assert.ok(panelkeys.steps[0].includes("panel.show_markers"), "open a panel");
+    assert.ok(panelkeys.steps[0].includes("panel.show_clipboard"));
+    assert.ok(panelkeys.steps[1].includes("marker.jump_3"), "a bare number acts");
+    assert.ok(panelkeys.steps[1].includes("clipboard.play_slot_7"));
+    assert.deepEqual(panelkeys.example, { panel: "panel.show_markers", key: "3" });
   });
 });
 
 describe("noteRun: a row ticks when its command runs", () => {
   test("each command ticks its own row once", () => {
     let state = emptyCoreLoop();
-    for (const row of CORE_LOOP) {
+    for (const row of CORE_LOOP.filter((entry) => entry.command)) {
       const step = noteRun(state, row.command);
       assert.equal(step.ticked, row.id);
       state = step.state;
     }
     assert.equal(triedCount(state), 5);
-    assert.ok(complete(state));
+    assert.ok(!complete(state), "the panelkeys row is still open");
+    const done = ["panel.show_markers", "marker.jump_1"].reduce(
+      (s, id) => noteRun(s, id).state,
+      state,
+    );
+    assert.ok(complete(done));
+  });
+
+  test("the panelkeys row ticks only after both halves ran, in any order", () => {
+    let state = emptyCoreLoop();
+    let step = noteRun(state, "panel.show_clipboard");
+    assert.equal(step.ticked, null);
+    assert.deepEqual(step.state.steps, { panelkeys: [0] });
+    assert.equal(triedCount(step.state), 0);
+    step = noteRun(step.state, "clipboard.play_slot_3");
+    assert.equal(step.ticked, "panelkeys");
+    assert.deepEqual(step.state.steps, {});
+    // The number first also completes it.
+    state = noteRun(emptyCoreLoop(), "marker.jump_2").state;
+    assert.deepEqual(state.steps, { panelkeys: [1] });
+    assert.equal(noteRun(state, "panel.show_markers").ticked, "panelkeys");
+  });
+
+  test("a tab click is not a step: only the panel commands count", () => {
+    const state = emptyCoreLoop();
+    const step = noteRun(state, "panel.next");
+    assert.equal(step.state, state);
+    assert.equal(step.ticked, null);
+  });
+
+  test("half-done steps persist through the prefs round-trip", () => {
+    const prefs = new Map();
+    const store = {
+      getJson: (key, fallback) => (prefs.has(key) ? prefs.get(key) : fallback),
+      setJson: (key, value) => prefs.set(key, value),
+    };
+    writeCoreLoop(store, noteRun(emptyCoreLoop(), "panel.show_markers").state);
+    const back = readCoreLoop(store);
+    assert.deepEqual(back.steps, { panelkeys: [0] });
+    assert.equal(noteRun(back, "marker.jump_1").ticked, "panelkeys");
+  });
+
+  test("junk stored steps are dropped, and a stored-done row keeps no steps", () => {
+    const junk = {
+      getJson: () => ({ tried: [], hidden: false, steps: { panelkeys: [0, 7, -1, "x", 0] } }),
+    };
+    assert.deepEqual(readCoreLoop(junk).steps, { panelkeys: [0] });
+    const done = { getJson: () => ({ tried: ["panelkeys"], steps: { panelkeys: [0] } }) };
+    assert.deepEqual(readCoreLoop(done).steps, {});
   });
 
   test("an unrelated command changes nothing, not even the object", () => {
@@ -79,25 +133,30 @@ describe("remembering the panel", () => {
 
   test("nothing stored is a fresh panel: shown, nothing tried", () => {
     const state = readCoreLoop(store());
-    assert.deepEqual(state, { tried: [], hidden: false });
+    assert.deepEqual(state, { tried: [], hidden: false, steps: {} });
     assert.ok(showsOnLaunch(state));
   });
 
   test("a round trip keeps tried rows and the hidden flag", () => {
     const prefs = store();
-    writeCoreLoop(prefs, { tried: ["in", "play"], hidden: true });
-    assert.deepEqual(readCoreLoop(prefs), { tried: ["in", "play"], hidden: true });
+    writeCoreLoop(prefs, { tried: ["in", "play"], hidden: true, steps: {} });
+    assert.deepEqual(readCoreLoop(prefs), { tried: ["in", "play"], hidden: true, steps: {} });
   });
 
   test("junk stored is not a crash and not a tick: unknown ids and duplicates drop out", () => {
     const state = readCoreLoop(store({ tried: ["in", "nope", "in", 3], hidden: "yes" }));
-    assert.deepEqual(state, { tried: ["in"], hidden: false });
+    assert.deepEqual(state, { tried: ["in"], hidden: false, steps: {} });
     assert.equal(triedCount(state), 1);
   });
 
   test("hidden stays hidden; a finished loop does not reopen on the next launch", () => {
     assert.ok(!showsOnLaunch({ tried: [], hidden: true }));
-    assert.ok(!showsOnLaunch({ tried: ["in", "out", "preview", "cut", "play"], hidden: false }));
+    assert.ok(
+      !showsOnLaunch({
+        tried: ["in", "out", "preview", "cut", "play", "panelkeys"],
+        hidden: false,
+      }),
+    );
     assert.ok(showsOnLaunch({ tried: ["in"], hidden: false }));
   });
 });
@@ -215,15 +274,15 @@ function makePanel({ keys = {}, undoCombo = "Mod+Z" } = {}) {
 }
 
 describe("the panel", () => {
-  test("renders the title, the intro and five rows with the user's keys", () => {
+  test("renders the title, the intro and the rows with the user's keys", () => {
     const { root } = makePanel({
       keys: { "mark.in": "I", "mark.out": "O", "transport.rehearse": "Shift+Mod+Space" },
     });
     const rows = root.findAll((c) => c.classList.contains("cl-row"));
-    assert.equal(rows.length, 5);
+    assert.equal(rows.length, 6);
     assert.deepEqual(
       rows.map((r) => r.dataset.row),
-      ["in", "out", "preview", "cut", "play"],
+      ["in", "out", "preview", "cut", "play", "panelkeys"],
     );
     const rehearse = rows[2];
     const chips = rehearse.find((c) => c.classList.contains("cl-keys")).children;
@@ -232,6 +291,25 @@ describe("the panel", () => {
       ["⇧", "⌘", "Space"],
     );
     assert.ok(root.find((c) => c.tagName === "H2"));
+  });
+
+  test("the panelkeys row shows the pattern: the panel key, an arrow, the bare number", () => {
+    const { root } = makePanel({ keys: { "panel.show_markers": "Mod+3" } });
+    const row = root.find((c) => c.dataset.row === "panelkeys");
+    const keys = row.find((c) => c.classList.contains("cl-keys"));
+    assert.deepEqual(
+      keys.children.map((k) => k.textContent),
+      ["⌘", "3", "→", "3"],
+    );
+    assert.match(row.find((c) => c.classList.contains("cl-hint")).textContent, /"panel":"⌘3"/);
+  });
+
+  test("the panelkeys row ticks from its remembered state and flashes", () => {
+    const { panel, root } = makePanel();
+    panel.update({ tried: ["panelkeys"], hidden: false, steps: {} });
+    assert.ok(root.find((c) => c.dataset.row === "panelkeys").classList.contains("done"));
+    panel.flash("panelkeys");
+    assert.ok(root.find((c) => c.dataset.row === "panelkeys").classList.contains("flash"));
   });
 
   test("a remapped key shows as remapped", () => {
@@ -253,7 +331,7 @@ describe("the panel", () => {
     assert.ok(rows[3].classList.contains("done"));
     const progress = root.find((c) => c.classList.contains("cl-progress"));
     assert.match(progress.textContent, /"tried":2/);
-    assert.match(progress.textContent, /"total":5/);
+    assert.match(progress.textContent, /"total":6/);
   });
 
   test("flash marks the row that just ticked", () => {
