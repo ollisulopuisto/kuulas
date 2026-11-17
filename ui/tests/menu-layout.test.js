@@ -334,12 +334,6 @@ describe("Track, Playback, View", () => {
     assert.ok(go.includes("nav.prev_stop") && go.includes("nav.next_stop"));
     assert.ok(!go.includes("transcript.prev_stop") && !go.includes("transcript.next_stop"));
     assert.deepEqual(MENU_ALIASES, {
-      ...Object.fromEntries(
-        Array.from({ length: 7 }, (_, i) => [
-          `clipboard.play_slot_${i + 1}`,
-          `clipboard.cart_play_${i + 1}`,
-        ]),
-      ),
       "transcript.prev_stop": "nav.prev_stop",
       "transcript.next_stop": "nav.next_stop",
     });

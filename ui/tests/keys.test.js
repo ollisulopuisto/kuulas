@@ -458,12 +458,11 @@ describe("panel number keys stay local and Finnish-layout safe", () => {
         assert.deepEqual(calls, [[id]]);
       });
     }
-    test(`${platform}: Alt+digit remains global; typing and Shift+digit never jump`, () => {
+    test(`${platform}: no global number keys but In/Out (owner 2026-11-17): Alt+digit, Shift+Alt+digit, Shift+digit and typing never act`, () => {
       for (const context of ["markers", "clipboard", "timeline", "side", "transcript"]) {
         const { keymap, calls } = setup({ platform, context });
         keymap.handle(press({ code: "Digit2", key: "@", altKey: true }));
-        assert.deepEqual(calls, [["clipboard.cart_play_2"]]);
-        calls.length = 0;
+        keymap.handle(press({ code: "Digit2", key: "~", altKey: true, shiftKey: true }));
         keymap.handle(press({ code: "Digit2", key: '"', shiftKey: true }));
         keymap.handle(press({ code: "Digit2", key: "2", target: field }));
         assert.deepEqual(calls, []);

@@ -715,23 +715,17 @@ export const DEFAULT_KEYMAP = [
     context: "clipboard",
     labelKey: `cmd.clipboard.play_slot_${i + 1}`,
   })),
-  // The cart: Alt+1..7 play slot n, Shift+Alt+1..7 give the picked entry number n. Matched by
-  // key position (Digit1..7), so the Finnish layout needs no Shift or AltGr character; 8 and 9
-  // are the bracket keys there (Option+8 is "["), so there are seven slots.
-  ...[1, 2, 3, 4, 5, 6, 7].flatMap((n) => [
-    {
-      id: `clipboard.cart_play_${n}`,
-      keys: { mac: `Alt+${n}`, other: `Alt+${n}` },
-      context: "global",
-      labelKey: `cmd.clipboard.cart_play_${n}`,
-    },
-    {
-      id: `clipboard.cart_assign_${n}`,
-      keys: { mac: `Shift+Alt+${n}`, other: `Shift+Alt+${n}` },
-      context: "global",
-      labelKey: `cmd.clipboard.cart_assign_${n}`,
-    },
-  ]),
+  // The cart's numbers come from the entry's chip in the Clipboard tab or Playback > Cart
+  // (owner, 2026-11-17: no global number keys but the timeline's 1/2 for In/Out - Alt+1..7
+  // played over whatever the user was doing). The assign commands keep no default key but
+  // stay in the keymap, so a user's own binding still works. Seven slots: Option+8 and
+  // Option+9 are the bracket keys of a Finnish Mac keyboard.
+  ...[1, 2, 3, 4, 5, 6, 7].map((n) => ({
+    id: `clipboard.cart_assign_${n}`,
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: `cmd.clipboard.cart_assign_${n}`,
+  })),
   {
     id: "clipboard.move_up",
     keys: { mac: null, other: null },

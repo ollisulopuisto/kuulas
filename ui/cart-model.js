@@ -1,5 +1,6 @@
-// The cart (owner, 2026-10-23): up to seven clipboard entries carry a number 1-7, and Alt+n plays
-// number n (Shift+Alt+n gives the picked entry that number). Pure: which entry a number means.
+// The cart (owner, 2026-10-23): up to seven clipboard entries carry a number 1-7. A bare digit
+// plays the slot while the Clipboard tab has the keys; the entry's chip or Playback > Cart gives
+// the number (owner, 2026-11-17: the global Alt+n keys are gone). Pure: which entry a number means.
 import { pasteEntry } from "./edit-plans.js";
 
 // Seven, not nine: Option+8 and Option+9 type [ and ] on a Finnish Mac keyboard, and no default
