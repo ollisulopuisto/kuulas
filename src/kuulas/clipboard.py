@@ -400,8 +400,8 @@ def prune_entries(entries: Iterable[Entry], max_unpinned: int) -> list[Entry]:
     return kept
 
 
-#: The cart has seven slots, the keys Alt+1 to Alt+7 (Alt+8 and Alt+9 are brackets on a
-#: Finnish Mac keyboard).
+#: The cart has seven slots: Option+8 and Option+9 are the bracket keys of a Finnish Mac
+#: keyboard, so the numbers stop at 7.
 CART_SLOTS = 7
 
 

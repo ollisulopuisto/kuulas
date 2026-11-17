@@ -307,20 +307,20 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       },
     );
   }
-  // The cart (owner, 2026-10-23): Alt+n plays the entry that holds slot n, in every situation
-  // (while recording it will also be put on the timeline), and Shift+Alt+n gives the picked
-  // entry number n. Neither is an edit.
+  // The cart (owner, 2026-10-23): a bare digit plays the entry that holds slot n while the
+  // Clipboard tab has the keys (while recording it will also be put on the timeline), and a
+  // number is given from the entry's chip or Playback > Cart. Neither is an edit. The global
+  // Alt+n play keys are gone (owner, 2026-11-17): number keys act inside their panel only.
   for (let n = 1; n <= CART_SLOTS; n += 1) {
-    for (const id of [`clipboard.cart_play_${n}`, `clipboard.play_slot_${n}`])
-      def(
-        id,
-        () => {
-          const entry = cartEntry(app.getState(), n);
-          if (!entry) app.toast(t("ui.cart.empty", { slot: n }), { undo: false });
-          else void app.previewClipboard(entry.id);
-        },
-        (s) => hasProject(s),
-      );
+    def(
+      `clipboard.play_slot_${n}`,
+      () => {
+        const entry = cartEntry(app.getState(), n);
+        if (!entry) app.toast(t("ui.cart.empty", { slot: n }), { undo: false });
+        else void app.previewClipboard(entry.id);
+      },
+      (s) => hasProject(s),
+    );
     def(
       `clipboard.cart_assign_${n}`,
       () => {
