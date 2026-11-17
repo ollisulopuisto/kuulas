@@ -23,12 +23,6 @@ const submenu = (labelKey, items) => ({ kind: "submenu", labelKey, items });
  * Previous / Next stop: `nav.*` (the timeline's Tab) and `transcript.*` (the transcript's Tab).
  */
 export const MENU_ALIASES = {
-  ...Object.fromEntries(
-    Array.from({ length: 7 }, (_, i) => [
-      `clipboard.play_slot_${i + 1}`,
-      `clipboard.cart_play_${i + 1}`,
-    ]),
-  ),
   "transcript.prev_stop": "nav.prev_stop",
   "transcript.next_stop": "nav.next_stop",
 };
@@ -503,7 +497,7 @@ export const MENU = [
       // The cart plays clips (also while recording), so it sits with playback, not inside
       // Edit > Clipboard: the bar draws one level of submenus and the cart is a submenu.
       submenu("menu.cart", [
-        ...[1, 2, 3, 4, 5, 6, 7].map((n) => item(`clipboard.cart_play_${n}`)),
+        ...[1, 2, 3, 4, 5, 6, 7].map((n) => item(`clipboard.play_slot_${n}`)),
         SEP,
         ...[1, 2, 3, 4, 5, 6, 7].map((n) => item(`clipboard.cart_assign_${n}`)),
       ]),
