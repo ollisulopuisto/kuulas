@@ -141,7 +141,7 @@ describe("transcript commands", () => {
     assert.deepEqual(calls.copies[0].track_ids, ["a", "b"]);
     assert.match(calls.copies[0].name, /Anna/);
     assert.match(calls.toasts[0], /ui\.transcript\.toast\.cut /);
-    assert.ok(calls.patches.some((patch) => patch.materialsScope === "clipboard"));
+    assert.ok(calls.patches.some((patch) => patch.sidebarTab === "clipboard"));
   });
 
   test("Mod+X: a failed copy still cuts, and the toast says it was not copied", async () => {

@@ -19,7 +19,9 @@ export function sortedMarkers(markers) {
 
 /** Rows for the Markers tab: { id, name, kind, start, end, seconds, length (regions) }. */
 export function markerRows(markers, rate) {
+  let number = 0;
   return sortedMarkers(markers).map((marker) => ({
+    number: marker.kind === "marker" ? ++number : null,
     id: marker.id,
     name: marker.name,
     kind: marker.kind,

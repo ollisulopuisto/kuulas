@@ -17,7 +17,7 @@
 //
 // Zoom keys (owner, 2026-10-18): Z toggles close and wide, 0 shows the whole edit, F fits the
 // selection or in-out; no view command lives on a modified Z (Cmd+Z and Cmd+Shift+Z are undo and redo).
-// Mod+1 to Mod+5 show the side-panel tabs in their row order (owner, 2026-10-23; the tab
+// Mod+1 to Mod+6 show the side-panel tabs in their row order (owner, 2026-10-23; the tab
 // convention, it was Alt+1..5). Mod+1/Mod+2 no longer also set the marks: I and O do that.
 // Owner decisions (18.10.2026) kept here: Backspace is Delete (soft cut, gap kept),
 // X is Cut (ripple, to the clipboard), Mod+C copies; Spot is Mod+J, find is Mod+F,
@@ -45,6 +45,7 @@ export const CONTEXTS = [
   "side",
   "candidates",
   "markers",
+  "clipboard",
   "text-field",
 ];
 
@@ -452,13 +453,13 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "panel.show_candidates",
-    keys: { mac: "Mod+5", other: "Mod+5" },
+    keys: { mac: "Mod+6", other: "Mod+6" },
     context: "global",
     labelKey: "cmd.panel.show_candidates",
   },
   {
     id: "panel.show_clipboard",
-    keys: { mac: null, other: null },
+    keys: { mac: "Mod+4", other: "Mod+4" },
     context: "global",
     labelKey: "cmd.panel.show_clipboard",
   },
@@ -476,7 +477,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "panel.show_material",
-    keys: { mac: "Mod+4", other: "Mod+4" },
+    keys: { mac: "Mod+5", other: "Mod+5" },
     context: "global",
     labelKey: "cmd.panel.show_material",
   },
@@ -701,6 +702,19 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.clipboard.send_to_window",
   },
+  // Plain digits only act while their own panel has focus.
+  ...Array.from({ length: 9 }, (_, i) => ({
+    id: `marker.jump_${i + 1}`,
+    keys: { mac: `${i + 1}`, other: `${i + 1}` },
+    context: "markers",
+    labelKey: `cmd.marker.jump_${i + 1}`,
+  })),
+  ...Array.from({ length: 7 }, (_, i) => ({
+    id: `clipboard.play_slot_${i + 1}`,
+    keys: { mac: `${i + 1}`, other: `${i + 1}` },
+    context: "clipboard",
+    labelKey: `cmd.clipboard.play_slot_${i + 1}`,
+  })),
   // The cart: Alt+1..7 play slot n, Shift+Alt+1..7 give the picked entry number n. Matched by
   // key position (Digit1..7), so the Finnish layout needs no Shift or AltGr character; 8 and 9
   // are the bracket keys there (Option+8 is "["), so there are seven slots.

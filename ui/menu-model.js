@@ -23,6 +23,12 @@ const submenu = (labelKey, items) => ({ kind: "submenu", labelKey, items });
  * Previous / Next stop: `nav.*` (the timeline's Tab) and `transcript.*` (the transcript's Tab).
  */
 export const MENU_ALIASES = {
+  ...Object.fromEntries(
+    Array.from({ length: 7 }, (_, i) => [
+      `clipboard.play_slot_${i + 1}`,
+      `clipboard.cart_play_${i + 1}`,
+    ]),
+  ),
   "transcript.prev_stop": "nav.prev_stop",
   "transcript.next_stop": "nav.next_stop",
 };
@@ -133,6 +139,7 @@ const MARKERS = submenu("menu.markers", [
   item("marker.next"),
   item("marker.prev"),
   item("marker.delete"),
+  ...Array.from({ length: 9 }, (_, i) => item(`marker.jump_${i + 1}`)),
 ]);
 const TRANSCRIBE_LOCAL = submenu("menu.transcribe.local", [
   item("app.transcribe"),
@@ -521,6 +528,7 @@ export const MENU = [
         item("panel.show_inspector"),
         item("panel.show_history"),
         item("panel.show_markers"),
+        item("panel.show_clipboard"),
         item("panel.show_material"),
         item("panel.show_candidates"),
       ]),

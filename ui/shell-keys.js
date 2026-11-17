@@ -59,7 +59,7 @@ export const CONTEXT_OF_PANEL = {
   transcript: "transcript",
   inspector: "side",
   candidates: "candidates",
-  clipboard: "side",
+  clipboard: "clipboard",
   markers: "markers",
   history: "side",
   help: "side",

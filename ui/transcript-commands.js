@@ -100,7 +100,7 @@ export function registerTranscriptCommands(registry, { app, t }) {
       void copying.then(async (copied) => {
         if (copied)
           app.patch?.({
-            materialsScope: "clipboard",
+            sidebarTab: "clipboard",
             clipboardView: "project",
             clipboardFilter: "",
             clipboardSelected: null,

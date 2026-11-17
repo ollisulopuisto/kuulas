@@ -7,6 +7,7 @@ export const PANELS = [
   "inspector",
   "history",
   "markers",
+  "clipboard",
   "material",
   "candidates",
 ];
@@ -14,7 +15,6 @@ export const HOME = "timeline";
 
 /** The panel after `current` (direction 1) or before it (-1), wrapping around. */
 export function nextPanel(current, direction) {
-  if (current === "clipboard") current = "material";
   const at = PANELS.includes(current) ? PANELS.indexOf(current) : 0;
   return PANELS[(at + (direction < 0 ? PANELS.length - 1 : 1)) % PANELS.length];
 }

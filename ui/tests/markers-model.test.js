@@ -215,3 +215,27 @@ test("draggedMarkerStart: pointer frame minus the grab offset, clamped at zero",
   // Sub-frame pointers round to the nearest frame.
   assert.equal(draggedMarkerStart(0, 100.6), 101);
 });
+
+test("only point markers get chronological row numbers, ruler labels stay unnumbered", () => {
+  const list = [
+    m("b", 200),
+    m("r", 0, { kind: "region", end: 10 }),
+    m("c", 20, { kind: "chapter" }),
+    m("a", 100),
+  ];
+  assert.deepEqual(
+    markerRows(list, 100).map((r) => [r.id, r.number]),
+    [
+      ["r", null],
+      ["c", null],
+      ["a", 1],
+      ["b", 2],
+    ],
+  );
+  assert.deepEqual(
+    flagLayout(list, { scroll: 0, zoom: 1, width: 1000, measure: (s) => s.length }).flags.map(
+      (f) => f.label,
+    ),
+    ["c", "a", "b"],
+  );
+});

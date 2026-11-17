@@ -224,7 +224,7 @@ describe("the editing commands", () => {
       );
       if (["edit.cut", "edit.cut_track", "edit.lift_cut"].includes(id))
         assert.ok(
-          h.patches.some((patch) => patch.materialsScope === "clipboard"),
+          h.patches.some((patch) => patch.sidebarTab === "clipboard"),
           id,
         );
     }
@@ -530,9 +530,11 @@ describe("the clipboard commands (WP46)", () => {
     const h = setup(state);
     h.registry.run("clipboard.cart_play_2", null, state);
     assert.deepEqual(h.previewed, ["q1"]);
+    h.registry.run("clipboard.play_slot_2", null, state);
+    assert.deepEqual(h.previewed, ["q1", "q1"]);
     assert.equal(h.sent.length, 0); // not an edit
     h.registry.run("clipboard.cart_play_5", null, state);
-    assert.deepEqual(h.previewed, ["q1"]);
+    assert.deepEqual(h.previewed, ["q1", "q1"]);
     assert.match(h.toasts.at(-1)[0], /ui\.cart\.empty/);
   });
 
@@ -591,7 +593,7 @@ describe("the clipboard commands (WP46)", () => {
     await Promise.resolve();
     assert.match(h.toasts[0][0], /^ui\.edit\.toast\.copy/);
     assert.deepEqual(h.toasts[0][1], { undo: false });
-    assert.ok(h.patches.some((patch) => patch.materialsScope === "clipboard"));
+    assert.ok(h.patches.some((patch) => patch.sidebarTab === "clipboard"));
   });
 
   test("X is a cut that goes to the clipboard: one edit, then the list is refreshed", () => {
@@ -600,7 +602,7 @@ describe("the clipboard commands (WP46)", () => {
     h.registry.run("edit.cut", null, state);
     assert.equal(h.sent[0].op, "clipboard_cut");
     h.sent[0].done({ project, clipboard: { ok: true, entry: "e9" } });
-    assert.ok(h.patches.some((patch) => patch.materialsScope === "clipboard"));
+    assert.ok(h.patches.some((patch) => patch.sidebarTab === "clipboard"));
     assert.equal(h.refreshed(), 1);
   });
 
@@ -637,7 +639,7 @@ describe("the clipboard commands (WP46)", () => {
     assert.match(h.toasts[0][0], /^ui\.edit\.toast\.cut_uncopied/);
     assert.match(h.toasts[0][0], /disk full/);
     assert.deepEqual(h.toasts[0][1], { undo: true });
-    assert.ok(!h.patches.some((patch) => patch.materialsScope === "clipboard"));
+    assert.ok(!h.patches.some((patch) => patch.sidebarTab === "clipboard"));
   });
 
   test("Backspace removes selected clips without touching the clipboard", () => {

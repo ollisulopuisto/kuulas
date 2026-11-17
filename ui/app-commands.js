@@ -13,7 +13,7 @@ import { playSelectionRequest, rehearseRequest } from "./rehearse.js";
 import { opensSidebar } from "./sidebar-model.js";
 import { PAUSE_CHOICES } from "./transcript-model.js";
 
-/** Mod+1 to Mod+5: command id -> side-panel tab, in the tab row's order. */
+/** Mod+1 to Mod+6: command id -> side-panel tab, in the tab row's order. */
 export const SIDE_TAB_COMMANDS = {
   "panel.show_inspector": "inspector",
   "panel.show_candidates": "candidates",

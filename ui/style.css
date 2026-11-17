@@ -1947,6 +1947,7 @@ input[type="text"] {
 
 /* -- the sidebar's tabs and the Clipboard tab (WP46) --------------------------------------- */
 .side-tabs {
+  overflow-x: auto;
   display: flex;
   gap: var(--space-1);
   padding: var(--space-2) var(--pad-panel) 0;
@@ -1954,7 +1955,7 @@ input[type="text"] {
   border-bottom: 1px solid var(--border-subtle);
   flex-wrap: nowrap;
 }
-/* Five tabs and the hide button are one row at every width (owner, 2026-10-21): never wrapped,
+/* Six tabs and the hide button are one row at every width (owner, 2026-10-21): never wrapped,
    never an ellipsis (2026-10-19). side-tabs-model.js measures and sets data-tabs: full, then
    tight (less padding), then compact (the selected tab keeps its label and key; the others show
    an icon plus the key), then minimal (the selected tab loses its key too). The key is always
@@ -2010,13 +2011,10 @@ input[type="text"] {
 .side-tabs[data-tabs="minimal"] .side-tab[aria-selected="true"] .tab-key {
   display: none;
 }
-/* Five destinations: keep the complete key and selected name in a narrow sidebar. */
+/* Six destinations: keep the complete key and selected name in a narrow sidebar. */
 .side-tabs[data-tabs="minimal"] .side-tab {
   padding-inline: var(--space-1);
   gap: var(--space-1);
-}
-.materials-scopes {
-  margin-bottom: var(--space-3);
 }
 
 .side-tabs .side-close {
@@ -6684,4 +6682,21 @@ legend.form-heading {
 .bus-header:hover .bus-compact-summary,
 .bus-header:focus-within .bus-compact-summary {
   visibility: hidden;
+}
+
+/* Numbered point markers: badge beside both name and time, never on ruler flags. */
+.marker-main {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-3);
+}
+.marker-main .marker-number {
+  grid-row: 1 / 3;
+  align-self: center;
+  color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+}
+.marker-main .clip-name,
+.marker-main .clip-meta {
+  grid-column: 2;
 }
