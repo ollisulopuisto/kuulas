@@ -28,7 +28,7 @@ jobs:
         with:
           repository: ollisulopuisto/podcast
           path: podcast
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       # Exercise pywebview's GTK/WebKit backend on Linux. The test does not open
       # a window, so a display server is unnecessary.
       - name: System web view packages
