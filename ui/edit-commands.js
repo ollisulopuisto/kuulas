@@ -316,8 +316,13 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
         id,
         () => {
           const entry = cartEntry(app.getState(), n);
-          if (!entry) app.toast(t("ui.cart.empty", { slot: n }), { undo: false });
-          else void app.previewClipboard(entry.id);
+          // An empty slot says so but counts as not run: a probe must not tick the
+          // two-step panel-keys lesson (Devin, 2026-11-17).
+          if (!entry) {
+            app.toast(t("ui.cart.empty", { slot: n }), { undo: false });
+            return { refused: true };
+          }
+          void app.previewClipboard(entry.id);
         },
         (s) => hasProject(s),
       );

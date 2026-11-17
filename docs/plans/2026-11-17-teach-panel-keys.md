@@ -35,6 +35,8 @@ all four options:
 - `ui/shell-keys.js` - wires the teacher: command-ran hook and dead-key correction,
   gated on the core-loop state.
 - `ui/keymap-default.js` - `STATUS_HINTS` for `markers` and `clipboard`.
+- `ui/edit-commands.js` - an empty cart slot still says so but now counts as not run
+  (`{ refused: true }`), so a probe cannot tick the lesson (Devin, 2026-11-17).
 - `ui/cheatsheet.js`, `ui/style.css` - the teaching line and its style.
 - `src/kuulas/locales/{en,fi}.json` - the words, both languages.
 - `ui/tests/teach-panel-keys.test.js` (new), `ui/tests/core-loop.test.js` - the logic,

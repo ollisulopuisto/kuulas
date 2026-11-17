@@ -538,6 +538,23 @@ describe("the clipboard commands (WP46)", () => {
     assert.match(h.toasts.at(-1)[0], /ui\.cart\.empty/);
   });
 
+  test("an empty cart slot counts as not run: the panelkeys lesson survives a probe", () => {
+    const state = withClip({
+      clipboard: [
+        { ...entry, id: "q1", cart: 2 },
+        { ...entry, id: "q2" },
+      ],
+    });
+    const h = setup(state);
+    const ran = [];
+    h.registry.onRun((id) => ran.push(id));
+    h.registry.run("clipboard.play_slot_5", null, state);
+    assert.match(h.toasts.at(-1)[0], /ui\.cart\.empty/);
+    assert.deepEqual(ran, []);
+    h.registry.run("clipboard.play_slot_2", null, state);
+    assert.deepEqual(ran, ["clipboard.play_slot_2"]);
+  });
+
   test("Shift+Alt+n gives the picked (else first) entry cart slot n", () => {
     const state = withClip({
       clipboard: [
