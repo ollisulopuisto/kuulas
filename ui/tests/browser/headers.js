@@ -75,7 +75,9 @@ const finish = () => {
   document.getElementById("result").textContent = JSON.stringify(out);
 };
 addEventListener("error", (event) => {
-  document.getElementById("result").textContent = JSON.stringify({ harnessError: String(event.error && event.error.stack || event.message) });
+  document.getElementById("result").textContent = JSON.stringify({
+    harnessError: String((event.error && event.error.stack) || event.message),
+  });
 });
 const intent = query.get("intent");
 if (intent) {
@@ -89,42 +91,42 @@ if (intent) {
     finish();
   }, 300);
 } else {
-const open = query.get("open");
-if (!open) finish();
-else {
-  // Pin the track's ".." popover (collapsed, the disclosure is hover-only, so
-  // click it programmatically), then look at what sits over the grip.
-  const node = [...root.querySelectorAll(".track-header[data-track]")].find(
-    (header) =>
-      header.querySelector(".track-name").title === open ||
-      header.querySelector(".track-name").getAttribute("aria-label") === open,
-  );
-  node.querySelector(".th-disclosure").click();
-  setTimeout(() => {
-    const flyout = document.querySelector(
-      ".track-flyout-layer .track-controls-flyout:not([hidden])",
+  const open = query.get("open");
+  if (!open) finish();
+  else {
+    // Pin the track's ".." popover (collapsed, the disclosure is hover-only, so
+    // click it programmatically), then look at what sits over the grip.
+    const node = [...root.querySelectorAll(".track-header[data-track]")].find(
+      (header) =>
+        header.querySelector(".track-name").title === open ||
+        header.querySelector(".track-name").getAttribute("aria-label") === open,
     );
-    const grip = node.querySelector(".lane-grip");
-    const box = grip.getBoundingClientRect();
-    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-    out.flyout = flyout ? rect(flyout) : null;
-    out.controlsOpen = node.classList.contains("controls-open");
-    out.header = rect(node);
-    out.grip = rect(grip);
-    out.gripHit = hit === grip;
-    const next = node.nextElementSibling;
-    out.next = next ? rect(next) : null;
-    hit.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-    const nameBox = node.querySelector(".track-name").getBoundingClientRect();
-    const nameHit = document.elementFromPoint(
-      nameBox.left + nameBox.width / 2,
-      nameBox.top + nameBox.height / 2,
-    );
-    out.nameHit = nameHit?.className ?? null;
-    nameHit?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-    out.renameField = Boolean(node.querySelector("input"));
-    out.calls = calls;
-    finish();
-  }, 50);
-}
+    node.querySelector(".th-disclosure").click();
+    setTimeout(() => {
+      const flyout = document.querySelector(
+        ".track-flyout-layer .track-controls-flyout:not([hidden])",
+      );
+      const grip = node.querySelector(".lane-grip");
+      const box = grip.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      out.flyout = flyout ? rect(flyout) : null;
+      out.controlsOpen = node.classList.contains("controls-open");
+      out.header = rect(node);
+      out.grip = rect(grip);
+      out.gripHit = hit === grip;
+      const next = node.nextElementSibling;
+      out.next = next ? rect(next) : null;
+      hit.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      const nameBox = node.querySelector(".track-name").getBoundingClientRect();
+      const nameHit = document.elementFromPoint(
+        nameBox.left + nameBox.width / 2,
+        nameBox.top + nameBox.height / 2,
+      );
+      out.nameHit = nameHit?.className ?? null;
+      nameHit?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      out.renameField = Boolean(node.querySelector("input"));
+      out.calls = calls;
+      finish();
+    }, 50);
+  }
 }

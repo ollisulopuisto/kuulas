@@ -12,6 +12,7 @@ import { busHues, busLetter } from "./grammar.js";
 import { detectPlatform, formatDb, formatNumber, t } from "./i18n.js";
 import { addBusForTrack, NEW_BUS } from "./inspector-track.js";
 import { truncateMiddle } from "./labels.js";
+import { setLaneInset } from "./lane-insets.js";
 import { dragLaneHeight, dragStarted } from "./lane-sizing.js";
 import { layoutFor } from "./lanes.js";
 import { contextualReadout, readoutText, trackReadout } from "./loudness-readout.js";
@@ -26,7 +27,6 @@ import {
   TRACK_FLYOUT_CLOSE_DELAY_MS,
   trackFlyoutReducer,
 } from "./track-header-flyout.js";
-import { setLaneInset } from "./lane-insets.js";
 import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
@@ -883,17 +883,12 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
           `var(--track-${hue === MUSIC_HUE ? "music" : hue}-edge)`,
         );
         if (parts.name.isConnected) fitName(parts.name, track.name);
-        parts.node.classList.toggle(
-          "recording",
-          recordingActive && state.focusTrack === track.id,
-        );
+        parts.node.classList.toggle("recording", recordingActive && state.focusTrack === track.id);
         // Clip labels start right of the collapsed header (strip + name pill),
         // so the overlay never covers a clip's name.
         setLaneInset(
           track.id,
-          Math.round(
-            parts.card.offsetLeft + parts.name.offsetLeft + parts.name.offsetWidth + 8,
-          ),
+          Math.round(parts.card.offsetLeft + parts.name.offsetLeft + parts.name.offsetWidth + 8),
         );
         if (!parts.tag.classList.contains(`kind-${track.kind}`)) paintTag(parts.tag, track.kind);
         const differs = roleDiffers(state.project, track);

@@ -936,8 +936,7 @@ export function createTimeline({
       if (missing) drawMissingMedia(left, y, w, h);
       if (clip.xfade_in) drawCrossfade(left, y, h, clip.xfade_in / state.zoom, colours.ink);
       if (clip.xfade_out) drawCrossfade(right, y, h, clip.xfade_out / state.zoom, colours.ink);
-      if (row.height >= 36)
-        drawName(state, clip, left, y, w, colours, marked, laneInset(track.id));
+      if (row.height >= 36) drawName(state, clip, left, y, w, colours, marked, laneInset(track.id));
       if (wordsView && row.height >= WORDS_MIN_LANE)
         drawClipWords(state, track, clip, wordsView, { left, y, w }, colours);
       // The gain line only where it says something: not 0 dB, an envelope, or selected.

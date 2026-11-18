@@ -65,9 +65,18 @@ test("track metadata opens in a popover under the header card", () => {
 test("the collapsed header is a drag strip with M/S plus a separate name pill", () => {
   assert.ok(source.includes('el("div", "th-card")'), "header uses card markup");
   assert.ok(source.includes('el("div", "th-strip")'), "card has a drag strip");
-  assert.ok(/strip\.append\(handle, buttons, el\("span", "th-rec-dot"/.test(source), "strip holds handle, M/S, rec dot");
-  assert.ok(/\.th-row1 > \.track-name,\s*\.th-row1 > \.bus-name\s*\{[^}]*border-radius: 999px/s.test(css), "name is a pill");
-  assert.ok(/\.track-header\.recording \.th-rec-dot\s*\{[^}]*display: block/s.test(css), "rec dot shows when recording");
+  assert.ok(
+    /strip\.append\(handle, buttons, el\("span", "th-rec-dot"/.test(source),
+    "strip holds handle, M/S, rec dot",
+  );
+  assert.ok(
+    /\.th-row1 > \.track-name,\s*\.th-row1 > \.bus-name\s*\{[^}]*border-radius: 999px/s.test(css),
+    "name is a pill",
+  );
+  assert.ok(
+    /\.track-header\.recording \.th-rec-dot\s*\{[^}]*display: block/s.test(css),
+    "rec dot shows when recording",
+  );
 });
 
 test("bus headers use the shorter footprint and a rotary pan control", () => {
