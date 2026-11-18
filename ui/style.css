@@ -6746,6 +6746,7 @@ legend.form-heading {
   display: none;
 }
 .th-card .th-controls .slider-control.control-gain {
-  flex: 1;
-  min-width: 120px;
+  /* Short and fixed: the card stays content-sized, the slider never sprawls. */
+  flex: none;
+  width: 180px;
 }
