@@ -86,7 +86,8 @@ addEventListener("error", (event) => {
 const intent = query.get("intent");
 if (intent) {
   // Devin (#233): approach the collapsed Solo and press its original centre at
-  // once. The card opens the moment the pointer enters (owner, 2026-11-18), so
+  // once. The card opens the moment the pointer enters (header redesign,
+  // 2026-11-18), so
   // that in-flight press lands on the revealed controls - and must be
   // swallowed, never set the gain. The next, deliberate click still works.
   const node = [...root.querySelectorAll(".track-header[data-track]")].find(

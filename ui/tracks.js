@@ -451,7 +451,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     row1.append(strip, name, disclosure, compactSummary);
     card.append(row1, controls);
     node.append(card, grip);
-    // Hover opens the card at once (owner, 2026-11-18). Devin's finding (#233)
+    // Hover opens the card at once (header redesign, 2026-11-18). Devin's finding (#233)
     // stays fixed without a delay: a press that was already in flight as the
     // card opens lands on the revealed gain slider, so swallow a pointerdown
     // on the newly revealed controls when the pointer has not moved since it
