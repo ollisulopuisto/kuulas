@@ -129,7 +129,7 @@ const GUARDED = {
   "clock.js": [77],
   "history-panel.js": [316],
   "inspector-track.js": [89, 233],
-  "inspector.js": [194],
+  "inspector.js": [206],
   "markers-panel.js": [42],
   "marks-corner.js": [160],
   "timeline.js": [1951],
