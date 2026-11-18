@@ -34,7 +34,11 @@ const actions = new Proxy(
 const root = document.getElementById("track-headers");
 const headers = createTrackHeaders({
   root,
-  editor: { apply() {}, current: () => project },
+  editor: {
+    apply() {},
+    current: () => project,
+    change: (edit) => calls.push(["change", edit.op]),
+  },
   actions,
 });
 headers.update({
@@ -81,11 +85,21 @@ addEventListener("error", (event) => {
 });
 const intent = query.get("intent");
 if (intent) {
+  // Devin (#233): approach the collapsed Solo and click its original centre at
+  // once - only the Solo action may run. The card expands later, visibly.
   const node = [...root.querySelectorAll(".track-header[data-track]")].find(
     (header) => header.querySelector(".track-name").textContent === intent,
   );
+  const soloBtn = node.querySelector(".ms-button.solo");
+  const box = soloBtn.getBoundingClientRect();
+  const cx = box.left + box.width / 2;
+  const cy = box.top + box.height / 2;
   node.dispatchEvent(new PointerEvent("pointerenter", { bubbles: false }));
+  const hit = document.elementFromPoint(cx, cy);
+  out.soloHit = hit === soloBtn;
   out.intentImmediate = getComputedStyle(node.querySelector(".th-controls")).display;
+  hit.click();
+  out.calls = calls;
   setTimeout(() => {
     out.intentAfter = getComputedStyle(node.querySelector(".th-controls")).display;
     finish();

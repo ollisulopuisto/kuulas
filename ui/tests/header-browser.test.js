@@ -104,9 +104,11 @@ for (const density of ["comfortable", "compact"]) {
   });
 }
 
-test("hover expansion waits for hover intent, so a fast M/S click cannot land on the revealed slider (Devin, #233)", async () => {
+test("a fast Solo click at its original centre runs only Solo (Devin, #233)", async () => {
   const result = await measure(`density=comfortable&intent=Bob`);
+  assert.equal(result.soloHit, true, "the collapsed Solo is not under its own centre on entry");
   assert.equal(result.intentImmediate, "none", "the card expands the moment the pointer enters");
+  assert.deepEqual(result.calls, [["change", "solo"]], "something other than Solo ran");
   assert.equal(result.intentAfter, "flex", "the card never expands on a resting pointer");
 });
 
