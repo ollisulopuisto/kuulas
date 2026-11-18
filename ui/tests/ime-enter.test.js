@@ -133,7 +133,7 @@ const GUARDED = {
   "markers-panel.js": [42],
   "marks-corner.js": [160],
   "timeline.js": [1951],
-  "tracks.js": [116, 157, 847],
+  "tracks.js": [116, 157, 859],
   "transcript.js": [1142, 1407],
 };
 

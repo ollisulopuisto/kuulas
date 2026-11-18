@@ -489,7 +489,19 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
           return;
         event.preventDefault();
         event.stopPropagation();
-        if (entryControl) entryControl.click();
+        // Forward the press to the control it was aimed at, keeping the
+        // modifiers: Shift-click on Solo is non-exclusive (Devin, #233).
+        if (entryControl)
+          entryControl.dispatchEvent(
+            new MouseEvent("click", {
+              bubbles: true,
+              cancelable: true,
+              shiftKey: event.shiftKey,
+              ctrlKey: event.ctrlKey,
+              altKey: event.altKey,
+              metaKey: event.metaKey,
+            }),
+          );
       },
       true,
     );

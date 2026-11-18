@@ -113,14 +113,25 @@ test("a fast press at Solo's original centre runs only Solo (Devin, #233)", asyn
     "the in-flight press no longer lands on the revealed controls",
   );
   assert.equal(result.pressSwallowed, true, "the in-flight press is not swallowed");
-  assert.deepEqual(result.calls, [["change", "solo"]], "the in-flight press ran anything but Solo");
+  assert.deepEqual(
+    result.calls,
+    [["change", "solo", true]],
+    "the in-flight press ran anything but an exclusive Solo",
+  );
   assert.deepEqual(
     result.callsAfter,
     [
-      ["change", "solo"],
-      ["change", "solo"],
+      ["change", "solo", true],
+      ["change", "solo", true],
     ],
     "the deliberate Solo click failed",
+  );
+  // Shift survives the redirect: a Shift press is a non-exclusive Solo.
+  assert.equal(result.shiftSwallowed, true, "the Shift press is not swallowed");
+  assert.deepEqual(
+    result.shiftCalls,
+    [["change", "solo", false]],
+    "the Shift press lost its modifier or ran something else",
   );
   assert.equal(result.intentAfter, "flex", "the card closes while the pointer rests");
 });

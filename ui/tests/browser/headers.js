@@ -37,7 +37,8 @@ const headers = createTrackHeaders({
   editor: {
     apply() {},
     current: () => project,
-    change: (edit) => calls.push(["change", edit.op]),
+    change: (edit) =>
+      calls.push(["change", edit.op, ...(edit.op === "solo" ? [edit.args.exclusive] : [])]),
   },
   actions,
 });
@@ -116,6 +117,24 @@ if (intent) {
   out.calls = calls.slice();
   soloBtn.click();
   out.callsAfter = calls.slice();
+  // Fresh entry with Shift held (Devin, #233): the redirected press must keep
+  // the modifier - Shift-click on Solo is non-exclusive (exclusive === false).
+  calls.length = 0;
+  node.classList.remove("hover-open");
+  node.dispatchEvent(
+    new PointerEvent("pointerenter", { bubbles: false, clientX: cx, clientY: cy }),
+  );
+  const shiftHit = document.elementFromPoint(cx, cy);
+  const shiftDown = new PointerEvent("pointerdown", {
+    bubbles: true,
+    cancelable: true,
+    clientX: cx,
+    clientY: cy,
+    shiftKey: true,
+  });
+  (shiftHit ?? node).dispatchEvent(shiftDown);
+  out.shiftSwallowed = shiftDown.defaultPrevented;
+  out.shiftCalls = calls.slice();
   setTimeout(() => {
     out.intentAfter = getComputedStyle(node.querySelector(".th-controls")).display;
     finish();
