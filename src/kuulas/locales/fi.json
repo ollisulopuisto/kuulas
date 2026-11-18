@@ -245,6 +245,7 @@
   "log.desktop.open_event": "macOS pyysi kuulasta avaamaan: {paths}",
   "log.desktop.open_none": "macOS:n lähettämissä poluissa ei ole projektia: {paths}",
   "log.desktop.open_failed": "Finderista avaaminen epäonnistui: {error}",
+  "log.desktop.native_menu_failed": "Macin valikkorivin kopio ei ole käytettävissä ({error}); ikkunan valikko toimii silti.",
   "log.desktop.open_hook_failed": "Projektien avaaminen Finderista ei ole käytettävissä ({error}); käytä ikkunan Avaa-toimintoa.",
   "log.session.subscriber_failed": "Projektin muutoksia kuunteleva osa kaatui; itse muutos tallennettiin.",
   "log.session.relinked": {

@@ -26,7 +26,7 @@ from typing import Any
 
 import uvicorn
 
-from . import ctl_discovery, live_engine, memory, offload
+from . import ctl_discovery, live_engine, memory, native_menu, offload
 from .bgjobs import jobs_dir
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
@@ -212,10 +212,9 @@ def window_title(folder: str | None) -> str:
 
 
 def menu_model() -> list[dict[str, Any]]:
-    """Our own top-level menus in the native menu bar: none. The in-window bar is the
-    one real menu (enabled states, modifier alternates, the Help search field), so the
-    macOS bar keeps only what pywebview gives it: the app menu and the standard Edit
-    and View (Cut/Copy/Paste/Select All for text fields, full screen)."""
+    """pywebview's own menu list: empty. Our menus are drawn on macOS by
+    ``native_menu.install`` (via ``Bridge.set_native_menu``), after pywebview builds the
+    app menu, Edit and View."""
     return []
 
 
@@ -432,6 +431,29 @@ class Bridge:
             # pywebview on macOS answers a SAVE dialog with one str, not a tuple.
             result = [result]
         return [str(p) for p in result or []]
+
+    def set_native_menu(self, spec) -> bool:
+        """The page's resolved menu, to draw as the macOS menu bar (``native_menu``).
+        The window that calls it last owns the bar; the page calls only while it has
+        focus. False off macOS."""
+        return native_menu.install(spec, self._run_native_command)
+
+    def _run_native_command(self, choice: dict) -> None:
+        """A native menu item was chosen: run its command in this window's page. Off the
+        main thread, because ``evaluate_js`` waits on it."""
+        window = self._window
+        if window is None:
+            return
+        run = "window.__kuulasNativeRun"
+        script = f"{run} && {run}({json.dumps(choice)})"
+
+        def go() -> None:
+            try:
+                window.evaluate_js(script)
+            except Exception as e:  # noqa: BLE001 - the window may be gone
+                log.debug("native menu command: %s", e)
+
+        threading.Thread(target=go, daemon=True).start()
 
     def pick_media(self) -> list[str]:
         """Native import dialog: absolute paths, to be linked in place."""

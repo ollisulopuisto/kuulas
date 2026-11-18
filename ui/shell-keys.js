@@ -40,6 +40,7 @@ import { registerMarkerCommands } from "./marker-commands.js";
 import { MENU, MENU_ALIASES, resolveMenu } from "./menu-model.js";
 import { createMenubar } from "./menubar.js";
 import { createModifierTracker } from "./modifiers.js";
+import { createNativeMenuSync, isolateMenusForModal, runNativeChoice } from "./native-menu.js";
 import { copiesToastText } from "./notice-hold.js";
 import { createPalette, paletteRows } from "./palette.js";
 import { registerPlaceholderCommands } from "./placeholder-commands.js";
@@ -380,8 +381,39 @@ export function setupKeyboard({
     });
   }
 
+  // The macOS menu bar copy (native-menu.js): same menu, held keys ignored, sent only from the
+  // window that has focus. Choosing a native item comes back here and runs the same command.
+  const nativeSync =
+    platform === "mac"
+      ? createNativeMenuSync({
+          getMenus: () =>
+            isolateMenusForModal(
+              resolveMenu({
+                menu: MENU,
+                entries,
+                registry,
+                state: app.getState(),
+                label,
+                platform,
+              }),
+              { explains: (id) => registry.explains?.(id), isModal: modalOpen },
+            ),
+          getApi: () => window.pywebview?.api,
+          hasFocus: () => document.hasFocus(),
+        })
+      : null;
+  if (nativeSync) {
+    window.__kuulasNativeRun = (choice) =>
+      runNativeChoice(choice, { registry, getState: app.getState, isModal: modalOpen });
+    // A dialog closing changes what the menu may do; opening one is caught by the next push.
+    document.addEventListener("close", () => nativeSync.push(), true);
+    window.addEventListener("focus", () => nativeSync.push(true));
+    window.addEventListener("pywebviewready", () => nativeSync.push(true));
+  }
+
   function refreshAll() {
     renderHints();
+    nativeSync?.push();
     menubar?.refresh();
     searchPanel?.refresh();
     palette.refresh();
@@ -403,6 +435,7 @@ export function setupKeyboard({
       renderHints();
       if (menubar?.isOpen()) menubar.refresh();
     }
+    nativeSync?.push();
   });
   onLanguageChange(() => {
     root?.setAttribute("aria-label", t("menu.bar"));

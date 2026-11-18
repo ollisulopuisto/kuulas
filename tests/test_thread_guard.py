@@ -40,6 +40,9 @@ ALLOWED = {
     ("server.py", "create_app"):
         "the live channel's one-thread reader of the engine status: the playhead "
         "never waits for playback priority",
+    ("desktop.py", "Bridge._run_native_command"):
+        "a native menu choice handed to the page: evaluate_js waits on the page (IO), "
+        "no compute; it must not run on the main thread",
     ("cli.py", "open_project"):
         "waits for the server to accept connections, then opens the browser; no work",
     ("media.py", "_ffmpeg_pcm.__init__"):
