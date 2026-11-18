@@ -104,12 +104,18 @@ for (const density of ["comfortable", "compact"]) {
   });
 }
 
-test("a fast Solo click at its original centre runs only Solo (Devin, #233)", async () => {
+test("a fast press at Solo's original centre is swallowed, then Solo works (Devin, #233)", async () => {
   const result = await measure(`density=comfortable&intent=Bob`);
-  assert.equal(result.soloHit, true, "the collapsed Solo is not under its own centre on entry");
-  assert.equal(result.intentImmediate, "none", "the card expands the moment the pointer enters");
-  assert.deepEqual(result.calls, [["change", "solo"]], "something other than Solo ran");
-  assert.equal(result.intentAfter, "flex", "the card never expands on a resting pointer");
+  assert.equal(result.intentImmediate, "flex", "hover does not open the card at once");
+  assert.equal(
+    result.hitInControls,
+    true,
+    "the in-flight press no longer lands on the revealed controls",
+  );
+  assert.equal(result.pressSwallowed, true, "the in-flight press is not swallowed");
+  assert.deepEqual(result.calls, [], "the in-flight press ran an action");
+  assert.deepEqual(result.callsAfter, [["change", "solo"]], "the deliberate Solo click failed");
+  assert.equal(result.intentAfter, "flex", "the card closes while the pointer rests");
 });
 
 for (const lane of [80, 140, 240]) {

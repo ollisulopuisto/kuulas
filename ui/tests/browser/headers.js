@@ -85,8 +85,10 @@ addEventListener("error", (event) => {
 });
 const intent = query.get("intent");
 if (intent) {
-  // Devin (#233): approach the collapsed Solo and click its original centre at
-  // once - only the Solo action may run. The card expands later, visibly.
+  // Devin (#233): approach the collapsed Solo and press its original centre at
+  // once. The card opens the moment the pointer enters (owner, 2026-11-18), so
+  // that in-flight press lands on the revealed controls - and must be
+  // swallowed, never set the gain. The next, deliberate click still works.
   const node = [...root.querySelectorAll(".track-header[data-track]")].find(
     (header) => header.querySelector(".track-name").textContent === intent,
   );
@@ -94,16 +96,27 @@ if (intent) {
   const box = soloBtn.getBoundingClientRect();
   const cx = box.left + box.width / 2;
   const cy = box.top + box.height / 2;
+  const gain = node.querySelector('.th-controls input[type="range"]');
+  gain.addEventListener("input", () => calls.push(["input", "gain"]));
   node.dispatchEvent(new PointerEvent("pointerenter", { bubbles: false }));
-  const hit = document.elementFromPoint(cx, cy);
-  out.soloHit = hit === soloBtn;
   out.intentImmediate = getComputedStyle(node.querySelector(".th-controls")).display;
-  hit.click();
-  out.calls = calls;
+  const hit = document.elementFromPoint(cx, cy);
+  out.hitInControls = Boolean(hit && hit.closest(".th-controls"));
+  const down = new PointerEvent("pointerdown", {
+    bubbles: true,
+    cancelable: true,
+    clientX: cx,
+    clientY: cy,
+  });
+  (hit ?? node).dispatchEvent(down);
+  out.pressSwallowed = down.defaultPrevented;
+  out.calls = calls.slice();
+  soloBtn.click();
+  out.callsAfter = calls.slice();
   setTimeout(() => {
     out.intentAfter = getComputedStyle(node.querySelector(".th-controls")).display;
     finish();
-  }, 300);
+  }, 100);
 } else {
   const open = query.get("open");
   if (!open) finish();

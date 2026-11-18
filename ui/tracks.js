@@ -451,20 +451,42 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     row1.append(strip, name, disclosure, compactSummary);
     card.append(row1, controls);
     node.append(card, grip);
-    // Hover intent (Devin, #233): instant :hover expansion moved M/S mid-click
-    // and the press landed on the revealed gain slider. Expand only once the
-    // pointer has rested a moment; keyboard focus and pinning stay instant.
-    let hoverTimer = null;
+    // Hover opens the card at once (owner, 2026-11-18). Devin's finding (#233)
+    // stays fixed without a delay: a press that was already in flight as the
+    // card opens lands on the revealed gain slider, so swallow a pointerdown
+    // on the newly revealed controls when the pointer has not moved since it
+    // entered and the entry was moments ago. The next, deliberate click works.
+    let enteredAt = 0;
+    let movedSinceEnter = false;
     node.addEventListener("pointerenter", () => {
       cancelClose();
-      clearTimeout(hoverTimer);
-      hoverTimer = setTimeout(() => node.classList.add("hover-open"), 160);
+      enteredAt = Date.now();
+      movedSinceEnter = false;
+      node.classList.add("hover-open");
+    });
+    node.addEventListener("pointermove", () => {
+      movedSinceEnter = true;
     });
     node.addEventListener("pointerleave", (event) => {
-      clearTimeout(hoverTimer);
       node.classList.remove("hover-open");
       if (!node.contains(event.relatedTarget)) scheduleClose(id);
     });
+    card.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (
+          movedSinceEnter ||
+          Date.now() - enteredAt >= 300 ||
+          !node.classList.contains("hover-open") ||
+          node.classList.contains("controls-open") ||
+          !event.target.closest(".th-controls")
+        )
+          return;
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true,
+    );
     node.addEventListener("focusin", () => cancelClose());
     node.addEventListener("focusout", (event) => {
       if (!node.contains(event.relatedTarget)) scheduleClose(id);
