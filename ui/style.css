@@ -774,33 +774,42 @@ button.chip {
   color: var(--text-secondary);
   white-space: nowrap;
 }
+/* The track headers float over the lanes (header redesign, 2026-11-18): the overlay sits in
+   the timeline column, exactly over the lanes' area (below the overview + ruler,
+   --corner-h). It is still the lanes' vertical scroller: app.js feeds wheel dy to
+   its scrollTop and its scroll event drives state.scrollY. It never catches
+   pointer events itself; the header cards and lane grips opt back in. */
 .heads-scroll {
-  flex: 1;
-  min-width: 0; /* beside the toolbar rail it must be able to shrink */
-  min-height: 0;
-  overflow: hidden auto;
-  scrollbar-width: thin;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--corner-h);
+  bottom: 0;
+  z-index: 6;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  background: transparent;
+  pointer-events: none;
 }
 .track-header {
   position: relative;
-  display: grid;
-  grid-template-rows: var(--control-h-sm) var(--control-h-sm);
-  /* Comfortable: the name row sits at the top, level with the clip names;
-     the level row appears under it on the current track (progressive disclosure). */
-  align-content: start;
-  padding: var(--space-3) var(--space-4) 0 calc(var(--spine-w) + var(--pad-inline));
-  row-gap: var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
-  overflow: hidden;
+  /* Transparent: the card and the grip are the interactive pieces; the waveform
+     shows through and takes the lane's clicks. */
+  pointer-events: none;
+  overflow: visible;
 }
 /* The grab zone on a lane header's bottom edge (drag = this lane's height). */
 .lane-grip {
   position: absolute;
-  inset: auto 0 0;
+  left: 0;
+  bottom: 0;
+  width: 120px;
   height: 6px;
   cursor: ns-resize;
   touch-action: none;
   z-index: 1;
+  pointer-events: auto;
 }
 .lane-grip:hover {
   background: var(--border-subtle);
@@ -812,20 +821,16 @@ button.chip {
 .track-header::before {
   content: "";
   position: absolute;
-  left: calc(var(--spine-w) + var(--space-1));
-  /* Level with the name row (the top row of the header). */
-  top: calc(var(--space-3) + var(--control-h-sm) / 2);
+  left: 2px;
+  top: 4px;
+  bottom: 4px;
   width: 3px;
-  height: min(20px, 60%);
-  transform: translateY(-50%);
   border-radius: 2px;
   background: var(--track-colour, transparent);
 }
 /* The band sits on the bus row only; member tracks carry the spine, which
    ends with a rounded cap at the group's last member (then a group gap). */
-.bus-header {
-  background: var(--bus-band);
-}
+
 .track-header[data-bus]::after {
   content: "";
   position: absolute;
@@ -838,20 +843,16 @@ button.chip {
   border-radius: 0 0 var(--spine-w) var(--spine-w);
 }
 .group-gap {
-  background: var(--panel-bg);
+  background: transparent;
 }
 /* Hierarchy (owner, 2026-10-18): the bus row is flush with the spine; its
    tracks sit one indent further in, so group controls read as the outer level. */
-.track-header[data-bus]:not(.bus-header, .merged) {
-  padding-left: calc(var(--spine-w) + var(--pad-inline) + var(--indent-member));
+.track-header[data-bus]:not(.bus-header, .merged) .th-card {
+  left: calc(8px + var(--indent-member));
 }
 .track-header[data-bus]:not(.bus-header, .merged)::before {
-  left: calc(var(--spine-w) + var(--space-1) + var(--indent-member));
+  left: calc(2px + var(--indent-member));
 }
-.bus-header {
-  padding-left: calc(var(--spine-w) + var(--space-4));
-}
-.th-top,
 .th-controls {
   display: flex;
   align-items: center;
@@ -864,8 +865,8 @@ button.chip {
 }
 /* The focused track keeps a quiet wash of its lane color in the header; the color spine still
    identifies it when another track is current. */
-.track-header[data-track].current {
-  background: color-mix(in srgb, var(--panel-bg) 86%, var(--track-colour));
+.track-header[data-track].current .th-row1 > .track-name {
+  background: color-mix(in srgb, var(--panel-bg) 80%, var(--track-colour));
 }
 /* The inactive style (View > Lanes outside the operation; SILENCE-VISUALS.md): the headers follow
    the lanes. A static filter on a few DOM nodes, never a per-frame canvas filter. */
@@ -877,31 +878,20 @@ button.chip {
   opacity: 0.7;
   filter: grayscale(1);
 }
-.track-header.compact {
-  grid-template-rows: var(--control-h-sm);
-  align-content: center;
-  padding-top: 0;
+/* A lane under 40 px: the strip turns into a horizontal mini-row, so even a
+   one-line lane keeps M + S. */
+.track-header.compact .th-strip {
+  flex-direction: row;
+  width: auto;
+  padding: 2px 5px;
 }
-.track-header.compact::before,
-:root[data-density="compact"] .track-header::before {
-  top: 50%;
+.track-header.compact .th-strip .ms {
+  flex-direction: row;
 }
-/* Progressive disclosure (comfortable): at rest a header shows role, name, M
-   and S. The bus picker and the level row show on the current track, on hover
-   and while focus is inside. Compact shows everything, as before. */
-:root:not([data-density="compact"])
-  .track-header:not(.current, :hover, :focus-within)
-  .th-controls {
-  visibility: hidden;
+.track-header.compact .track-handle {
+  height: 10px;
 }
-:root[data-density="compact"] .track-header {
-  align-content: center;
-  padding-top: 0;
-  row-gap: var(--space-2);
-}
-.track-header.compact .th-controls {
-  display: none;
-}
+
 .track-name {
   flex: 1;
   min-width: 0;
@@ -914,15 +904,9 @@ button.chip {
   background: none;
   font-weight: var(--weight-strong);
 }
-/* Focus mode (WP28): a lane out of focus is a 16 px strip; its header keeps the name only. */
-.track-header.strip {
-  grid-template-rows: 1fr;
-  align-content: center;
-  padding-block: 0;
-  overflow: hidden;
-}
-.track-header.strip > :not(.th-top),
-.track-header.strip .th-top > :not(.track-name) {
+/* Focus mode (WP28): a lane out of focus is a 16 px strip; its header keeps the
+   name pill only. */
+.track-header.strip .th-strip {
   display: none;
 }
 .track-header.strip .track-name {
@@ -950,9 +934,7 @@ button.chip {
   outline-offset: -2px;
   z-index: 2;
 }
-.track-header.compact .track-handle {
-  display: none;
-}
+
 .track-rename {
   flex: 1;
   min-width: 0;
@@ -1092,9 +1074,7 @@ input[type="range"]::-moz-range-thumb {
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
-.bus-header .th-top {
-  flex: none;
-}
+
 .bus-header .th-controls {
   flex: none;
   min-width: 0;
@@ -3720,24 +3700,7 @@ input[type="text"] {
 .loudness-readout.stale {
   opacity: 0.55;
 }
-/* A compact header has no level row: its dot sits in the corner. */
-.track-header.compact .th-controls {
-  display: contents;
-}
-.track-header.compact .th-controls > :not(.loudness-readout) {
-  display: none;
-}
-.track-header.compact .loudness-readout {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 8px;
-  height: 8px;
-  overflow: hidden;
-  border-radius: 50%;
-  background: currentColor;
-  font-size: 0;
-}
+
 .import-mono {
   margin: 0;
 }
@@ -3761,13 +3724,6 @@ input[type="text"] {
   grid-template-rows: var(--control-h-sm) 36px;
   padding-top: 4px;
   row-gap: 2px;
-}
-.track-header:not(.compact) .th-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space-3);
-  position: relative;
-  padding-left: 0;
 }
 .track-header:not(.compact) .th-controls .loudness-readout {
   position: absolute;
@@ -6415,19 +6371,6 @@ legend.form-heading {
   padding: 0 4px 0 12px;
   row-gap: 0;
 }
-/* A member's indent comes out of the same 120px as the controls, so it is only the spine
-   and the indent token: the name column keeps its width (header-redesign browser test). */
-.track-header[data-bus][data-track]:not(.bus-header, .merged) {
-  padding-left: calc(var(--spine-w) + var(--indent-member));
-}
-.track-header[data-track] .th-top {
-  display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto 16px;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-  height: 100%;
-}
 .track-header[data-track] .track-name {
   grid-column: 2;
   min-width: 0;
@@ -6469,53 +6412,7 @@ legend.form-heading {
   outline: var(--focus-width) solid var(--focus-ring);
   outline-offset: var(--focus-offset);
 }
-.track-header.strip[data-track] .th-top {
-  grid-template-columns: minmax(0, 1fr) auto 18px;
-}
-.track-header.strip[data-track] .track-name {
-  grid-column: 1;
-}
-.track-header.strip[data-track] .ms {
-  grid-column: 2;
-  display: flex;
-}
-.track-header.strip[data-track] .ms-button {
-  width: 14px;
-  min-width: 14px;
-  height: 14px;
-  font-size: 9px;
-}
-.track-header.strip[data-track] .th-disclosure {
-  grid-column: 4;
-  width: 16px;
-  height: 16px;
-}
-.track-header[data-track] .track-tab {
-  position: relative;
-  isolation: isolate;
-  align-self: start;
-  height: 28px;
-  background: color-mix(in srgb, var(--panel-bg) 92%, var(--track-colour));
-  border-radius: 0 0 var(--radius-xs) var(--radius-xs);
-}
-.track-header[data-track] .track-tab::after {
-  content: "";
-  position: absolute;
-  left: calc(50% - 6px);
-  bottom: -5px;
-  width: 0;
-  height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 5px solid color-mix(in srgb, var(--panel-bg) 92%, var(--track-colour));
-  pointer-events: none;
-}
-.track-header.strip[data-track] .track-tab::after {
-  display: none;
-}
-.track-header.strip[data-track] .track-tab {
-  height: 16px;
-}
+
 .track-flyout-layer {
   position: fixed;
   inset: 0;
@@ -6594,31 +6491,19 @@ legend.form-heading {
   grid-column: 1 / -1;
 }
 
-/* Compact headers leave more room for the waveform. Values remain visible at rest;
-   the larger controls open on hover or keyboard focus. */
+/* The track headers overlay the lanes (header redesign, 2026-11-18), so the heads column
+   is only the transport corner and the toolbar rail; the waveforms run from the
+   rail's right edge. The corner keeps at least its narrow usable width. */
 .editor[data-rail="labels"],
 .editor[data-rail="icons"] {
-  --heads-w: calc(148px + var(--rail-w));
-  --heads-w-min: calc(148px + var(--rail-w));
+  --heads-w: max(var(--rail-w), 124px);
+  --heads-w-min: max(var(--rail-w), 124px);
 }
 .editor[data-rail="off"] {
-  --heads-w: 148px;
-  --heads-w-min: 148px;
+  --heads-w: 124px;
+  --heads-w-min: 124px;
 }
-.track-header[data-track] .track-compact-summary {
-  position: absolute;
-  top: 28px;
-  left: 12px;
-  right: 6px;
-  height: 16px;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 16px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  background: var(--surface-panel);
-}
+
 .track-header.strip[data-track] .track-compact-summary,
 .track-header.micro-controls[data-track] .track-compact-summary {
   display: none;
@@ -6643,18 +6528,7 @@ legend.form-heading {
 .bus-header .bus-chevron {
   width: 20px;
 }
-.bus-header:not(.compact) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 28px minmax(0, 1fr);
-  padding: 0 4px 0 8px;
-  overflow: hidden;
-}
-.bus-header .th-top {
-  display: flex;
-  width: 100%;
-  gap: 2px;
-}
+
 .bus-header .bus-name {
   min-width: 0;
 }
@@ -6707,4 +6581,176 @@ legend.form-heading {
 .marker-main .clip-name,
 .marker-main .clip-meta {
   grid-column: 2;
+}
+
+/* -- Track header cards over the lanes (header redesign, 2026-11-18) ---------
+   Collapsed: a drag strip (handle, M, S, recording dot) plus a separate name
+   pill; the waveform runs beneath. Hover, keyboard focus or a pinned popover
+   expands the card into the controls pill: row 1 is handle, name, M, S, "..",
+   the mono/dB/pan summary; row 2 is the level and pan controls. The ".." pins
+   the metadata popover (kind, role, channels, bus, loudness) under the card. */
+.th-card {
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+  pointer-events: auto;
+  border: 1px solid transparent;
+  border-radius: 16px;
+}
+/* Row 1 (strip, name, "..", summary) is a real box: the card's width is the
+   wider of the two rows, never their sum (a wrap container's 100% basis would
+   inflate it). */
+.th-row1 {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px 8px;
+}
+.th-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 30px;
+  padding: 4px 2px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel-bg) 90%, transparent);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-raised);
+}
+.th-strip .ms {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.th-strip .ms-button {
+  width: 22px;
+  height: 18px;
+  padding: 0;
+  font-size: 11px;
+}
+.th-strip .track-handle {
+  opacity: 0.8;
+  height: 12px;
+}
+.th-strip .bus-chevron {
+  width: 22px;
+  height: 18px;
+  padding: 0;
+}
+.th-rec-dot {
+  display: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+.track-header.recording .th-rec-dot {
+  display: block;
+}
+/* The name sits in its own pill beside the strip. */
+.th-row1 > .track-name,
+.th-row1 > .bus-name {
+  flex: none;
+  max-width: 240px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-bg) 90%, transparent);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-raised);
+}
+/* Collapsed, only the strip and the name pill show. */
+.th-row1 > .th-disclosure,
+.th-row1 > .track-compact-summary,
+.th-row1 > .bus-compact-summary,
+.th-card > .th-controls,
+.th-row1 > .bus-role,
+.th-row1 > .bus-reapply {
+  display: none;
+}
+/* Expanded: one rounded card sized to its content. */
+.track-header:is(.hover-open, :focus-within, .controls-open) .th-card {
+  background: color-mix(in srgb, var(--panel-bg) 94%, transparent);
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-raised);
+  padding: 7px 12px;
+}
+.track-header:is(.hover-open, :focus-within, .controls-open) .th-row1 {
+  align-items: center;
+  gap: 6px 8px;
+}
+.track-header:is(.hover-open, :focus-within, .controls-open) .th-strip {
+  display: contents;
+}
+.track-header:is(.hover-open, :focus-within, .controls-open)
+  :is(.track-handle, .bus-chevron, .bus-badge, .th-rec-dot) {
+  order: 1;
+}
+.track-header:is(.hover-open, :focus-within, .controls-open)
+  .th-row1
+  > :is(.track-name, .bus-name) {
+  order: 2;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+}
+.track-header:is(.hover-open, :focus-within, .controls-open) .th-strip .ms {
+  order: 3;
+  flex-direction: row;
+  gap: 4px;
+}
+.track-header:is(.hover-open, :focus-within, .controls-open) .ms .ms-button {
+  width: 24px;
+  height: 20px;
+  font-size: 11px;
+}
+.track-header:is(.hover-open, :focus-within, .controls-open) .th-row1 > .th-disclosure {
+  display: inline-flex;
+  order: 4;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+}
+.track-header:is(.hover-open, :focus-within, .controls-open)
+  .th-row1
+  > :is(.bus-role:not([hidden]), .bus-reapply:not([hidden])) {
+  display: inline-flex;
+  order: 4;
+}
+.track-header:is(.hover-open, :focus-within, .controls-open)
+  .th-row1
+  > :is(.track-compact-summary, .bus-compact-summary) {
+  display: block;
+  order: 5;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.track-header:is(.hover-open, :focus-within, .controls-open) .th-card > .th-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+/* In the card the pan is a dial and its value is the summary's job. */
+.th-card .slider-control.pan {
+  flex: none;
+  width: 28px;
+}
+/* In the card the pan value lives in the summary. The dial's hover/focus
+   readout must never show here: its fixed positioning was anchored by the old
+   header's callbacks and renders at the viewport top (Devin, #233), so this
+   rule has to outrank the dial reveal selectors. */
+.track-header .th-card .th-controls .slider-control.pan output {
+  display: none;
+}
+.th-card .th-controls .slider-control.control-gain {
+  /* Short and fixed: the card stays content-sized, the slider never sprawls. */
+  flex: none;
+  width: 180px;
 }

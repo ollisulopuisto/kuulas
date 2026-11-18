@@ -3036,6 +3036,7 @@ const recordView = createRecordView({
     else followLiveHead();
     timeline?.redraw();
     overview?.redraw();
+    trackHeaders.setRecording(recordView.isRecording());
   },
 });
 // The view follows the take's head while it records, until you steer away (live-follow.js).
@@ -4754,8 +4755,10 @@ function render(state, patch, previous = null) {
       "groupGap",
       "loudness",
     )
-  )
+  ) {
     trackHeaders.update(state);
+    trackHeaders.setRecording(recordView.isRecording());
+  }
   focusChanged(state, touched);
   if (touched("project", "autoFitTracks", "laneHeights", "collapsedBuses", "busHeight", "groupGap"))
     autoFit(state);

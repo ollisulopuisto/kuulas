@@ -12,8 +12,16 @@ test("compact headers show the channel and current gain and pan", () => {
   assert.match(css, /\.track-compact-summary\s*\{/);
 });
 
-test("narrow headers expand their controls to the lane height", () => {
-  assert.match(css, /--heads-w: calc\(148px \+ var\(--rail-w\)\)/);
-  assert.match(source, /flyout\.style\.height =/);
-  assert.match(css, /\.bus-header:hover \.th-controls/);
+test("the headers overlay the lanes: a strip and a name pill, expanding on hover", () => {
+  // The waveforms run from the rail's right edge; the header is a card that
+  // floats over the lane (header redesign, 2026-11-18).
+  assert.match(css, /\.th-card\s*\{/);
+  assert.match(css, /\.th-strip\s*\{/);
+  assert.match(css, /\.track-header:is\(\.hover-open, :focus-within, \.controls-open\) \.th-card/);
+  assert.match(source, /setRecording\(active\)/);
+});
+
+test("the recording dot syncs with the header update, not on every render", () => {
+  const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+  assert.match(app, /\)\s*\{\s*trackHeaders\.update\(state\);\s*trackHeaders\.setRecording\(/);
 });

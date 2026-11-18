@@ -58,7 +58,6 @@
              them, so the headers stay level with the lanes. toolbar-rail.js fills it. -->
         <div class="heads-row">
           <nav id="toolbar-rail" class="tool-rail" data-i18n-aria-label="ui.rail.label" hidden></nav>
-          <div id="track-headers" data-help-id="track-headers" class="heads-scroll" data-i18n-aria-label="ui.focus.tracks"></div>
         </div>
       </aside>
       <section class="tl-column" data-panel="timeline">
@@ -85,6 +84,10 @@
                each command runs. Non-modal, so editing goes on under it; core-loop-panel.js fills it. -->
           <section id="core-loop" class="core-loop" role="status" data-i18n-aria-label="ui.coreloop.title" hidden></section>
         </div>
+        <!-- The track headers overlay the lanes (header redesign, 2026-11-18): the waveforms
+             run from the rail's right edge and the headers float over them.
+             Still the lanes' vertical scroller (app.js scroll wiring). -->
+        <div id="track-headers" data-help-id="track-headers" class="heads-scroll" data-i18n-aria-label="ui.focus.tracks"></div>
       </section>
       <section id="panel-transcript" class="panel dock" data-panel="transcript" tabindex="0" data-i18n-aria-label="ui.focus.transcript">
         <h2 data-i18n="ui.focus.transcript"></h2>
