@@ -382,6 +382,11 @@ def test_an_appkit_error_leaves_the_menu_and_returns_false():
         target_factory=lambda run: object(),
     )
     assert ok is False
+    bar = [i.title() for i in main.items]
+    assert bar == ["kuulas", "Edit", "View"]
+    edit = main.items[1].submenu()
+    assert [i.title() for i in edit.items] == ["Cut", "Copy", "Paste", "Select All"]
+    assert [i.title() for i in main.items[2].submenu().items] == ["Enter Full Screen"]
 
 
 def test_no_main_menu_returns_false():

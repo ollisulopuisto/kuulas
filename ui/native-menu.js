@@ -60,8 +60,8 @@ export function nativeMenuSpec(menus) {
 
 /**
  * Keeps the native menus in step with the window: `push()` sends the menu when it changed
- * (after `delay` ms, so a burst of state changes is one send). Only the window that has focus
- * sends, since the bar belongs to the front window; `push(true)` (on focus) sends regardless of
+ * (after `delay` ms, so a burst of state changes is one send, but never later than `maxWait` ms). Only the window that has focus
+ * sends, since the bar belongs to the front window; `push(true)` (on focus) sends at once, regardless of
  * the last spec. Does nothing without the wrapper's `set_native_menu`, so a browser tab is untouched.
  */
 export function createNativeMenuSync({
@@ -69,14 +69,19 @@ export function createNativeMenuSync({
   getApi,
   hasFocus = () => true,
   delay = 150,
+  maxWait = 500,
+  now = Date.now,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
 }) {
   let last = "";
   let timer = null;
+  let firstAt = 0;
 
   function send() {
+    if (timer !== null) clearTimer(timer);
     timer = null;
+    firstAt = 0;
     const api = getApi();
     if (!api || typeof api.set_native_menu !== "function" || !hasFocus()) return;
     const spec = nativeMenuSpec(getMenus());
@@ -90,9 +95,42 @@ export function createNativeMenuSync({
 
   return {
     push(force = false) {
-      if (force) last = "";
-      if (timer !== null) clearTimer(timer);
-      timer = setTimer(send, delay);
+      if (force) {
+        // Taking the bar must not wait behind a stream of state changes (the playhead).
+        last = "";
+        send();
+        return;
+      }
+      const t = now();
+      if (timer === null) firstAt = t;
+      else clearTimer(timer);
+      // A steady stream still sends: at the latest `maxWait` ms after the first change.
+      timer = setTimer(send, Math.max(0, Math.min(delay, firstAt + maxWait - t)));
     },
   };
+}
+
+/**
+ * A chosen native item, run like its key: an editing command (`registry.explains`) is
+ * refused while a modal dialog is open, so a native Cut or Undo cannot change the project
+ * behind Preferences. Anything else (and the dialog's own controls, which are not menu
+ * items) works as before. Returns true when the command ran.
+ */
+export function runNativeChoice(choice, { registry, getState, isModal }) {
+  if (!choice || typeof choice.id !== "string") return false;
+  if (isModal() && (registry.explains?.(choice.id) ?? false)) return false;
+  registry.run(choice.id, choice.arg ?? null, getState());
+  return true;
+}
+
+/** The menus with the editing items switched off while a modal dialog is open. */
+export function isolateMenusForModal(menus, { explains, isModal }) {
+  if (!isModal()) return menus;
+  const walk = (items) =>
+    (items ?? []).map((entry) => {
+      if (entry?.kind === "item" && (explains?.(entry.id) ?? false))
+        return { ...entry, enabled: false };
+      return entry?.kind === "submenu" ? { ...entry, items: walk(entry.items) } : entry;
+    });
+  return (menus ?? []).map((menu) => ({ ...menu, items: walk(menu.items) }));
 }

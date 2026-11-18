@@ -216,13 +216,17 @@ def _detach(node: Any) -> None:
         parent.removeItem_(node)
 
 
-def _take_pywebview_menus(main: Any) -> None:
-    """Move pywebview's Edit and View contents out of the bar into ``_kept``."""
-    for item in list(main.itemArray()):
+def _take_pywebview_menus(main: Any, taken: list | None = None) -> None:
+    """Move pywebview's Edit and View contents out of the bar into ``_kept``. ``taken``
+    collects ``(top item, submenu, its items, position)`` to put them back on failure."""
+    original = list(main.itemArray())
+    for item in original:
         sub = item.submenu()
         if sub is None or item.tag() == MENU_TAG:
             continue
         name = str(item.title())
+        if taken is not None and name in ("Edit", "View"):
+            taken.append((item, sub, list(sub.itemArray()), original.index(item)))
         if name == "Edit":
             _kept["edit"] = [
                 i for i in sub.itemArray() if str(i.action()) in _NATIVE_EDIT_ACTIONS
@@ -245,7 +249,29 @@ def _build(
     target = target_factory(run) if target_factory else _make_target(appkit, run)
     for old in [i for i in main.itemArray() if i.tag() == MENU_TAG]:
         main.removeItem_(old)
-    _take_pywebview_menus(main)
+    taken: list = []
+    _take_pywebview_menus(main, taken)
+    try:
+        _draw(spec, main, appkit, target)
+    except Exception:
+        _restore(main, taken)
+        raise
+    return True
+
+
+def _restore(main: Any, taken: list) -> None:
+    """Put pywebview's own Edit and View back after a failed draw."""
+    for old in [i for i in main.itemArray() if i.tag() == MENU_TAG]:
+        main.removeItem_(old)
+    for top, sub, items, position in sorted(taken, key=lambda t_: t_[3]):
+        for node in items:
+            _detach(node)
+            sub.addItem_(node)
+        _detach(top)
+        main.insertItem_atIndex_(top, min(position, len(main.itemArray())))
+
+
+def _draw(spec: list[dict], main: Any, appkit: Any, target: Any) -> None:
     position = 1  # after the app menu
     for menu in spec:
         top = appkit.NSMenuItem.alloc().init()
@@ -263,7 +289,6 @@ def _build(
         top.setSubmenu_(sub)
         main.insertItem_atIndex_(top, position)
         position += 1
-    return True
 
 
 def install(
