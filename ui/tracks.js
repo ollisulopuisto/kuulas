@@ -453,15 +453,20 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     node.append(card, grip);
     // Hover opens the card at once (header redesign, 2026-11-18). Devin's finding (#233)
     // stays fixed without a delay: a press that was already in flight as the
-    // card opens lands on the revealed gain slider, so swallow a pointerdown
-    // on the newly revealed controls when the pointer has not moved since it
-    // entered and the entry was moments ago. The next, deliberate click works.
+    // card opens lands on the revealed gain slider. So when a pointerdown hits
+    // the newly revealed controls and the pointer has not moved since it
+    // entered moments ago, the press goes to the control it was actually
+    // resting on at entry (Solo stays Solo), never to the slider. The next,
+    // deliberate click works on the expanded layout.
     let enteredAt = 0;
     let movedSinceEnter = false;
-    node.addEventListener("pointerenter", () => {
+    let entryControl = null;
+    node.addEventListener("pointerenter", (event) => {
       cancelClose();
       enteredAt = Date.now();
       movedSinceEnter = false;
+      const hovered = document.elementFromPoint(event.clientX, event.clientY);
+      entryControl = hovered && node.contains(hovered) ? hovered.closest("button") : null;
       node.classList.add("hover-open");
     });
     node.addEventListener("pointermove", () => {
@@ -484,6 +489,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
           return;
         event.preventDefault();
         event.stopPropagation();
+        if (entryControl) entryControl.click();
       },
       true,
     );

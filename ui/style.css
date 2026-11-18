@@ -6742,7 +6742,11 @@ legend.form-heading {
   flex: none;
   width: 28px;
 }
-.th-card .slider-control.pan output {
+/* In the card the pan value lives in the summary. The dial's hover/focus
+   readout must never show here: its fixed positioning was anchored by the old
+   header's callbacks and renders at the viewport top (Devin, #233), so this
+   rule has to outrank the dial reveal selectors. */
+.track-header .th-card .th-controls .slider-control.pan output {
   display: none;
 }
 .th-card .th-controls .slider-control.control-gain {

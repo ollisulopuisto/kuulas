@@ -85,11 +85,11 @@ addEventListener("error", (event) => {
 });
 const intent = query.get("intent");
 if (intent) {
-  // Devin (#233): approach the collapsed Solo and press its original centre at
-  // once. The card opens the moment the pointer enters (header redesign,
-  // 2026-11-18), so
-  // that in-flight press lands on the revealed controls - and must be
-  // swallowed, never set the gain. The next, deliberate click still works.
+  // Devin (#233): enter directly over the collapsed Solo and press its
+  // original centre at once. The card opens the moment the pointer enters
+  // (header redesign, 2026-11-18), so the in-flight press lands on the
+  // revealed controls - it must be swallowed and redirected to Solo: only the
+  // Solo action may run, never the gain. The next, deliberate click still works.
   const node = [...root.querySelectorAll(".track-header[data-track]")].find(
     (header) => header.querySelector(".track-name").textContent === intent,
   );
@@ -99,7 +99,9 @@ if (intent) {
   const cy = box.top + box.height / 2;
   const gain = node.querySelector('.th-controls input[type="range"]');
   gain.addEventListener("input", () => calls.push(["input", "gain"]));
-  node.dispatchEvent(new PointerEvent("pointerenter", { bubbles: false }));
+  node.dispatchEvent(
+    new PointerEvent("pointerenter", { bubbles: false, clientX: cx, clientY: cy }),
+  );
   out.intentImmediate = getComputedStyle(node.querySelector(".th-controls")).display;
   const hit = document.elementFromPoint(cx, cy);
   out.hitInControls = Boolean(hit && hit.closest(".th-controls"));
@@ -118,6 +120,17 @@ if (intent) {
     out.intentAfter = getComputedStyle(node.querySelector(".th-controls")).display;
     finish();
   }, 100);
+} else if (query.get("pan")) {
+  // Devin (#233): in the expanded card the pan dial's hover/focus readout must
+  // stay hidden - shown, its stale fixed positioning lands at the viewport top.
+  const node = [...root.querySelectorAll(".track-header[data-track]")].find(
+    (header) => header.querySelector(".track-name").textContent === query.get("pan"),
+  );
+  node.classList.add("hover-open");
+  const panWrap = node.querySelector(".th-controls .slider-control.pan");
+  panWrap.querySelector("input").focus();
+  out.panOutputDisplay = getComputedStyle(panWrap.querySelector("output")).display;
+  finish();
 } else {
   const open = query.get("open");
   if (!open) finish();
