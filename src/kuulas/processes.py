@@ -37,6 +37,39 @@ def pid_alive(pid: object) -> bool | None:
     return True
 
 
+def process_command_line(pid: object) -> str | None:
+    """The process's command line as one string, or ``None`` when unreadable.
+
+    A pid says which process runs, not WHICH process: within one boot a dead
+    worker's number is recycled to something unrelated. The command line is
+    how a stored worker pid is told from its recycler. Linux reads
+    ``/proc/<pid>/cmdline``; macOS asks ``ps``. Windows has no stdlib read
+    here, so ``None`` - the caller keeps its pid-only answer. An empty string
+    is a real answer (a kernel thread or a zombie), not an unreadable one.
+    """
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0 \
+            or os.name == "nt":
+        return None
+    out: str | None = None
+    if sys.platform == "darwin":
+        ps = shutil.which("ps")
+        if ps is not None:
+            try:
+                out = subprocess.check_output(  # noqa: S603 - resolved, fixed argv
+                    [ps, "-o", "command=", "-p", str(pid)], text=True,
+                    timeout=5).strip()
+            except (OSError, subprocess.SubprocessError):
+                out = None
+    else:
+        try:
+            raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+        except OSError:
+            raw = None
+        if raw is not None:
+            out = raw.replace(b"\0", b" ").decode("utf-8", "replace").strip()
+    return out
+
+
 def _windows_pid_alive(pid: int) -> bool | None:
     """Query a Windows process without sending it a termination signal."""
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
