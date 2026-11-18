@@ -195,7 +195,8 @@ def _inline_transcription_worker(monkeypatch):
 
     def inline_command_line(pid):
         if pid == own_pid:
-            return "python -m kuulas.transcribe_worker run " + " ".join(created)
+            return "python -m kuulas.transcribe_worker run " + " ".join(
+                f"/jobs/{job}.json" for job in created)
         return real_command_line(pid)
 
     monkeypatch.setattr(bgjobs, "create_job", recording_create)

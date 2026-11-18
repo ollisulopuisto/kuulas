@@ -299,7 +299,7 @@ def test_a_legacy_btime_token_falls_back_to_the_pid_check(session, monkeypatch):
     monkeypatch.setattr(bgjobs, "boot_id", lambda: "linux-a-real-uuid")
     alive = subprocess.Popen(  # noqa: S603 - own interpreter, fixed argv
         [sys.executable, "-c", "import time; time.sleep(30)",
-         "kuulas.transcribe_worker", job_id])
+         "kuulas.transcribe_worker", "run", f"/jobs/{job_id}.json"])
     try:
         bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
             "state": "running", "progress": 0.2, "pid": alive.pid,
@@ -339,7 +339,7 @@ def test_a_live_worker_process_keeps_its_job_running(session, monkeypatch):
     (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
     worker = subprocess.Popen(  # noqa: S603 - own interpreter, fixed argv
         [sys.executable, "-c", "import time; time.sleep(30)",
-         "kuulas.transcribe_worker", job_id])
+         "kuulas.transcribe_worker", "run", f"/jobs/{job_id}.json"])
     try:
         bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
             "state": "running", "progress": 0.1, "pid": worker.pid,
@@ -358,7 +358,7 @@ def test_a_console_script_worker_keeps_its_job_running(session, monkeypatch):
     (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
     worker = subprocess.Popen(  # noqa: S603 - own interpreter, fixed argv
         [sys.executable, "-c", "import time; time.sleep(30)",
-         "/venv/bin/kuulas-worker", "run", job_id])
+         "/venv/bin/kuulas-worker", "run", f"/jobs/{job_id}.json"])
     try:
         bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
             "state": "running", "progress": 0.1, "pid": worker.pid,
@@ -367,6 +367,25 @@ def test_a_console_script_worker_keeps_its_job_running(session, monkeypatch):
         assert session.background_jobs()[0]["state"] == "running"
     finally:
         worker.kill()
+
+
+def test_a_longer_lookalike_job_file_does_not_count(session, monkeypatch):
+    """The job must be named by its own file, not as a substring: another
+    job whose id merely STARTS with this one is not this job's worker
+    (review on 1885688)."""
+    hold_worker(monkeypatch)
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
+    other = subprocess.Popen(  # noqa: S603 - own interpreter, fixed argv
+        [sys.executable, "-c", "import time; time.sleep(30)",
+         "-m", "kuulas.transcribe_worker", "run", f"/jobs/{job_id}4.json"])
+    try:
+        bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
+            "state": "running", "progress": 0.1, "pid": other.pid,
+            "host": bgjobs._hostname(), "boot": bgjobs.boot_id(),
+            "machine": bgjobs.machine_id()})
+        assert session.background_jobs()[0]["state"] == "interrupted"
+    finally:
+        other.kill()
 
 
 def test_an_unanswerable_pid_probe_keeps_the_job_running(session, monkeypatch):
