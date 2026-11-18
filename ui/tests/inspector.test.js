@@ -242,6 +242,68 @@ describe("clip name in inspector", () => {
     assert.equal(sent[0].args.clip_id, "c1");
     assert.equal(sent[0].args.name, "");
   });
+
+  test("Processed switches a clip between its source and voice-chain variant", () => {
+    const root = new FakeNode("section");
+    const sent = [];
+    const editor = { change: (edit) => sent.push(edit) };
+    const inspector = createInspector({ root, editor });
+    const sourceState = {
+      project: {
+        ...testProject,
+        media: [
+          ...testProject.media,
+          { id: "m2", name: "olli.wav", variant_of: "m1", variant: "voice chain" },
+        ],
+      },
+      selection: new Set(["c1"]),
+      head: "1",
+    };
+
+    inspector.update({
+      ...sourceState,
+      project: { ...testProject, media: testProject.media },
+    });
+    assert.equal(
+      root.all().find((n) => n.className.includes("inspector-processed")),
+      undefined,
+      "no Processed toggle appears until the voice-chain variant exists",
+    );
+
+    inspector.update(sourceState);
+    let processed = root.all().find((n) => n.className.includes("inspector-processed"));
+    assert.ok(processed, "the source clip exposes the Processed toggle");
+    assert.equal(processed.checked, false);
+    assert.equal(processed.attrs["aria-label"], "Processed");
+    processed.checked = true;
+    processed.listeners.change[0]();
+    assert.deepEqual(sent[0], {
+      op: "use_variant",
+      args: { clip_ids: ["c1"], media_id: "m2" },
+    });
+
+    const variantState = {
+      ...sourceState,
+      project: {
+        ...sourceState.project,
+        tracks: [
+          {
+            ...testProject.tracks[0],
+            clips: [{ ...testProject.tracks[0].clips[0], media: "m2" }],
+          },
+        ],
+      },
+    };
+    inspector.update(variantState);
+    processed = root.all().find((n) => n.className.includes("inspector-processed"));
+    assert.equal(processed.checked, true);
+    processed.checked = false;
+    processed.listeners.change[0]();
+    assert.deepEqual(sent[1], {
+      op: "use_variant",
+      args: { clip_ids: ["c1"], media_id: "m1" },
+    });
+  });
 });
 
 describe("track clip properties list", () => {
