@@ -257,7 +257,13 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     flyout.style.left = `${Math.min(Math.max(8, rect.left), window.innerWidth - width - 8)}px`;
     flyout.style.top = `${Math.max(8, top)}px`;
     flyout.style.width = `${width}px`;
-    flyout.style.maxHeight = `${Math.max(120, window.innerHeight - Math.max(8, top) - 8)}px`;
+    let maxHeight = Math.max(120, window.innerHeight - Math.max(8, top) - 8);
+    // The lane's resize grip stays grabbable: the popover stops above it and
+    // scrolls instead of covering it.
+    const grip = parts.node.querySelector(".lane-grip");
+    const room = grip ? grip.getBoundingClientRect().top - 4 - top : Infinity;
+    if (Number.isFinite(room) && room > 0) maxHeight = Math.min(maxHeight, room);
+    flyout.style.maxHeight = `${maxHeight}px`;
   };
   const syncFlyout = () => {
     const openId = openTrackFlyoutId(flyoutState);
@@ -441,10 +447,22 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     controls.append(gain.wrap, pan.wrap);
     // A thin grab zone on the bottom edge: drag to size this lane, double-click to reset it.
     const grip = el("div", "lane-grip", { title: t("ui.track.resize"), "aria-hidden": "true" });
-    card.append(strip, name, disclosure, compactSummary, controls);
+    const row1 = el("div", "th-row1");
+    row1.append(strip, name, disclosure, compactSummary);
+    card.append(row1, controls);
     node.append(card, grip);
-    node.addEventListener("pointerenter", () => cancelClose());
+    // Hover intent (Devin, #233): instant :hover expansion moved M/S mid-click
+    // and the press landed on the revealed gain slider. Expand only once the
+    // pointer has rested a moment; keyboard focus and pinning stay instant.
+    let hoverTimer = null;
+    node.addEventListener("pointerenter", () => {
+      cancelClose();
+      clearTimeout(hoverTimer);
+      hoverTimer = setTimeout(() => node.classList.add("hover-open"), 160);
+    });
     node.addEventListener("pointerleave", (event) => {
+      clearTimeout(hoverTimer);
+      node.classList.remove("hover-open");
       if (!node.contains(event.relatedTarget)) scheduleClose(id);
     });
     node.addEventListener("focusin", () => cancelClose());
@@ -682,7 +700,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     reapply.textContent = t("ui.bus.reapply");
     reapply.hidden = true;
     strip.append(chevron, badge, buttons);
-    card.append(strip, name, roleLabel, reapply, compactSummary, controls);
+    const row1 = el("div", "th-row1");
+    row1.append(strip, name, roleLabel, reapply, compactSummary);
+    card.append(row1, controls);
     node.append(card);
     const id = bus.id;
     node.addEventListener("pointerdown", () => actions.currentBus(id));

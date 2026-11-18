@@ -4755,9 +4755,10 @@ function render(state, patch, previous = null) {
       "groupGap",
       "loudness",
     )
-  )
+  ) {
     trackHeaders.update(state);
     trackHeaders.setRecording(recordView.isRecording());
+  }
   focusChanged(state, touched);
   if (touched("project", "autoFitTracks", "laneHeights", "collapsedBuses", "busHeight", "groupGap"))
     autoFit(state);

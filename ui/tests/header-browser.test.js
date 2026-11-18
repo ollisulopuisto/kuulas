@@ -104,6 +104,12 @@ for (const density of ["comfortable", "compact"]) {
   });
 }
 
+test("hover expansion waits for hover intent, so a fast M/S click cannot land on the revealed slider (Devin, #233)", async () => {
+  const result = await measure(`density=comfortable&intent=Bob`);
+  assert.equal(result.intentImmediate, "none", "the card expands the moment the pointer enters");
+  assert.equal(result.intentAfter, "flex", "the card never expands on a resting pointer");
+});
+
 for (const lane of [80, 140, 240]) {
   test(`${lane}px lane: the pinned popover leaves the resize grip alone`, async () => {
     const result = await measure(`density=comfortable&lane=${lane}&open=Bob`);

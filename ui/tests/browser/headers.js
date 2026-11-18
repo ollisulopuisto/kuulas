@@ -77,6 +77,18 @@ const finish = () => {
 addEventListener("error", (event) => {
   document.getElementById("result").textContent = JSON.stringify({ harnessError: String(event.error && event.error.stack || event.message) });
 });
+const intent = query.get("intent");
+if (intent) {
+  const node = [...root.querySelectorAll(".track-header[data-track]")].find(
+    (header) => header.querySelector(".track-name").textContent === intent,
+  );
+  node.dispatchEvent(new PointerEvent("pointerenter", { bubbles: false }));
+  out.intentImmediate = getComputedStyle(node.querySelector(".th-controls")).display;
+  setTimeout(() => {
+    out.intentAfter = getComputedStyle(node.querySelector(".th-controls")).display;
+    finish();
+  }, 300);
+} else {
 const open = query.get("open");
 if (!open) finish();
 else {
@@ -114,4 +126,5 @@ else {
     out.calls = calls;
     finish();
   }, 50);
+}
 }

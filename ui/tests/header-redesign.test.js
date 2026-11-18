@@ -17,6 +17,11 @@ test("the headers overlay the lanes: a strip and a name pill, expanding on hover
   // floats over the lane (header redesign, 2026-11-18).
   assert.match(css, /\.th-card\s*\{/);
   assert.match(css, /\.th-strip\s*\{/);
-  assert.match(css, /\.track-header:is\(:hover, :focus-within, \.controls-open\) \.th-card/);
+  assert.match(css, /\.track-header:is\(\.hover-open, :focus-within, \.controls-open\) \.th-card/);
   assert.match(source, /setRecording\(active\)/);
+});
+
+test("the recording dot syncs with the header update, not on every render", () => {
+  const app = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+  assert.match(app, /\)\s*\{\s*trackHeaders\.update\(state\);\s*trackHeaders\.setRecording\(/);
 });
