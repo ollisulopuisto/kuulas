@@ -299,6 +299,42 @@ def test_stored_command_drops_the_retired_overrides_file(tmp_path):
     assert got == ct.default_command(tmp_path)
 
 
+def test_stored_command_keeps_a_custom_overrides_file(tmp_path):
+    """Only the retired bundled file is stripped: a user's own constraints
+    file is not the app's to remove (Devin review on 6956f93)."""
+    old = [
+        "uvx", "--python", "3.13",
+        "--overrides", "/home/alex/colab-constraints.txt",
+        "--from",
+        "git+https://github.com/ollisulopuisto/podcast@45c5c2b927a2f4fb8c3c40108f7379bf185c0bab#subdirectory=colab-transcribe",
+        "colab-transcribe",
+    ]
+
+    got = ct.resolve_settings({"command": old})["command"]
+    assert got == [
+        "uvx", "--python", "3.13",
+        "--overrides", "/home/alex/colab-constraints.txt",
+        "--from", ct._REMOTE_SOURCE, "colab-transcribe"]
+
+
+def test_stored_command_strips_only_the_retired_override(tmp_path):
+    """A command with both files keeps the custom one."""
+    old = [
+        "uvx",
+        "--overrides", "/app/kuulas/transcription-overrides.txt",
+        "--overrides", "/home/alex/colab-constraints.txt",
+        "--from",
+        "git+https://github.com/ollisulopuisto/podcast@45c5c2b927a2f4fb8c3c40108f7379bf185c0bab#subdirectory=colab-transcribe",
+        "colab-transcribe",
+    ]
+
+    got = ct.resolve_settings({"command": old})["command"]
+    assert got == [
+        "uvx",
+        "--overrides", "/home/alex/colab-constraints.txt",
+        "--from", ct._REMOTE_SOURCE, "colab-transcribe"]
+
+
 # -- the strict reader -------------------------------------------------------------------
 
 

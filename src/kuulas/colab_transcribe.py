@@ -139,16 +139,18 @@ def _words(value: Any) -> bool:
 
 
 def _without_overrides(command: list[str]) -> list[str]:
-    """The command without each ``--overrides <file>`` pair."""
+    """The command without each ``--overrides`` pair naming the retired
+    bundled overrides file. A user's own constraints file stays."""
     out: list[str] = []
-    skip = False
-    for part in command:
-        if skip:
-            skip = False
-        elif part == "--overrides":
-            skip = True
+    i = 0
+    while i < len(command):
+        if command[i] == "--overrides" and i + 1 < len(command):
+            if Path(command[i + 1]).name != "transcription-overrides.txt":
+                out.extend(command[i:i + 2])
+            i += 2
         else:
-            out.append(part)
+            out.append(command[i])
+            i += 1
     return out
 
 
