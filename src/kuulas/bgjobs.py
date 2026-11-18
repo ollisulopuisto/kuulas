@@ -214,9 +214,11 @@ def job_ids(folder: Path | str) -> list[str]:
     return [job_id for _, job_id in sorted(found)]
 
 
-#: What names the worker in its command line (``-m kuulas.transcribe_worker
-#: run <job file>``), alongside the job id in the job file's own path.
-_WORKER_MARK = "transcribe_worker"
+#: What names the worker in its command line, alongside the job id in the
+#: job file's own path. Two launch forms exist: the app spawns
+#: ``-m kuulas.transcribe_worker run <job file>``; the installed console
+#: script runs as ``kuulas-worker run <job file>``.
+_WORKER_MARKS = ("transcribe_worker", "kuulas-worker")
 
 
 def _worker_alive(job_id: str, pid: object) -> bool:
@@ -226,7 +228,8 @@ def _worker_alive(job_id: str, pid: object) -> bool:
     number is handed to an unrelated process, and a stored ``running`` then
     never reconciles (owner report 2026-11-18: a run the Colab timeout killed
     still showed as transcribing after the app closed and restarted). A live
-    pid must also NAME this worker and this job. An unreadable command line
+    pid must also NAME this worker (either launch form) and this job.
+    An unreadable command line
     keeps the pid's own answer - an uninspectable process is not proven dead -
     and so does a probe the OS cannot answer at all."""
     if not isinstance(pid, int) or isinstance(pid, bool):
@@ -239,7 +242,7 @@ def _worker_alive(job_id: str, pid: object) -> bool:
     cmdline = process_command_line(pid)
     if cmdline is None:
         return True
-    return _WORKER_MARK in cmdline and job_id in cmdline
+    return any(mark in cmdline for mark in _WORKER_MARKS) and job_id in cmdline
 
 
 def _error_of(error: object) -> dict | None:

@@ -350,6 +350,25 @@ def test_a_live_worker_process_keeps_its_job_running(session, monkeypatch):
         worker.kill()
 
 
+def test_a_console_script_worker_keeps_its_job_running(session, monkeypatch):
+    """The installed console script runs as ``kuulas-worker run <job file>``:
+    its command line names no ``transcribe_worker`` module, and it is still
+    this job's worker (Devin review on 1cc16d9)."""
+    hold_worker(monkeypatch)
+    (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
+    worker = subprocess.Popen(  # noqa: S603 - own interpreter, fixed argv
+        [sys.executable, "-c", "import time; time.sleep(30)",
+         "/venv/bin/kuulas-worker", "run", job_id])
+    try:
+        bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id), {
+            "state": "running", "progress": 0.1, "pid": worker.pid,
+            "host": bgjobs._hostname(), "boot": bgjobs.boot_id(),
+            "machine": bgjobs.machine_id()})
+        assert session.background_jobs()[0]["state"] == "running"
+    finally:
+        worker.kill()
+
+
 def test_an_unanswerable_pid_probe_keeps_the_job_running(session, monkeypatch):
     """When the OS cannot say whether the pid lives (an EPERM, a half-mounted
     /proc), nothing is proven dead either: the job stays "running"."""
