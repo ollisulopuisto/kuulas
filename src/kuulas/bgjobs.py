@@ -39,8 +39,8 @@ from typing import Any
 from . import toolpath
 from .clock import FLICKS
 from .messages import KuulasError, t
-from .package import _hostname, _pid_alive, write_json_atomic
-from .processes import boot_id, machine_id
+from .package import _hostname, write_json_atomic
+from .processes import boot_id, machine_id, pid_alive, process_command_line
 
 log = logging.getLogger("kuulas.bgjobs")
 
@@ -214,6 +214,55 @@ def job_ids(folder: Path | str) -> list[str]:
     return [job_id for _, job_id in sorted(found)]
 
 
+#: What names the worker in its command line, alongside the job file's own
+#: name. Two launch forms exist: the app spawns
+#: ``-m kuulas.transcribe_worker run <job file>``; the installed console
+#: script runs as ``kuulas-worker run <job file>``.
+_WORKER_MARKS = ("transcribe_worker", "kuulas-worker")
+
+
+def _mentions(cmdline: str, token: str) -> bool:
+    """``token`` as its own word in ``cmdline``: bounded by the string's ends
+    or by a character no path, module or file name continues with. A bare
+    substring test would take a longer lookalike id or name for the thing
+    itself (review on 1885688)."""
+    i = cmdline.find(token)
+    while i != -1:
+        before = i == 0 or not (cmdline[i - 1].isalnum() or cmdline[i - 1] in "_-")
+        end = i + len(token)
+        after = end == len(cmdline) or not (
+            cmdline[end].isalnum() or cmdline[end] in "_-.")
+        if before and after:
+            return True
+        i = cmdline.find(token, i + 1)
+    return False
+
+
+def _worker_alive(job_id: str, pid: object) -> bool:
+    """Is ``pid`` this job's live worker?
+
+    A bare pid only says SOME process runs: within one boot a dead worker's
+    number is handed to an unrelated process, and a stored ``running`` then
+    never reconciles (owner report 2026-11-18: a run the Colab timeout killed
+    still showed as transcribing after the app closed and restarted). A live
+    pid must also NAME this worker (either launch form) and this job's own
+    file, each as its own word. An unreadable command line
+    keeps the pid's own answer - an uninspectable process is not proven dead -
+    and so does a probe the OS cannot answer at all."""
+    if not isinstance(pid, int) or isinstance(pid, bool):
+        return False
+    alive = pid_alive(pid)
+    if alive is False:
+        return False
+    if alive is None:
+        return True
+    cmdline = process_command_line(pid)
+    if cmdline is None:
+        return True
+    return any(_mentions(cmdline, mark) for mark in _WORKER_MARKS) \
+        and _mentions(cmdline, f"{job_id}.json")
+
+
 def _error_of(error: object) -> dict | None:
     if not isinstance(error, dict) or not isinstance(error.get("key"), str):
         return None
@@ -243,10 +292,11 @@ def describe(folder: Path | str, job_id: str) -> dict | None:
         old = created is not None and (
             datetime.now(UTC) - created).total_seconds() > QUEUED_GRACE_S
         if (_boot_from_an_earlier_boot(status.get("boot"), boot_id())
-                or (isinstance(pid, int) and not _pid_alive(pid))
+                or (isinstance(pid, int) and not _worker_alive(job_id, pid))
                 or (pid is None and old)):
-            # The worker is gone (killed, logout, reboot). A bare pid cannot say so
-            # across a reboot: the number may belong to an unrelated process now.
+            # The worker is gone (killed, logout, reboot). A bare pid cannot say so:
+            # the number may belong to an unrelated process, after a reboot or a
+            # recycle within the same boot.
             state = "interrupted"
             error = _error_of({"key": "error.transcribe.interrupted"})
     marker = read_json(marker_file(folder, job_id)) or {}

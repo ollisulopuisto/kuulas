@@ -178,6 +178,30 @@ def _inline_transcription_worker(monkeypatch):
 
     monkeypatch.setattr(bgjobs, "launch_worker", launch)
 
+    # The inline worker's status carries the TEST PROCESS's pid, so the liveness
+    # identity check (bgjobs._worker_alive) must see a worker's command line for
+    # that pid and no other: real pids (a spawned impostor or lookalike) keep
+    # their real command lines.
+    created: list[str] = []
+    real_create = bgjobs.create_job
+
+    def recording_create(folder, **kwargs):
+        job_id = real_create(folder, **kwargs)
+        created.append(job_id)
+        return job_id
+
+    real_command_line = bgjobs.process_command_line
+    own_pid = os.getpid()
+
+    def inline_command_line(pid):
+        if pid == own_pid:
+            return "python -m kuulas.transcribe_worker run " + " ".join(
+                f"/jobs/{job}.json" for job in created)
+        return real_command_line(pid)
+
+    monkeypatch.setattr(bgjobs, "create_job", recording_create)
+    monkeypatch.setattr(bgjobs, "process_command_line", inline_command_line)
+
 
 @pytest.fixture(autouse=True)
 def _isolated_orukeet_setting(tmp_path_factory, monkeypatch):
