@@ -258,9 +258,8 @@ def test_default_command_uses_the_sibling_podcast_checkout(tmp_path):
 def test_default_command_uses_the_public_tool_without_a_sibling_checkout(tmp_path):
     assert ct.default_command(tmp_path) == [
         "uvx", "--python", "3.13",
-        "--overrides", str(Path(ct.__file__).with_name("transcription-overrides.txt")),
         "--from",
-        "git+https://github.com/ollisulopuisto/podcast@45c5c2b927a2f4fb8c3c40108f7379bf185c0bab#subdirectory=colab-transcribe",
+        "git+https://github.com/ollisulopuisto/podcast@c3e1e8a06f8784ec3de30ef6c04a38f70c04472b#subdirectory=colab-transcribe",
         "colab-transcribe"]
 
 
@@ -276,8 +275,28 @@ def test_stored_default_command_upgrades_the_large_upload_revision(tmp_path):
     ]
 
     expected = list(old)
-    expected[expected.index("--from") + 1] = ct.default_command(tmp_path)[6]
-    assert ct.resolve_settings({"command": old})["command"] == expected
+    expected[expected.index("--from") + 1] = ct.default_command(tmp_path)[4]
+    got = ct.resolve_settings({"command": old})["command"]
+    assert got == ct._without_overrides(expected)
+
+
+def test_stored_command_drops_the_retired_overrides_file(tmp_path):
+    """The bundled transcription-overrides.txt is gone (the pinned tool
+    resolves on its own from c3e1e8a): a stored command naming the old pin
+    and the old file is upgraded and cleaned, or uvx would fail on a
+    missing file."""
+    old = [
+        "uvx", "--python", "3.13",
+        "--overrides",
+        "/Applications/Kuulas.app/Contents/Resources/app/kuulas/"
+        "transcription-overrides.txt",
+        "--from",
+        "git+https://github.com/ollisulopuisto/podcast@45c5c2b927a2f4fb8c3c40108f7379bf185c0bab#subdirectory=colab-transcribe",
+        "colab-transcribe",
+    ]
+
+    got = ct.resolve_settings({"command": old})["command"]
+    assert got == ct.default_command(tmp_path)
 
 
 # -- the strict reader -------------------------------------------------------------------
