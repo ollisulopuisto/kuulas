@@ -26,6 +26,7 @@ import {
   TRACK_FLYOUT_CLOSE_DELAY_MS,
   trackFlyoutReducer,
 } from "./track-header-flyout.js";
+import { setLaneInset } from "./lane-insets.js";
 import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
@@ -245,28 +246,18 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const openId = openTrackFlyoutId(flyoutState);
     const parts = openId ? rows.get(openId) : null;
     if (!parts?.flyout || parts.flyout.hidden) return;
-    const rect = parts.node.getBoundingClientRect();
+    // The popover attaches under the expanded card, as wide as the card but at
+    // least wide enough for the bus picker; it never leaves the viewport.
+    const card = parts.node.querySelector(".th-card");
+    const rect = (card ?? parts.node).getBoundingClientRect();
     const flyout = parts.flyout;
-    const gripTop =
-      parts.node.querySelector(".lane-grip")?.getBoundingClientRect().top ?? rect.bottom;
-    // Over the header, under its name row: only when the whole mixer fits above the bottom
-    // grip, so the grip stays reachable and the next header uncovered.
-    const overTop = Math.max(0, Math.min(rect.top + 28, window.innerHeight - 1));
-    flyout.style.width = `${rect.width}px`;
     flyout.style.height = "auto";
-    flyout.style.maxHeight = "none";
-    if (overTop + flyout.offsetHeight <= gripTop) {
-      flyout.style.left = `${rect.left}px`;
-      flyout.style.top = `${overTop}px`;
-      return;
-    }
-    // A lane too short for it: beside the header, over the timeline, as before.
-    const width = Math.min(264, Math.max(220, window.innerWidth - 24));
-    const top = Math.max(8, Math.min(rect.top, window.innerHeight - 180));
-    flyout.style.left = `${Math.min(rect.right, Math.max(8, window.innerWidth - width - 8))}px`;
-    flyout.style.top = `${top}px`;
+    const width = Math.min(Math.max(240, Math.round(rect.width)), window.innerWidth - 16);
+    const top = Math.min(rect.bottom + 6, window.innerHeight - 128);
+    flyout.style.left = `${Math.min(Math.max(8, rect.left), window.innerWidth - width - 8)}px`;
+    flyout.style.top = `${Math.max(8, top)}px`;
     flyout.style.width = `${width}px`;
-    flyout.style.maxHeight = `${Math.max(120, window.innerHeight - top - 8)}px`;
+    flyout.style.maxHeight = `${Math.max(120, window.innerHeight - Math.max(8, top) - 8)}px`;
   };
   const syncFlyout = () => {
     const openId = openTrackFlyoutId(flyoutState);
@@ -338,7 +329,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     parts.node.classList.add("merged");
     const badge = el("span", "bus-badge", { title: t("ui.bus.name", { name: bus.name }) });
     badge.textContent = busLetter(index);
-    parts.node.querySelector(".th-top").prepend(badge);
+    parts.node.querySelector(".th-strip").prepend(badge);
     const label = el("span", "fader-label", { "aria-hidden": "true" });
     label.textContent = t("ui.bus.fader");
     const fader = slider(t("ui.bus.gain"), GAIN);
@@ -362,7 +353,12 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const id = track.id;
     const node = el("section", "track-header");
     node.dataset.track = track.id;
-    const top = el("div", "th-top track-tab");
+    // The header is a content-sized card over the lane: collapsed it is a drag
+    // strip (handle, M, S, recording dot) plus a separate name pill, and the
+    // waveform runs beneath; hover, focus or a pinned popover expands the card
+    // to the full controls pill.
+    const card = el("div", "th-card");
+    const strip = el("div", "th-strip");
     // The name is a label, not a tab stop (rename: double-click; Enter on the
     // current track arrives with WP5), which keeps the resting view's controls few.
     const name = el("button", "track-name", {
@@ -425,11 +421,12 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     bus.append(newBus);
     // A small handle at the left: drag the header up or down to move the track.
     const handle = el("span", "track-handle", { title: t("ui.track.drag"), "aria-hidden": "true" });
-    top.append(handle, name, buttons, disclosure);
-    // The loudness sits on the level row, so it never takes the name's room.
+    strip.append(handle, buttons, el("span", "th-rec-dot", { "aria-hidden": "true" }));
+    // Level and pan sit in the card (they show when it expands); the popover
+    // keeps the metadata: kind, role, channels, bus and the loudness readout.
     const controls = el("div", "th-controls");
     const metadata = el("div", "th-flyout-meta");
-    metadata.append(tag, roleBadge, channelTag, bus);
+    metadata.append(tag, roleBadge, channelTag, bus, loudness);
     const flyout = el("section", "track-controls-flyout", {
       id: `track-controls-${id}`,
       "aria-label": t("ui.track.controls.show"),
@@ -437,63 +434,20 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       hidden: "",
       "aria-hidden": "true",
     });
-    flyout.append(metadata, controls);
-    // Measurement belongs to gain context, never pan hover.
+    flyout.append(metadata);
     const gain = slider(t("ui.track.gain"), GAIN);
-    gain.wrap.append(loudness);
-    // Put feedback beside the lane, never on its name or controls. If there is
-    // no side room, use the viewport's top edge rather than covering another row.
-    const positionLoudness = () => {
-      const lane = flyout.getBoundingClientRect();
-      const width = loudness.offsetWidth || 240;
-      const height = loudness.offsetHeight || 28;
-      const sideRoom = lane.right + width + 16 <= window.innerWidth;
-      loudness.style.left = `${sideRoom ? lane.right + 8 : Math.max(8, window.innerWidth - width - 8)}px`;
-      const compactGain = gain.wrap.classList.contains("dial");
-      const feedbackTop = sideRoom
-        ? Math.max(
-            8,
-            Math.min(
-              gain.wrap.getBoundingClientRect().top,
-              window.innerHeight - height - (compactGain ? 40 : 8),
-            ),
-          )
-        : 8;
-      loudness.style.top = `${feedbackTop + (compactGain ? 30 : 0)}px`;
-      if (compactGain) {
-        gain.output.style.left = loudness.style.left;
-        gain.output.style.top = `${feedbackTop}px`;
-      }
-    };
-    gain.wrap.addEventListener("pointerenter", positionLoudness);
-    gain.wrap.addEventListener("focusin", positionLoudness);
-    gain.wrap.addEventListener("pointermove", positionLoudness);
-
     const pan = slider(t("ui.track.pan"), PAN);
     pan.wrap.classList.add("pan");
-    const positionPanValue = () => {
-      const lane = flyout.getBoundingClientRect();
-      pan.output.style.left = `${Math.min(lane.right + 8, window.innerWidth - 92)}px`;
-      pan.output.style.top = `${Math.max(8, Math.min(pan.wrap.getBoundingClientRect().top, window.innerHeight - 36))}px`;
-    };
-    pan.wrap.addEventListener("pointerenter", positionPanValue);
-    pan.wrap.addEventListener("focusin", positionPanValue);
-    pan.wrap.addEventListener("pointermove", positionPanValue);
     controls.append(gain.wrap, pan.wrap);
     // A thin grab zone on the bottom edge: drag to size this lane, double-click to reset it.
     const grip = el("div", "lane-grip", { title: t("ui.track.resize"), "aria-hidden": "true" });
-    node.append(top, compactSummary, grip);
-    node.addEventListener("pointerenter", () => {
-      cancelClose();
-      dispatchFlyout("hover", id);
-    });
+    card.append(strip, name, disclosure, compactSummary, controls);
+    node.append(card, grip);
+    node.addEventListener("pointerenter", () => cancelClose());
     node.addEventListener("pointerleave", (event) => {
       if (!node.contains(event.relatedTarget)) scheduleClose(id);
     });
-    node.addEventListener("focusin", () => {
-      cancelClose();
-      dispatchFlyout("focus", id);
-    });
+    node.addEventListener("focusin", () => cancelClose());
     node.addEventListener("focusout", (event) => {
       if (!node.contains(event.relatedTarget)) scheduleClose(id);
     });
@@ -665,6 +619,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     });
     return {
       node,
+      card,
       name,
       tag,
       roleBadge,
@@ -686,8 +641,10 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
 
   function buildBus(bus, index) {
     const node = el("section", "track-header bus-header");
-    // A group header, like a folder: badge, name and mute on top, levels below.
-    const top = el("div", "th-top");
+    // A group header, like a folder: the same card as a track, with the bus
+    // letter badge and the fold chevron in the strip.
+    const card = el("div", "th-card");
+    const strip = el("div", "th-strip");
     // The disclosure chevron folds the bus to its header row (a double-click on the
     // header does the same); its name and state are set in update().
     const chevron = el("button", "bus-chevron", { type: "button" });
@@ -724,8 +681,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const reapply = el("button", "bus-reapply", { type: "button", tabindex: "-1" });
     reapply.textContent = t("ui.bus.reapply");
     reapply.hidden = true;
-    top.append(chevron, badge, name, roleLabel, reapply, buttons);
-    node.append(top, compactSummary, controls);
+    strip.append(chevron, badge, buttons);
+    card.append(strip, name, roleLabel, reapply, compactSummary, controls);
+    node.append(card);
     const id = bus.id;
     node.addEventListener("pointerdown", () => actions.currentBus(id));
     node.addEventListener("focusin", () => actions.currentBus(id));
@@ -790,6 +748,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     });
     return {
       node,
+      card,
       name,
       roleLabel,
       reapply,
@@ -804,6 +763,8 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
 
   // The latest project, for handlers that need a value that may have changed.
   let latest = null;
+  // While the recorder runs, the current track's strip carries the red dot.
+  let recordingActive = false;
   const latestProject = () => latest.project;
   const lookup = (id) => latest.project.tracks.find((track) => track.id === id);
   const lookupIndex = (id) => latest.project.tracks.findIndex((track) => track.id === id);
@@ -902,6 +863,18 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
           `var(--track-${hue === MUSIC_HUE ? "music" : hue}-edge)`,
         );
         if (parts.name.isConnected) fitName(parts.name, track.name);
+        parts.node.classList.toggle(
+          "recording",
+          recordingActive && state.focusTrack === track.id,
+        );
+        // Clip labels start right of the collapsed header (strip + name pill),
+        // so the overlay never covers a clip's name.
+        setLaneInset(
+          track.id,
+          Math.round(
+            parts.card.offsetLeft + parts.name.offsetLeft + parts.name.offsetWidth + 8,
+          ),
+        );
         if (!parts.tag.classList.contains(`kind-${track.kind}`)) paintTag(parts.tag, track.kind);
         const differs = roleDiffers(state.project, track);
         parts.roleBadge.hidden = !differs;
@@ -971,5 +944,17 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     }
   }
 
-  return { update };
+  function setRecording(active) {
+    recordingActive = active;
+    if (!latest) return;
+    for (const parts of rows.values()) {
+      if (parts.kind === "track")
+        parts.node.classList.toggle(
+          "recording",
+          active && latest.focusTrack === parts.node.dataset.track,
+        );
+    }
+  }
+
+  return { update, setRecording };
 }

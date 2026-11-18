@@ -61,6 +61,7 @@ import { ICONS } from "./icons.js";
 import { dropGhosts, dropLabel, resolveDropTarget } from "./import-drop.js";
 import { rangeDimmed } from "./intent.js";
 import { clipLabel, labelFacts, siblingsOf } from "./labels.js";
+import { laneInset } from "./lane-insets.js";
 import {
   clipEnd,
   dbToY,
@@ -935,7 +936,8 @@ export function createTimeline({
       if (missing) drawMissingMedia(left, y, w, h);
       if (clip.xfade_in) drawCrossfade(left, y, h, clip.xfade_in / state.zoom, colours.ink);
       if (clip.xfade_out) drawCrossfade(right, y, h, clip.xfade_out / state.zoom, colours.ink);
-      if (row.height >= 36) drawName(state, clip, left, y, w, colours, marked);
+      if (row.height >= 36)
+        drawName(state, clip, left, y, w, colours, marked, laneInset(track.id));
       if (wordsView && row.height >= WORDS_MIN_LANE)
         drawClipWords(state, track, clip, wordsView, { left, y, w }, colours);
       // The gain line only where it says something: not 0 dB, an envelope, or selected.
@@ -1471,13 +1473,14 @@ export function createTimeline({
   // text; before it, the file mark when the track holds more than one file.
   // The label says what the clip is, by the width there is (labels.js):
   // nothing, the person, "Olli 3", "Olli 3 · 1:20–3:20", then the first words.
-  function drawName(state, clip, left, y, w, colours, marked) {
+  function drawName(state, clip, left, y, w, colours, marked, inset = 0) {
     if (clip.group) drawGroupBadge(left, y, w, colours);
     drawSyncBadge(state, clip, left, y, w);
     drawAnchorTag(state, clip, left, y, w, colours);
     const media = state.project.media.find((item) => item.id === clip.media);
     if (!media || w < 30) return;
-    let x = Math.max(left, 0) + 5;
+    // The collapsed header overlays the lane's left edge: labels start past it.
+    let x = Math.max(left, inset) + 5;
     if (marked) x = drawFileMark(fileMark(media.sha256), x, y, colours.ink);
     overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
     overlay.textBaseline = "top";

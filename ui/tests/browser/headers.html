@@ -6,8 +6,12 @@
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <div class="editor" data-rail="icons">
-      <aside class="side" style="width:var(--heads-w)"><div class="heads-row"><nav id="toolbar-rail" class="tool-rail"></nav><div id="track-headers" class="heads-scroll"></div></div></aside>
+    <div class="editor" data-rail="icons" style="--corner-h:0px"> <!-- no overview/ruler here -->
+      <!-- Mirrors index.html after the header redesign: the headers overlay the
+           lane column instead of sitting in a heads column beside it. -->
+      <section class="tl-column" style="position:relative; height:640px">
+        <div id="track-headers" class="heads-scroll"></div>
+      </section>
     </div>
     <pre id="result">pending</pre>
     <script type="module" src="/tests/browser/headers.js"></script>

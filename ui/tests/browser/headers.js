@@ -1,13 +1,11 @@
 // Browser harness for the track headers: the real tracks.js and style.css, driven by the query
-// string (density, rail, grouped), reporting measurements into #result for headers.test.js.
+// string (density, lane, open), reporting measurements into #result for header-browser.test.js.
 import { createTrackHeaders } from "../../tracks.js";
 
 const query = new URLSearchParams(location.search);
 const density = query.get("density") ?? "comfortable";
-const rail = query.get("rail") ?? "icons";
 const laneHeight = Number(query.get("lane") ?? 80);
 document.documentElement.dataset.density = density;
-document.querySelector(".editor").dataset.rail = rail;
 
 const track = (id, name, bus) => ({
   id,
@@ -56,38 +54,40 @@ for (const node of root.querySelectorAll(".track-header[data-track]")) {
   const name = node.querySelector(".track-name");
   out.names[name.textContent] = {
     grouped: node.hasAttribute("data-bus"),
+    untruncated: name.clientWidth >= name.scrollWidth - 1,
+    headerTransparent: getComputedStyle(node).backgroundColor === "rgba(0, 0, 0, 0)",
+    strip: rect(node.querySelector(".th-strip")),
     ...rect(name),
     header: rect(node),
   };
 }
 const bus = root.querySelector(".bus-header");
 if (bus) {
-  const parts = {};
-  for (const child of bus.querySelector(".th-top").children) parts[child.className] = rect(child);
   out.bus = {
     header: rect(bus),
     name: rect(bus.querySelector(".bus-name")),
-    top: rect(bus.querySelector(".th-top")),
-    parts,
-    controls: rect(bus.querySelector(".th-controls")),
-    controlsVisibility: getComputedStyle(bus.querySelector(".th-controls")).visibility,
-    summary: rect(bus.querySelector(".bus-compact-summary")),
-    columns: getComputedStyle(bus).gridTemplateColumns,
+    badge: Boolean(bus.querySelector(".th-strip .bus-badge")),
+    controlsDisplay: getComputedStyle(bus.querySelector(".th-controls")).display,
+    summaryDisplay: getComputedStyle(bus.querySelector(".bus-compact-summary")).display,
   };
 }
 const finish = () => {
   document.getElementById("result").textContent = JSON.stringify(out);
 };
+addEventListener("error", (event) => {
+  document.getElementById("result").textContent = JSON.stringify({ harnessError: String(event.error && event.error.stack || event.message) });
+});
 const open = query.get("open");
 if (!open) finish();
 else {
-  // Approach the lane as a pointer does: enter the header, then look at what sits over its grip.
+  // Pin the track's ".." popover (collapsed, the disclosure is hover-only, so
+  // click it programmatically), then look at what sits over the grip.
   const node = [...root.querySelectorAll(".track-header[data-track]")].find(
     (header) =>
       header.querySelector(".track-name").title === open ||
       header.querySelector(".track-name").getAttribute("aria-label") === open,
   );
-  node.dispatchEvent(new PointerEvent("pointerenter", { bubbles: false }));
+  node.querySelector(".th-disclosure").click();
   setTimeout(() => {
     const flyout = document.querySelector(
       ".track-flyout-layer .track-controls-flyout:not([hidden])",
@@ -96,7 +96,7 @@ else {
     const box = grip.getBoundingClientRect();
     const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
     out.flyout = flyout ? rect(flyout) : null;
-    out.flyoutScrolls = flyout ? flyout.scrollHeight > flyout.clientHeight : null;
+    out.controlsOpen = node.classList.contains("controls-open");
     out.header = rect(node);
     out.grip = rect(grip);
     out.gripHit = hit === grip;

@@ -5,9 +5,9 @@ import { test } from "node:test";
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const source = readFileSync(new URL("../tracks.js", import.meta.url), "utf8");
 const tokens = readFileSync(new URL("../tokens.css", import.meta.url), "utf8");
-test("track controls reserve equal rails and move values above them", () => {
-  assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\)/);
-  assert.match(css, /grid-template-rows: 12px 24px/);
+test("the expanded card lays the level and pan controls out in one row", () => {
+  assert.match(css, /\.th-card > \.th-controls \{[^}]*display: flex/s);
+  assert.match(css, /\.th-card \.slider-control\.pan \{[^}]*width: 28px/s);
   assert.match(css, /slider-caption/);
   assert.match(source, /"aria-label": label/);
 });
@@ -37,10 +37,10 @@ test("collapsed tracks keep mute/solo and role icon beside the name", () => {
   );
 });
 
-test("the current track header gets a subtle tint in its track color", () => {
+test("the current track's name pill gets a subtle tint in its track color", () => {
   assert.match(
     css,
-    /\.track-header\[data-track\]\.current\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--panel-bg\) 86%, var\(--track-colour\)\)/,
+    /\.track-header\[data-track\]\.current \.th-card > \.track-name\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--panel-bg\) 80%, var\(--track-colour\)\)/,
   );
 });
 
@@ -50,31 +50,24 @@ test("pan arc leaves the bottom quarter open without changing rotary mapping", (
   assert.match(source, /parts\.pan\.wrap\.classList\.add\("dial"\)/);
 });
 
-test("track mixer controls open in an overlay beside stable narrow headers", () => {
-  assert.match(tokens, /--heads-w: 160px/);
-  assert.match(tokens, /--heads-w-min: 152px/);
+test("track metadata opens in a popover under the header card", () => {
+  // The gain and pan live inside the expanding card; the ".." popover carries
+  // only the metadata (header redesign, 2026-11-18).
   assert.match(css, /.track-controls-flyout\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /.track-controls-flyout\s*\[hidden\]\s*\{\s*display:\s*none/s);
   assert.match(source, /"aria-controls": `track-controls-\$\{id\}`/);
-  assert.match(source, /top\.append\(handle, name, buttons, disclosure\)/);
-  assert.match(source, /flyout\.append\(metadata, controls\)/);
+  assert.match(source, /card\.append\(strip, name, disclosure, compactSummary, controls\)/);
+  assert.match(source, /flyout\.append\(metadata\)/);
   assert.match(source, /disclosure\.addEventListener\("keydown"/);
-  assert.match(source, /flyout\.querySelector\([\s\S]*?:not\(\[tabindex="-1"\]\)/);
   assert.match(source, /window\.addEventListener\("scroll", positionFlyout, true\)/);
 });
 
-test("the track header name and M/S rail forms a downward tab above the lane", () => {
-  assert.ok(source.includes('el("div", "th-top track-tab")'), "track row uses tab markup");
-  assert.ok(/\.track-tab::after\s*\{[^}]*border-top:/s.test(css), "tab points down");
-  assert.ok(/\.track-tab::after\s*\{[^}]*position:\s*absolute/s.test(css), "tab adds no row");
-  assert.ok(
-    /\.track-header\[data-track\] \.track-tab\s*\{[^}]*height:\s*28px/s.test(css),
-    "tab stays compact",
-  );
-  assert.ok(
-    /\.track-header\.strip\[data-track\] \.track-tab\s*\{[^}]*height:\s*16px/s.test(css),
-    "focus strip fits its lane",
-  );
+test("the collapsed header is a drag strip with M/S plus a separate name pill", () => {
+  assert.ok(source.includes('el("div", "th-card")'), "header uses card markup");
+  assert.ok(source.includes('el("div", "th-strip")'), "card has a drag strip");
+  assert.ok(/strip\.append\(handle, buttons, el\("span", "th-rec-dot"/.test(source), "strip holds handle, M/S, rec dot");
+  assert.ok(/\.th-card > \.track-name,\s*\.th-card > \.bus-name\s*\{[^}]*border-radius: 999px/s.test(css), "name is a pill");
+  assert.ok(/\.track-header\.recording \.th-rec-dot\s*\{[^}]*display: block/s.test(css), "rec dot shows when recording");
 });
 
 test("bus headers use the shorter footprint and a rotary pan control", () => {
