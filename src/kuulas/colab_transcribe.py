@@ -55,16 +55,19 @@ from .processes import kill_process_group
 log = logging.getLogger("kuulas.colab_transcribe")
 
 _REMOTE_SOURCE = (
-    "git+https://github.com/ollisulopuisto/podcast@45c5c2b927a2f4fb8c3c40108f7379bf185c0bab"
+    "git+https://github.com/ollisulopuisto/podcast@c3e1e8a06f8784ec3de30ef6c04a38f70c04472b"
     "#subdirectory=colab-transcribe"
 )
-_STALE_REMOTE_SOURCE = (
+#: Earlier pinned sources a stored command may still carry; both are upgraded
+#: to ``_REMOTE_SOURCE`` when read back.
+_STALE_REMOTE_SOURCES = (
     "git+https://github.com/ollisulopuisto/podcast@a919af385f6c7af12d8bd67cf9330ec06d07493f"
-    "#subdirectory=colab-transcribe"
+    "#subdirectory=colab-transcribe",
+    "git+https://github.com/ollisulopuisto/podcast@45c5c2b927a2f4fb8c3c40108f7379bf185c0bab"
+    "#subdirectory=colab-transcribe",
 )
 _REMOTE_COMMAND = [
     "uvx", "--python", "3.13",
-    "--overrides", str(Path(__file__).with_name("transcription-overrides.txt")),
     "--from",
     _REMOTE_SOURCE,
     "colab-transcribe"]
@@ -135,6 +138,22 @@ def _words(value: Any) -> bool:
         isinstance(x, str) and x for x in value)
 
 
+def _without_overrides(command: list[str]) -> list[str]:
+    """The command without each ``--overrides`` pair naming the retired
+    bundled overrides file. A user's own constraints file stays."""
+    out: list[str] = []
+    i = 0
+    while i < len(command):
+        if command[i] == "--overrides" and i + 1 < len(command):
+            if Path(command[i + 1]).name != "transcription-overrides.txt":
+                out.extend(command[i:i + 2])
+            i += 2
+        else:
+            out.append(command[i])
+            i += 1
+    return out
+
+
 def resolve_settings(stored: dict | None) -> dict[str, Any]:
     """The settings with defaults filled in: ``command`` (list), ``cwd`` (folder or
     None: run where kuulas runs), ``extra_args`` (list), ``no_drive`` (bool, default
@@ -153,9 +172,12 @@ def resolve_settings(stored: dict | None) -> dict[str, Any]:
         model = "whisper"
     if _words(command):
         command = [
-            _REMOTE_SOURCE if token == _STALE_REMOTE_SOURCE else token
+            _REMOTE_SOURCE if token in _STALE_REMOTE_SOURCES else token
             for token in command
         ]
+        # The bundled overrides file is gone: the pinned tool resolves on its
+        # own now, so a stored command must not name the old file.
+        command = _without_overrides(command)
     else:
         command = default_command()
     return {
