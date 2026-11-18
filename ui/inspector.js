@@ -51,6 +51,24 @@ export function voiceChainPair(project, media) {
   return source && variant ? { sourceId, variantId: variant.id } : null;
 }
 
+/**
+ * The edit behind the Processed checkbox and Clip > Use the processed version: it toggles.
+ * `use_variant` swaps a clip between a voice-chain variant and its source and always takes
+ * the VARIANT's id (the op looks up the source from it), so both directions send
+ * `variantId`. Null unless exactly one clip is selected and its media has the pair.
+ */
+export function processedEdit(state, t) {
+  const selected = selectedClip(state);
+  const pair = selected && voiceChainPair(state.project, selected.media);
+  if (!pair) return null;
+  const toProcessed = selected.media.id !== pair.variantId;
+  return {
+    op: "use_variant",
+    args: { clip_ids: [selected.clip.id], media_id: pair.variantId },
+    label: t(toProcessed ? "ui.clip.processed_on" : "ui.clip.processed_off"),
+  };
+}
+
 /** Which sections start open: Track/Bus, Level and Sync; Source (one-line summary) and the rest wait to be asked for. */
 const SECTION_DEFAULTS = {
   track: true,
@@ -230,16 +248,9 @@ export function createInspector({
       processed.className = "inspector-processed";
       processed.setAttribute("aria-label", t("ui.clip.processed"));
       processed.addEventListener("change", () => {
-        const selected = selectedClip(latestState);
-        const pair = voiceChainPair(latestState?.project, selected?.media);
-        if (!pair || selected.clip.id !== id) return;
-        editor.change({
-          op: "use_variant",
-          args: {
-            clip_ids: [id],
-            media_id: processed.checked ? pair.variantId : pair.sourceId,
-          },
-        });
+        const edit = processedEdit(latestState, t);
+        if (!edit || edit.args.clip_ids[0] !== id) return;
+        editor.change(edit);
       });
       root.append(field(t("ui.clip.processed"), processed));
     }

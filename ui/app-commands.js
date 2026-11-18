@@ -5,6 +5,7 @@ import { busOfFocus, collapseAllChange, collapseChange } from "./bus-collapse.js
 import { stepFocusMode } from "./focus-layout.js";
 import { clearGhost } from "./ghost-marker.js";
 import { canGoToRestorePoint, canRestore } from "./history-model.js";
+import { processedEdit } from "./inspector.js";
 import { rangeAvailable } from "./loop-range.js";
 import { placeMark } from "./marks.js";
 import { partRange } from "./part-versions-model.js";
@@ -319,6 +320,12 @@ export function registerAppCommands(registry, { actions, app }) {
     "gate.open_under_clips",
     () => app.openGateUnderClips(),
     (state) => (state?.selection?.size ?? 0) > 0 && hasProject(state),
+  );
+  // The one selected clip switches between its source and its voice-chain variant (a toggle).
+  def(
+    "clip.processed",
+    () => app.toggleProcessed(),
+    (state) => hasProject(state) && processedEdit(state, (key) => key) !== null,
   );
   // Track > Auto: these three had a menu item and a key but no handler (greyed out).
   def("app.auto_silence", () => app.autoSilence(), hasProject);
