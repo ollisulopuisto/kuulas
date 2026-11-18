@@ -1828,6 +1828,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.gate.open_under_clips",
   },
   {
+    id: "clip.processed",
+    keys: { mac: "Alt+Mod+Y", other: "Alt+Mod+Y" },
+    context: "timeline",
+    labelKey: "cmd.clip.processed",
+  },
+  {
     id: "app.auto_silence",
     keys: { mac: "Alt+Mod+P", other: "Alt+Mod+P" },
     context: "global",

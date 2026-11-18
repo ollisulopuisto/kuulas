@@ -8,6 +8,7 @@ import {
   clipLengthText,
   createInspector,
   openSections,
+  processedEdit,
   selectedClip,
   syncGroupOf,
 } from "../inspector.js";
@@ -241,6 +242,110 @@ describe("clip name in inspector", () => {
     assert.equal(sent[0].op, "set_clip");
     assert.equal(sent[0].args.clip_id, "c1");
     assert.equal(sent[0].args.name, "");
+  });
+
+  test("Processed switches a clip between its source and voice-chain variant", () => {
+    const root = new FakeNode("section");
+    const sent = [];
+    const editor = { change: (edit) => sent.push(edit) };
+    const inspector = createInspector({ root, editor });
+    const sourceState = {
+      project: {
+        ...testProject,
+        media: [
+          ...testProject.media,
+          { id: "m2", name: "olli.wav", variant_of: "m1", variant: "voice chain" },
+        ],
+      },
+      selection: new Set(["c1"]),
+      head: "1",
+    };
+
+    inspector.update({
+      ...sourceState,
+      project: { ...testProject, media: testProject.media },
+    });
+    assert.equal(
+      root.all().find((n) => n.className.includes("inspector-processed")),
+      undefined,
+      "no Processed toggle appears until the voice-chain variant exists",
+    );
+
+    inspector.update(sourceState);
+    let processed = root.all().find((n) => n.className.includes("inspector-processed"));
+    assert.ok(processed, "the source clip exposes the Processed toggle");
+    assert.equal(processed.checked, false);
+    assert.equal(processed.attrs["aria-label"], "Processed");
+    processed.checked = true;
+    processed.listeners.change[0]();
+    assert.deepEqual(sent[0], {
+      op: "use_variant",
+      args: { clip_ids: ["c1"], media_id: "m2" },
+      label: "Use the processed version",
+    });
+
+    const variantState = {
+      ...sourceState,
+      project: {
+        ...sourceState.project,
+        tracks: [
+          {
+            ...testProject.tracks[0],
+            clips: [{ ...testProject.tracks[0].clips[0], media: "m2" }],
+          },
+        ],
+      },
+    };
+    inspector.update(variantState);
+    processed = root.all().find((n) => n.className.includes("inspector-processed"));
+    assert.equal(processed.checked, true);
+    processed.checked = false;
+    processed.listeners.change[0]();
+    assert.deepEqual(sent[1], {
+      op: "use_variant",
+      args: { clip_ids: ["c1"], media_id: "m2" },
+      label: "Use the source version",
+    });
+  });
+});
+
+describe("processedEdit (Processed checkbox, clip.processed command)", () => {
+  const t = (key) => key;
+  const testProject = {
+    rate: 48000,
+    media: [{ id: "m1", name: "olli.wav", sha256: "abc" }],
+    tracks: [{ id: "t1", name: "Olli", clips: [{ id: "c1", media: "m1", length: 48000 }] }],
+  };
+  const project = (clipMedia) => ({
+    ...testProject,
+    media: [
+      ...testProject.media,
+      { id: "m2", name: "olli.wav", variant_of: "m1", variant: "voice chain" },
+    ],
+    tracks: [
+      {
+        ...testProject.tracks[0],
+        clips: [{ ...testProject.tracks[0].clips[0], media: clipMedia }],
+      },
+    ],
+  });
+
+  test("both directions send the variant's id, as use_variant requires", () => {
+    const toVariant = processedEdit({ project: project("m1"), selection: new Set(["c1"]) }, t);
+    const toSource = processedEdit({ project: project("m2"), selection: new Set(["c1"]) }, t);
+    assert.deepEqual(toVariant.args, { clip_ids: ["c1"], media_id: "m2" });
+    assert.deepEqual(toSource.args, { clip_ids: ["c1"], media_id: "m2" });
+    assert.equal(toVariant.label, "ui.clip.processed_on");
+    assert.equal(toSource.label, "ui.clip.processed_off");
+  });
+
+  test("it is unavailable without exactly one clip that has a variant", () => {
+    assert.equal(processedEdit({ project: project("m1"), selection: new Set() }, t), null);
+    assert.equal(
+      processedEdit({ project: project("m1"), selection: new Set(["c1", "c2"]) }, t),
+      null,
+    );
+    assert.equal(processedEdit({ project: testProject, selection: new Set(["c1"]) }, t), null);
   });
 });
 

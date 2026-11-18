@@ -114,7 +114,7 @@ import {
 } from "./import-drop.js";
 import { createImportPanel, panelModel } from "./import-panel.js";
 import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
-import { createInspector } from "./inspector.js";
+import { createInspector, processedEdit } from "./inspector.js";
 import { formatCombo } from "./keymap-config.js";
 import { detectPlatform, isTextField } from "./keys.js";
 import {
@@ -1300,6 +1300,12 @@ function openGateUnderClips() {
   if (state.selection.size === 0) return;
   editor.change(underClipsEdit(state.project, [...state.selection], t));
 }
+// "Use the processed version": the one selected clip switches between its source and its
+// voice-chain variant (inspector.js processedEdit, shared with the Inspector checkbox).
+function toggleProcessed() {
+  const edit = processedEdit(getState(), t);
+  if (edit) editor.change(edit);
+}
 // Command registry for the keyboard layer: id -> function.
 export const commands = { [GATE_OPEN_COMMAND]: () => openGateStretch() };
 
@@ -1718,6 +1724,7 @@ const keyboard = setupKeyboard({
     duckMusic: () => void duckMusic(),
     openAllGates: () => void openAllGates(),
     openGateUnderClips: () => openGateUnderClips(),
+    toggleProcessed: () => toggleProcessed(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
     transcribeOrukeet: () => void transcribeTrack("local", "orukeet"),

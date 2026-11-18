@@ -153,6 +153,7 @@ describe("Clip", () => {
       "edit.group",
       "edit.ungroup",
       "-",
+      "clip.processed",
       "clip.mute",
       "clip.quick_mute",
       "clip.fade",

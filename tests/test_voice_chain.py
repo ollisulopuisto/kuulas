@@ -111,6 +111,32 @@ def test_use_variant_rejects_unrelated_media():
         raise AssertionError("a clip outside the variant pair must be refused")
 
 
+def test_use_variant_takes_the_variant_id_in_both_directions():
+    """The Inspector and clip.processed always send the variant id (ui/inspector.js
+    processedEdit): it swaps source to variant and back; the source id is refused."""
+    project = ops.Project(
+        rate=RATE,
+        media=(
+            ops.Media(id="source", name="source", channels=1, frames=10),
+            ops.Media(id="variant", name="variant", channels=1, frames=10,
+                      variant_of="source", variant="voice chain"),
+        ),
+        tracks=(ops.Track(id="track", name="Voice", clips=(
+            ops.Clip(id="clip", media="source", start=0, offset=0, length=10),
+        )),),
+    )
+    to_variant = ops.use_variant(project, ["clip"], "variant")
+    assert to_variant.tracks[0].clips[0].media == "variant"
+    back = ops.use_variant(to_variant, ["clip"], "variant")
+    assert back.tracks[0].clips[0].media == "source"
+    try:
+        ops.use_variant(project, ["clip"], "source")
+    except ops.EditError:
+        pass
+    else:
+        raise AssertionError("the source id is not a variant and must be refused")
+
+
 def test_process_voice_stores_one_variant_and_undo_restores_clips(
     tmp_path, monkeypatch,
 ):

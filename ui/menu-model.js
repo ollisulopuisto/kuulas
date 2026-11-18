@@ -359,6 +359,7 @@ export const MENU = [
       item("edit.group"),
       item("edit.ungroup"),
       SEP,
+      item("clip.processed"),
       item("clip.mute"),
       item("clip.quick_mute"),
       item("clip.fade"),

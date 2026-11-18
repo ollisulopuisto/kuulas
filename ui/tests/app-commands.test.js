@@ -96,6 +96,7 @@ describe("the commands the app registers", () => {
       transcribeOrukeet: () => calls.push(["transcribeOrukeet"]),
       transcribeAll: (backend = "local") => calls.push(["transcribeAll", backend]),
       transcribeAllOrukeet: () => calls.push(["transcribeAllOrukeet"]),
+      toggleProcessed: () => calls.push(["toggleProcessed"]),
     };
     registerAppCommands(registry, { actions, app });
     return { registry, calls };
@@ -105,6 +106,38 @@ describe("the commands the app registers", () => {
     const { registry } = setup();
     const ids = new Set(DEFAULT_KEYMAP.map((e) => e.id));
     for (const id of registry.ids()) assert.ok(ids.has(id), id);
+  });
+
+  test("Clip > Use the processed version needs one selected clip that has the pair, and runs the toggle", () => {
+    const { registry, calls } = setup();
+    const media = [
+      { id: "m1", name: "olli.wav" },
+      { id: "m2", name: "olli.wav", variant_of: "m1", variant: "voice chain" },
+    ];
+    const tracks = [
+      {
+        id: "a",
+        clips: [
+          { id: "c1", media: "m1" },
+          { id: "c2", media: "m1" },
+        ],
+      },
+    ];
+    const one = { project: { media, tracks }, selection: new Set(["c1"]) };
+    assert.equal(registry.status("clip.processed"), "ready");
+    assert.equal(registry.can("clip.processed", one), true);
+    assert.equal(registry.can("clip.processed", { ...one, selection: new Set() }), false);
+    assert.equal(
+      registry.can("clip.processed", { ...one, selection: new Set(["c1", "c2"]) }),
+      false,
+    );
+    assert.equal(
+      registry.can("clip.processed", { ...one, project: { media: [media[0]], tracks } }),
+      false,
+    );
+    assert.equal(registry.can("clip.processed", {}), false);
+    registry.run("clip.processed", null, one);
+    assert.deepEqual(calls, [["toggleProcessed"]]);
   });
 
   test("Track > Auto-Silence, Duck the microphones and Transcribe work with a project (they were inert)", () => {
