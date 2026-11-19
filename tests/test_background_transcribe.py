@@ -290,6 +290,24 @@ def test_remove_files_can_keep_the_stop_request(tmp_path):
     assert not bgjobs.cancel_file(tmp_path, job_id).exists()
 
 
+def test_the_kept_stop_request_survives_a_symlinked_project_path(tmp_path):
+    # cancel_file resolves symlinks (realpath), the cleanup glob does not, so
+    # comparing whole paths lost the request on a symlinked project folder
+    # (Devin review on dc87648b).
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real)
+    job_id = bgjobs.create_job(
+        link, backend="local",
+        items=[{"id": "m1", "name": "A.wav", "path": "/x/A.wav"}],
+        previous={"m1": None}, names=["A.wav"], model=None, language=None,
+        settings=None)
+    bgjobs.request_cancel(link, job_id)
+    bgjobs.remove_files(link, job_id, keep_cancel=True)
+    assert bgjobs.cancel_file(real, job_id).is_file()
+
+
 def test_another_computers_queued_job_can_be_cancelled_here(session):
     job_id, _ = foreign_job(session, "queued")
     session.cancel_background(job_id)

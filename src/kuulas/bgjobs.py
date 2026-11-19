@@ -357,7 +357,9 @@ def remove_files(folder: Path | str, job_id: str, *, keep_cancel: bool = False) 
     root = jobs_dir(folder)
     base_dir = os.path.realpath(root)
     for path in root.glob(f"{job_id}.*"):
-        if keep_cancel and path == cancel_file(folder, job_id):
+        # By name: cancel_file resolves symlinks, the glob does not (Devin
+        # review on dc87648b). The id is already validated glob-safe above.
+        if keep_cancel and path.name == f"{job_id}.cancel":
             continue
         if os.path.realpath(path.parent) == base_dir:
             with contextlib.suppress(OSError):
