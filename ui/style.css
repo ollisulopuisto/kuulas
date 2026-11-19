@@ -865,7 +865,7 @@ button.chip {
 }
 /* The focused track keeps a quiet wash of its lane color in the header; the color spine still
    identifies it when another track is current. */
-.track-header[data-track].current .th-row1 > .track-name {
+.track-header[data-track].current .th-main > .track-name {
   background: color-mix(in srgb, var(--panel-bg) 80%, var(--track-colour));
 }
 /* The inactive style (View > Lanes outside the operation; SILENCE-VISUALS.md): the headers follow
@@ -6601,6 +6601,58 @@ legend.form-heading {
   pointer-events: auto;
   border: 1px solid transparent;
   border-radius: 16px;
+  /* Constant padding, open or collapsed: the card opening must never shift
+     what the pointer rests on (owner, 2026-11-19). */
+  padding: 7px 12px;
+}
+/* A track card (design C, owner 2026-11-19): the persistent strip at the left,
+   the right column stacking name / ".." + summary / level + pan. */
+.track-header:not(.bus-header) .th-card {
+  flex-direction: row;
+  gap: 8px;
+}
+.th-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.th-row2 {
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+.th-row2 > .th-disclosure {
+  width: 22px;
+  height: 20px;
+  padding: 0;
+}
+.th-row2 > .track-compact-summary {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+/* The strip's read-only gain/pan state (design C). Under 40 px lanes (compact)
+   there is no room for it; the horizontal mini-strip stays. */
+.th-state {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.th-state > span {
+  width: 26px;
+  height: 18px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--panel-bg) 60%, transparent);
+  color: var(--text-secondary);
+  font-size: 9px;
+  line-height: 18px;
+  text-align: center;
+}
+.track-header.compact .th-state {
+  display: none;
 }
 /* Row 1 (strip, name, "..", summary) is a real box: the card's width is the
    wider of the two rows, never their sum (a wrap container's 100% basis would
@@ -6653,7 +6705,7 @@ legend.form-heading {
   display: block;
 }
 /* The name sits in its own pill beside the strip. */
-.th-row1 > .track-name,
+.th-main > .track-name,
 .th-row1 > .bus-name {
   flex: none;
   max-width: 240px;
@@ -6664,35 +6716,55 @@ legend.form-heading {
   box-shadow: var(--shadow-raised);
 }
 /* Collapsed, only the strip and the name pill show. */
-.th-row1 > .th-disclosure,
-.th-row1 > .track-compact-summary,
 .th-row1 > .bus-compact-summary,
 .th-card > .th-controls,
+.th-main > .th-controls,
 .th-row1 > .bus-role,
 .th-row1 > .bus-reapply {
   display: none;
 }
-/* Expanded: one rounded card sized to its content. */
+/* Expanded: one rounded card sized to its content. The padding is on the base
+   card (constant), so opening changes only what shows, never where things sit. */
 .track-header:is(.hover-open, :focus-within, .controls-open) .th-card {
   background: color-mix(in srgb, var(--panel-bg) 94%, transparent);
   border-color: var(--border-subtle);
   box-shadow: var(--shadow-raised);
-  padding: 7px 12px;
 }
-.track-header:is(.hover-open, :focus-within, .controls-open) .th-row1 {
+/* The expanded track card (design C): the strip stays the left column and
+   stretches with the card; the name drops its pill chrome in place; the ".."
+   + summary row and the controls appear below it. */
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open) .th-main
+  > .track-name {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open) .th-main > .th-row2 {
+  display: flex;
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open)
+  .th-main
+  > .th-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.track-header:not(.bus-header, .compact):is(.hover-open, :focus-within, .controls-open) .th-strip {
+  align-self: stretch;
+}
+/* The expanded bus card keeps the one-row layout: the strip dissolves into it. */
+.bus-header:is(.hover-open, :focus-within, .controls-open) .th-row1 {
   align-items: center;
   gap: 6px 8px;
 }
-.track-header:is(.hover-open, :focus-within, .controls-open) .th-strip {
+.bus-header:is(.hover-open, :focus-within, .controls-open) .th-strip {
   display: contents;
 }
-.track-header:is(.hover-open, :focus-within, .controls-open)
+.bus-header:is(.hover-open, :focus-within, .controls-open)
   :is(.track-handle, .bus-chevron, .bus-badge, .th-rec-dot) {
   order: 1;
 }
-.track-header:is(.hover-open, :focus-within, .controls-open)
-  .th-row1
-  > :is(.track-name, .bus-name) {
+.bus-header:is(.hover-open, :focus-within, .controls-open) .th-row1 > .bus-name {
   order: 2;
   background: none;
   border: 0;
@@ -6700,30 +6772,30 @@ legend.form-heading {
   padding: 0;
   border-radius: 0;
 }
-.track-header:is(.hover-open, :focus-within, .controls-open) .th-strip .ms {
+.bus-header:is(.hover-open, :focus-within, .controls-open) .th-strip .ms {
   order: 3;
   flex-direction: row;
   gap: 4px;
 }
-.track-header:is(.hover-open, :focus-within, .controls-open) .ms .ms-button {
+.bus-header:is(.hover-open, :focus-within, .controls-open) .ms .ms-button {
   width: 24px;
   height: 20px;
   font-size: 11px;
 }
-.track-header:is(.hover-open, :focus-within, .controls-open) .th-row1 > .th-disclosure {
+.bus-header:is(.hover-open, :focus-within, .controls-open) .th-row1 > .th-disclosure {
   display: inline-flex;
   order: 4;
   width: 22px;
   height: 20px;
   padding: 0;
 }
-.track-header:is(.hover-open, :focus-within, .controls-open)
+.bus-header:is(.hover-open, :focus-within, .controls-open)
   .th-row1
   > :is(.bus-role:not([hidden]), .bus-reapply:not([hidden])) {
   display: inline-flex;
   order: 4;
 }
-.track-header:is(.hover-open, :focus-within, .controls-open)
+.bus-header:is(.hover-open, :focus-within, .controls-open)
   .th-row1
   > :is(.track-compact-summary, .bus-compact-summary) {
   display: block;
@@ -6732,7 +6804,7 @@ legend.form-heading {
   color: var(--text-secondary);
   white-space: nowrap;
 }
-.track-header:is(.hover-open, :focus-within, .controls-open) .th-card > .th-controls {
+.bus-header:is(.hover-open, :focus-within, .controls-open) .th-card > .th-controls {
   display: flex;
   gap: 8px;
   align-items: center;
