@@ -7,6 +7,7 @@ import {
   mergeStops,
   nextStop,
   prevStop,
+  prevStopOrStart,
   SCOPE_MODE,
   scopeChoice,
   scopeIndicatorKey,
@@ -137,5 +138,25 @@ describe("word stops", () => {
   test("of one track when asked", () => {
     assert.deepEqual(wordStops(words, "b"), [100]);
     assert.deepEqual(wordStops(null), []);
+  });
+});
+
+describe("Shift+Tab reaches the start of the session", () => {
+  // Owner, 2026-11-19: Shift+Tab must jump to 0:00, not stop at the first
+  // clip start. First clip starts at 5:00 (14_400_000 frames at 48 kHz).
+  const firstClipStart = 5 * 60 * 48000;
+  const stops = [firstClipStart, firstClipStart * 2];
+  test("past the last stop before it, the previous stop still wins", () => {
+    assert.equal(prevStopOrStart(stops, firstClipStart * 3), firstClipStart * 2);
+    assert.equal(prevStopOrStart(stops, firstClipStart + 1), firstClipStart);
+  });
+  test("at or before the first stop, the target is 0:00", () => {
+    assert.equal(prevStopOrStart(stops, firstClipStart), 0);
+    assert.equal(prevStopOrStart(stops, firstClipStart - 1), 0);
+  });
+  test("no stops at all still means 0:00, unless already there", () => {
+    assert.equal(prevStopOrStart([], 60), 0);
+    assert.equal(prevStopOrStart(stops, 0), null);
+    assert.equal(prevStopOrStart([], 0), null);
   });
 });

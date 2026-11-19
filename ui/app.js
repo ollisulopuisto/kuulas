@@ -205,7 +205,7 @@ import {
   cycleScope,
   headerFocusPatch,
   nextStop,
-  prevStop,
+  prevStopOrStart,
   SCOPE_MODE,
   scopeChoice,
   scopeIndicatorKey,
@@ -1982,7 +1982,7 @@ async function tabStop(direction) {
       });
     }
     const from = getState().playhead ?? 0;
-    const frame = direction > 0 ? nextStop(stops, from) : prevStop(stops, from);
+    const frame = direction > 0 ? nextStop(stops, from) : prevStopOrStart(stops, from);
     if (frame === null) showNotice(t("ui.tab_stop.none"), "ok");
     else jumpTo(frame);
   } catch (error) {

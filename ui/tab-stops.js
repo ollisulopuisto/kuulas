@@ -65,6 +65,18 @@ export function prevStop(stops, frame) {
   return lo > 0 ? list[lo - 1] : null;
 }
 
+/**
+ * The previous stop, or 0 when the playhead is at or before the first one:
+ * Shift+Tab always reaches the start of the session, even when the first clip
+ * starts later (owner, 2026-11-19). Null only when already at the start, so
+ * the caller can still say there is nowhere to go.
+ */
+export function prevStopOrStart(stops, frame) {
+  const prev = prevStop(stops, frame);
+  if (prev !== null) return prev;
+  return frame > 0 ? 0 : null;
+}
+
 /** Several lists of frames as one sorted list without duplicates. */
 export function mergeStops(...lists) {
   const all = new Set();
