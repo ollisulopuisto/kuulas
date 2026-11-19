@@ -7,7 +7,7 @@ import { registerAppCommands } from "./app-commands.js";
 import { registerCandidateCommands } from "./candidate-commands.js";
 import { cheatSheetData, createCheatSheet } from "./cheatsheet.js";
 import { commandRecords, isRepeatable, searchAll } from "./command-search.js";
-import { createCommandSearch, createSearchPanel } from "./command-search-ui.js";
+import { createCommandSearch, createSearchPanel, loadOnFocus } from "./command-search-ui.js";
 import { synonymsFor } from "./command-synonyms.js";
 import { createRegistry } from "./commands.js";
 import { openDialogs } from "./dialog-keys.js";
@@ -177,7 +177,9 @@ export function setupKeyboard({
       openSearch: () =>
         document.documentElement.hasAttribute("data-native-menu")
           ? searchPanel.open()
-          : (menubar?.openSearch() ? true : searchPanel.open()),
+          : menubar?.openSearch()
+            ? true
+            : searchPanel.open(),
       openKeys: () => cheat.toggle(),
       importKeys: () => importKeys(),
       exportKeys: () => exportKeys(),
@@ -293,13 +295,17 @@ export function setupKeyboard({
       openTopic: (id) => help?.open(id),
     });
   const menuSearch = makeSearch({});
-  menuSearch.input.addEventListener(
-    "focus",
-    () => void help?.load().then(() => menuSearch.refresh()),
-  );
+  // Help topics load lazily; whichever search field is focused first loads them.
+  // Devin review on #239: the panel's field never did, so a first search before
+  // opening the Help sidebar found no topics (owner, 2026-11-19).
+  loadOnFocus(menuSearch, () => help?.load());
   searchPanel = createSearchPanel({
     t,
-    makeSearch: (hooks) => makeSearch(hooks),
+    makeSearch: (hooks) => {
+      const widget = makeSearch(hooks);
+      loadOnFocus(widget, () => help?.load());
+      return widget;
+    },
   });
   function refreshSearch() {
     if (menubar?.isOpen()) menuSearch.refresh();
