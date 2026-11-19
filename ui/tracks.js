@@ -1065,7 +1065,13 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     }
     syncDomOrder(layout);
   };
-  root.addEventListener("pointerdown", () => (heldPointers += 1), true);
+  root.addEventListener(
+    "pointerdown",
+    () => {
+      heldPointers += 1;
+    },
+    true,
+  );
   const released = () => {
     heldPointers = Math.max(0, heldPointers - 1);
     if (heldPointers === 0 && domSyncPending) {
