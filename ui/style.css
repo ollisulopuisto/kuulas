@@ -1189,10 +1189,25 @@ input.has-ab {
 }
 .layer {
   position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
+  /* The left edge is the gutter's right edge: painting and pointer maths stay
+     canvas-local, so time 0 starts where the wave area starts (owner, 2026-11-19).
+     The width is explicit: a canvas with width:auto keeps its intrinsic 300 px. */
+  inset: 0 0 0 var(--track-gutter-w);
+  width: calc(100% - var(--track-gutter-w));
   height: 100%;
+  display: block;
+}
+/* The permanent control gutter: the collapsed track tab floats here, outside
+   the wave area, so the start of a track stays clickable (owner, 2026-11-19). */
+.timeline-stack::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--track-gutter-w);
+  background: var(--surface-panel);
+  border-right: 1px solid var(--border-subtle);
 }
 #timeline {
   touch-action: none;
@@ -5199,7 +5214,7 @@ legend.form-heading {
   color: var(--text);
 }
 .follow-arrow[data-side="left"] {
-  left: 8px;
+  left: calc(var(--track-gutter-w) + 8px);
 }
 .follow-arrow[data-side="right"] {
   right: 16px;

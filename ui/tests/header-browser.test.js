@@ -164,8 +164,8 @@ for (const density of ["comfortable", "compact"]) {
     assert.equal(result.openAfterLeave400, false, "the card never closes after the pointer left");
     // The card gaps and the area past the pill are not a trigger.
     assert.equal(result.openFromGap, false, "the card opens from a gap past the pill");
-    // The name pill is a trigger too, and its click pins the card open.
-    assert.equal(result.openFromName, true, "hovering the name pill does not open the card");
+    // The name pill is not a hover trigger (owner, 2026-11-19); its click still pins.
+    assert.equal(result.openFromName, false, "hovering the name pill opens the card");
     assert.equal(result.pinnedAfterLeave, true, "a name click does not pin the card open");
     assert.equal(result.openAfterOutsideClick, false, "clicking elsewhere does not unpin");
     assert.equal(result.openAfterEsc, false, "Escape does not unpin");

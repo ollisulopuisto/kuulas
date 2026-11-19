@@ -247,7 +247,7 @@ if (intent) {
     );
   });
   at(200, () => {
-    out.openFromName = openNow();
+    out.openFromName = openNow(); // hover over the pill: must stay closed
     nameEl.click();
   });
   at(300, () => {

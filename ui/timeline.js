@@ -228,7 +228,9 @@ export function createTimeline({
   dark.addEventListener("change", refreshTheme);
 
   function measure() {
-    const rect = stack.getBoundingClientRect();
+    // The canvas, not the stack: the stack includes the control gutter, and the
+    // painter works in canvas coordinates (owner, 2026-11-19).
+    const rect = overlayCanvas.getBoundingClientRect();
     // The viewport's size, with the pixel count capped (canvas-size.js): the
     // waveform worker sizes its canvas from the same ratio.
     const backing = backingSize(rect.width, rect.height, devicePixelRatio || 1);
@@ -1932,7 +1934,10 @@ export function createTimeline({
     input.setAttribute("aria-label", t("ui.markers.rename_label"));
     input.value = marker.name;
     const left = Math.max(0, target.labelX - 2);
-    input.style.left = `${left}px`;
+    // The input lives on the stack, whose left edge is the gutter's left edge;
+    // labelX is canvas-local, so shift it by the gutter (owner, 2026-11-19).
+    const gutter = overlayCanvas.getBoundingClientRect().left - stack.getBoundingClientRect().left;
+    input.style.left = `${left + gutter}px`;
     input.style.top = "1px";
     input.style.width = `${Math.min(size.width - left, Math.max(88, target.labelWidth + 4))}px`;
     input.style.height = `${RULER_HEIGHT - 3}px`;
