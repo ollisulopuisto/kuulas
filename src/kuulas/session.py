@@ -3454,7 +3454,10 @@ class Session:
         if info is None:
             return
         if info["state"] in {"failed", "cancelled"}:
-            bgjobs.remove_files(folder, job_id)
+            # Another computer's job: keep the stop request until its worker
+            # takes it; deleting it here (sync may be paused) would let the
+            # remote transcription run on (Devin review on #238).
+            bgjobs.remove_files(folder, job_id, keep_cancel=info["foreign"])
         elif info["state"] != "completed":
             bgjobs.request_cancel(folder, job_id)
 

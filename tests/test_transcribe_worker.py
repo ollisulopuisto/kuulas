@@ -184,6 +184,9 @@ def test_a_cancel_request_file_stops_the_engine(folder):
     assert result == ["cancelled"]
     assert status(folder, job_id)["state"] == "cancelled"
     assert not list(bgjobs.jobs_dir(folder).glob("*.words.json"))
+    # The worker took the request: a kept tombstone (dismissal of another
+    # computer's job) is consumed when it arrives, not left behind.
+    assert not bgjobs.cancel_file(folder, job_id).exists()
 
 
 def test_the_status_file_is_never_half_written(folder):

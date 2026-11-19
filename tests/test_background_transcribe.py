@@ -252,6 +252,42 @@ def test_another_computers_running_job_can_be_cancelled_here(session):
     assert status["finished"] is not None
     session.cancel_background(job_id)  # a second press dismisses it
     assert session.background_jobs() == []
+    # ...but the stop request stays until the remote worker takes it: dismissing
+    # before the project syncs must not erase it, or the other computer keeps
+    # transcribing (Devin review on #238).
+    assert bgjobs.cancel_file(folder, job_id).is_file()
+
+
+def test_dismissing_a_cancelled_local_job_clears_its_stop_request(session):
+    folder = session.package.path
+    job_id = bgjobs.create_job(
+        folder, backend="local",
+        items=[{"id": "m1", "name": "A.wav", "path": "/x/A.wav"}],
+        previous={"m1": None}, names=["A.wav"], model=None, language=None,
+        settings=None)
+    bgjobs.write_json_atomic(bgjobs.status_file(folder, job_id),
+                             {"state": "cancelled", "progress": 0.2})
+    bgjobs.cancel_file(folder, job_id).write_text("cancel\n", encoding="utf-8")
+    session.cancel_background(job_id)  # dismiss
+    assert session.background_jobs() == []
+    # Nothing is left to poll the file, so no tombstone is kept on this machine.
+    assert not bgjobs.cancel_file(folder, job_id).exists()
+    assert not bgjobs.job_file(folder, job_id).exists()
+
+
+def test_remove_files_can_keep_the_stop_request(tmp_path):
+    job_id = bgjobs.create_job(
+        tmp_path, backend="local",
+        items=[{"id": "m1", "name": "A.wav", "path": "/x/A.wav"}],
+        previous={"m1": None}, names=["A.wav"], model=None, language=None,
+        settings=None)
+    bgjobs.request_cancel(tmp_path, job_id)
+    assert bgjobs.cancel_file(tmp_path, job_id).is_file()
+    bgjobs.remove_files(tmp_path, job_id, keep_cancel=True)
+    assert bgjobs.job_file(tmp_path, job_id).exists() is False
+    assert bgjobs.cancel_file(tmp_path, job_id).is_file()
+    bgjobs.remove_files(tmp_path, job_id)
+    assert not bgjobs.cancel_file(tmp_path, job_id).exists()
 
 
 def test_another_computers_queued_job_can_be_cancelled_here(session):
