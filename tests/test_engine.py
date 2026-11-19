@@ -19,7 +19,6 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-import sounddevice as sd
 import soundfile as sf
 
 from kuulas import messages, mixer, ops, preview_level
@@ -27,6 +26,9 @@ from kuulas.engine import Engine, EngineError
 from kuulas.media import CHUNK_SEC, MediaStore
 from kuulas.model import Media, Project
 from kuulas.session import Session
+
+# No audio server: skip the audio tests, not the whole shard (2026-11-19).
+sd = pytest.importorskip("sounddevice", exc_type=Exception)
 
 RATE = 48000
 ROOT = Path(__file__).resolve().parents[1]

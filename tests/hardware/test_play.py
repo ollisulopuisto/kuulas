@@ -12,11 +12,14 @@ import threading
 import time
 
 import numpy as np
-import sounddevice as sd
+import pytest
 
 from kuulas import ops
 from kuulas.engine import Engine
 from kuulas.model import Media, Project
+
+# No audio server: skip the audio tests, not the whole shard (2026-11-19).
+sd = pytest.importorskip("sounddevice", exc_type=Exception)
 
 RATE = 48000
 

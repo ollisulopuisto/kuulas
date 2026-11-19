@@ -72,7 +72,6 @@ from dataclasses import replace
 from typing import Any
 
 import numpy as np
-import sounddevice as sd
 import soxr
 
 from . import diag, gate, latency, meter, preview_level
@@ -94,6 +93,26 @@ from .stretch import HOP_S as STRETCH_HOP_S
 from .stretch import MAX_RATE as MAX_STRETCH
 from .stretch import MIN_RATE as MIN_STRETCH
 from .stretch import Stretcher
+
+
+class _LazySounddevice:
+    """Import sounddevice on first use, not at module import: the import alone
+    initializes PortAudio, which needs a running audio server (CI lost its
+    PulseAudio on 2026-11-19 and the whole shard died at collection). A missing
+    server now fails only the code that opens a device."""
+
+    def __init__(self) -> None:
+        self._real = None
+
+    def __getattr__(self, name: str) -> Any:
+        if self._real is None:
+            import sounddevice  # noqa: PLC0415 - PortAudio only where a device is used
+
+            self._real = sounddevice
+        return getattr(self._real, name)
+
+
+sd = _LazySounddevice()
 
 log = logging.getLogger("kuulas.engine")
 
