@@ -16,3 +16,15 @@ describe("where a dragged track header lands", () => {
     assert.equal(dropIndex(mids, 500), 3);
   });
 });
+
+test("visible rows translate to project indices without displacing folded tracks", async () => {
+  const { trackDropIndex } = await import("../track-drop.js");
+  const order = ["hidden-1", "hidden-2", "a", "b"];
+  const visible = [
+    { id: "b", midpoint: 200 },
+    { id: "a", midpoint: 100 },
+  ];
+  assert.equal(trackDropIndex(order, "a", visible, 300), 3);
+  assert.equal(trackDropIndex(order, "b", visible, 50), 2);
+  assert.equal(trackDropIndex(order, "b", [], 50), 3);
+});

@@ -20,13 +20,14 @@ import { modClick } from "./modifiers.js";
 import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
-import { dropIndex } from "./track-drop.js";
+import { trackDropIndex } from "./track-drop.js";
 import {
   initialTrackFlyoutState,
   openTrackFlyoutId,
   TRACK_FLYOUT_CLOSE_DELAY_MS,
   trackFlyoutReducer,
 } from "./track-header-flyout.js";
+import { moveToIndex } from "./track-order.js";
 import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
@@ -236,6 +237,7 @@ function paintLoudness(node, readout) {
 
 export function createTrackHeaders({ root, editor, actions, onBusCreated = () => {} }) {
   let signature = "";
+  let reorderSerial = 0;
   let rows = new Map();
   let flyoutState = initialTrackFlyoutState();
   let closeTimer = null;
@@ -690,17 +692,37 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       event.stopPropagation();
       handle.setPointerCapture(event.pointerId);
       node.classList.add("dragging");
+      const dragKey = `track-order-${id}-${Date.now()}-${++reorderSerial}`;
       const move = (e) => {
-        const index = dropIndex(otherMidpoints(), e.clientY);
-        node.style.setProperty("--drop-index", String(index));
-        node.dataset.dropIndex = String(index);
+        const index = trackDropIndex(
+          latestProject().tracks.map((track) => track.id),
+          id,
+          otherMidpoints(),
+          e.clientY,
+        );
+        const from = lookupIndex(id);
+        if (index === from) return;
+        editor.change({
+          op: "move_track",
+          args: { track_id: id, index },
+          coalesce: dragKey,
+          provisional: (project) => {
+            const order = moveToIndex(
+              project.tracks.map((track) => track.id),
+              id,
+              index,
+            );
+            const byId = new Map(project.tracks.map((track) => [track.id, track]));
+            return { ...project, tracks: order.map((trackId) => byId.get(trackId)) };
+          },
+        });
       };
       const otherMidpoints = () =>
         [...node.parentElement.querySelectorAll(".track-header[data-track]")]
           .filter((other) => other !== node)
           .map((other) => {
             const box = other.getBoundingClientRect();
-            return box.top + box.height / 2;
+            return { id: other.dataset.track, midpoint: box.top + box.height / 2 };
           });
       const done = (e) => {
         handle.removeEventListener("pointermove", move);
@@ -708,10 +730,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         handle.removeEventListener("pointercancel", done);
         node.classList.remove("dragging");
         delete node.dataset.dropIndex;
-        if (e.type !== "pointerup") return;
-        const index = dropIndex(otherMidpoints(), e.clientY);
-        const from = lookupIndex(id);
-        if (index !== from) editor.change({ op: "move_track", args: { track_id: id, index } });
+        if (e.type === "pointerup") move(e);
       };
       handle.addEventListener("pointermove", move);
       handle.addEventListener("pointerup", done);
@@ -1007,7 +1026,10 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       return;
     }
     const next = JSON.stringify([
-      state.project.tracks.map((track) => [track.id, track.kind, track.bus ?? ""]),
+      // Reordering must not rebuild the controls holding pointer capture.
+      state.project.tracks
+        .map((track) => [track.id, track.kind, track.bus ?? ""])
+        .sort((a, b) => a[0].localeCompare(b[0])),
       state.project.buses.map((bus) => [bus.id, bus.name]),
       [...(state.collapsedBuses ?? [])],
       document.documentElement.lang,
@@ -1017,12 +1039,31 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       build(state);
     }
     const layout = layoutFor(state);
+    // Gap ids depend on layout positions. Reconcile only those spacers when
+    // groups move, never detach a track with an active captured pointer.
+    const gapIds = new Set(layout.rows.filter((row) => row.kind === "gap").map((row) => row.id));
+    for (const [id, parts] of rows) {
+      if (parts.kind === "gap" && !gapIds.has(id)) {
+        parts.node.remove();
+        rows.delete(id);
+      }
+    }
+    for (const id of gapIds) {
+      if (!rows.has(id)) {
+        const node = el("div", "group-gap", { "aria-hidden": "true" });
+        rows.set(id, { node, kind: "gap" });
+        root.append(node);
+      }
+    }
     const hues = trackHues(state.project);
     const busHue = busHues(state.project);
     const dimmed = inactiveTracks(state);
-    for (const row of layout.rows) {
+    for (const [order, row] of layout.rows.entries()) {
       const parts = rows.get(row.id);
       if (!parts) continue;
+      // CSS ordering leaves the handle attached, unlike remove/insertBefore,
+      // which releases native pointer capture during the drag.
+      parts.node.style.order = String(order);
       parts.node.style.height = `${row.height}px`;
       parts.node.classList.toggle("micro-controls", row.height < 32);
       if (parts.kind === "gap") continue;

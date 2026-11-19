@@ -133,7 +133,7 @@ const GUARDED = {
   "markers-panel.js": [42],
   "marks-corner.js": [160],
   "timeline.js": [1951],
-  "tracks.js": [121, 162, 983],
+  "tracks.js": [122, 163, 1002],
   "transcript.js": [1142, 1407],
 };
 
@@ -160,7 +160,7 @@ const CONTAINED = {
   "markers-panel.js": [42],
   "marks-corner.js": [160],
   "timeline.js": [1949],
-  "tracks.js": [162],
+  "tracks.js": [163],
 };
 
 describe("contained handlers keep stopPropagation ahead of the guard", () => {
