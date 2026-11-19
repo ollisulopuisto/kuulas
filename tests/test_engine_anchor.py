@@ -11,8 +11,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-import sounddevice as sd
-from test_engine import RATE, Clock, install_rig, make, noise
+from test_engine import RATE, Clock, install_rig, make, noise, sd
 
 from kuulas import messages
 

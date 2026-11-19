@@ -19,14 +19,22 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-import sounddevice as sd
 import soundfile as sf
 
+from kuulas import engine as engine_module
 from kuulas import messages, mixer, ops, preview_level
 from kuulas.engine import Engine, EngineError
 from kuulas.media import CHUNK_SEC, MediaStore
 from kuulas.model import Media, Project
 from kuulas.session import Session
+
+
+class FakePortAudioError(Exception):
+    """The fake-device suite must not initialize real PortAudio at collection."""
+
+
+sd = SimpleNamespace(PortAudioError=FakePortAudioError, OutputStream=None,
+                     query_devices=None, _terminate=None, _initialize=None)
 
 RATE = 48000
 ROOT = Path(__file__).resolve().parents[1]
@@ -140,6 +148,7 @@ def install_rig(monkeypatch) -> Rig:
     """Replace sounddevice's stream and device queries with the fakes (also
     used by the skip and tape-rate tests)."""
     r = Rig()
+    monkeypatch.setattr(engine_module, "sd", sd)
     monkeypatch.setattr(sd, "OutputStream", lambda **kw: FakeStream(r, **kw))
 
     def query(device=None, kind=None):

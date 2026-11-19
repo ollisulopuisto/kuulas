@@ -72,7 +72,6 @@ from dataclasses import replace
 from typing import Any
 
 import numpy as np
-import sounddevice as sd
 import soxr
 
 from . import diag, gate, latency, meter, preview_level
@@ -94,6 +93,40 @@ from .stretch import HOP_S as STRETCH_HOP_S
 from .stretch import MAX_RATE as MAX_STRETCH
 from .stretch import MIN_RATE as MIN_STRETCH
 from .stretch import Stretcher
+
+
+class _LazySounddevice:
+    """Import sounddevice on first use, not at module import: the import alone
+    initializes PortAudio, which needs a running audio server (CI lost its
+    PulseAudio on 2026-11-19 and the whole shard died at collection). A missing
+    server now fails only the code that opens a device."""
+
+    def __init__(self) -> None:
+        self._real = None
+
+    def _resolve(self) -> Any:
+        real = self.__dict__["_real"]
+        if real is None:
+            import sounddevice  # noqa: PLC0415 - PortAudio only where a device is used
+
+            real = sounddevice
+            self.__dict__["_real"] = real
+        return real
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._resolve(), name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        # Writes must reach the module too: tests patch engine.sd.<name>, and a
+        # write kept on the wrapper would leave the engine reading the
+        # unpatched value (review-bot finding, PR #242).
+        if name == "_real":
+            object.__setattr__(self, name, value)
+            return
+        setattr(self._resolve(), name, value)
+
+
+sd = _LazySounddevice()
 
 log = logging.getLogger("kuulas.engine")
 
@@ -1545,6 +1578,13 @@ class Engine:
 
     def _open(self, refresh: bool, device=None) -> None:
         """Open and start a stream on ``device`` (default: the engine's)."""
+        # Load outside the PortAudioError handlers: evaluating their exception
+        # type must not retry a failed import and mask the localized error.
+        if isinstance(sd, _LazySounddevice):
+            try:
+                sd._resolve()
+            except Exception as exc:
+                raise EngineError("error.engine.no_device") from exc
         if refresh:
             self._refresh_devices()
         device = self._device if device is None else device
