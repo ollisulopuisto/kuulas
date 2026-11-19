@@ -322,12 +322,14 @@ def describe(folder: Path | str, job_id: str) -> dict | None:
 
 def request_cancel(folder: Path | str, job_id: str) -> None:
     """Ask the worker to stop (it polls for this file). A job nobody is running
-    is marked cancelled at once. Refused for another computer's job."""
+    is marked cancelled at once. Another computer's job can be cancelled too
+    (owner, 2026-11-19: a job he could never stop from his own machine is a
+    bug): the request file reaches the remote worker over the synced project,
+    and the status is marked cancelled here, so a machine that never comes back
+    stops showing the job as running forever. Restarting stays refused there."""
     info = describe(folder, job_id)
     if info is None:
         return
-    if info["foreign"] and info["state"] in {"queued", "running"}:
-        raise BackgroundJobError("error.transcribe.foreign_host", host=info["host"])
     if info["state"] == "interrupted":
         status = read_json(status_file(folder, job_id)) or {}
         write_json_atomic(status_file(folder, job_id), {
@@ -335,6 +337,13 @@ def request_cancel(folder: Path | str, job_id: str) -> None:
         return
     if info["state"] in {"queued", "running"}:
         cancel_file(folder, job_id).write_text("cancel\n", encoding="utf-8")
+        if info["foreign"]:
+            # The remote worker may never answer (asleep, sold, off the sync):
+            # do not let its last write pin this machine's view at "running".
+            status = read_json(status_file(folder, job_id)) or {}
+            write_json_atomic(status_file(folder, job_id), {
+                **status, "state": "cancelled", "finished": now_iso(),
+                "error": None})
 
 
 def remove_files(folder: Path | str, job_id: str) -> None:

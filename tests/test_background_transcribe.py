@@ -224,17 +224,41 @@ def foreign_job(session, state):
     return job_id, media
 
 
-def test_another_computers_running_job_is_shown_but_not_run_or_cancelled(session):
+def test_another_computers_running_job_is_shown_but_not_run_or_restarted(session):
     job_id, _ = foreign_job(session, "running")
     shown = session.background_jobs()[0]
     assert shown["foreign"] is True
     assert shown["state"] == "running"  # a pid of another machine says nothing
     with pytest.raises(bgjobs.BackgroundJobError) as e:
-        session.cancel_background(job_id)
-    assert e.value.key == "error.transcribe.foreign_host"
-    with pytest.raises(bgjobs.BackgroundJobError):
         session.restart_background(job_id)
+    assert e.value.key == "error.transcribe.foreign_host"
     assert session.transcripts() == {}  # and no ingest while its worker runs
+
+
+def test_another_computers_running_job_can_be_cancelled_here(session):
+    """The owner, 2026-11-19: "transcription is logged as having started on a
+    separate computer, so i can't stop it on my computer, ever. that's a BUG."
+    The cancel file asks the remote worker to stop over the synced project, and
+    the status is marked cancelled here, so a machine that never comes back
+    stops showing the job as running forever."""
+    job_id, _ = foreign_job(session, "running")
+    session.cancel_background(job_id)
+    assert session.background_jobs()[0]["state"] == "cancelled"
+    folder = session.package.path
+    # The stop request for the other computer's worker (it polls for this file).
+    assert bgjobs.cancel_file(folder, job_id).is_file()
+    status = bgjobs.read_json(bgjobs.status_file(folder, job_id))
+    assert status["state"] == "cancelled"
+    assert status["finished"] is not None
+    session.cancel_background(job_id)  # a second press dismisses it
+    assert session.background_jobs() == []
+
+
+def test_another_computers_queued_job_can_be_cancelled_here(session):
+    job_id, _ = foreign_job(session, "queued")
+    session.cancel_background(job_id)
+    assert session.background_jobs()[0]["state"] == "cancelled"
+    assert bgjobs.cancel_file(session.package.path, job_id).is_file()
 
 
 def test_a_result_synced_from_another_computer_is_ingested_here(session):
@@ -404,7 +428,9 @@ def test_an_unanswerable_pid_probe_keeps_the_job_running(session, monkeypatch):
 def test_a_hostname_collision_does_not_grant_a_foreign_machines_job(session, monkeypatch):
     """Two Macs can collide as ``studio`` and ``studio.local``; when both sides
     record a machine token, that decides, and the other machine's job stays
-    foreign even under a normalized hostname."""
+    foreign even under a normalized hostname: never run or restarted here. The
+    owner can still cancel it (2026-11-19) - the cancel file asks the remote
+    worker to stop."""
     hold_worker(monkeypatch)
     (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
     monkeypatch.setattr(bgjobs, "machine_id", lambda: "machine-a")
@@ -420,8 +446,11 @@ def test_a_hostname_collision_does_not_grant_a_foreign_machines_job(session, mon
     assert shown["foreign"] is True
     assert shown["state"] == "running"
     with pytest.raises(bgjobs.BackgroundJobError) as e:
-        session.cancel_background(job_id)
+        session.restart_background(job_id)
     assert e.value.key == "error.transcribe.foreign_host"
+    session.cancel_background(job_id)
+    assert session.background_jobs()[0]["state"] == "cancelled"
+    assert bgjobs.cancel_file(session.package.path, job_id).is_file()
 
 
 def test_a_matching_machine_token_keeps_a_hostname_variant_mine(session, monkeypatch):
@@ -462,8 +491,10 @@ def test_an_unreadable_machine_token_means_foreign_not_hostname(session, monkeyp
     assert shown["foreign"] is True
     assert shown["state"] == "running"
     with pytest.raises(bgjobs.BackgroundJobError) as e:
-        session.cancel_background(job_id)
+        session.restart_background(job_id)
     assert e.value.key == "error.transcribe.foreign_host"
+    session.cancel_background(job_id)  # cancel works regardless (owner, 2026-11-19)
+    assert session.background_jobs()[0]["state"] == "cancelled"
 
 
 # -- interrupted, cancel, restart ------------------------------------------------

@@ -3445,7 +3445,9 @@ class Session:
 
     def cancel_background(self, job_id: str) -> None:
         """Cancel a running job; dismiss a failed or cancelled one; an interrupted
-        one becomes cancelled. Refused for another computer's running job."""
+        one becomes cancelled. Another computer's running job is cancelled too:
+        the request reaches its worker over the synced project and the local
+        view is marked cancelled (owner, 2026-11-19)."""
         self._finished_jobs.pop(job_id, None)
         folder = self.package.path
         info = bgjobs.describe(folder, job_id)
