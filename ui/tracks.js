@@ -559,13 +559,12 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         if (!pinned) node.classList.remove("hover-open");
       }, HEADER_CLOSE_GRACE_MS);
     };
+    // Only the strip opens the card on hover; the name pill does not (owner,
+    // 2026-11-19: the card taking over made the start of the waveform hard to
+    // reach). A click on the pill still pins it open.
     strip.addEventListener("pointerenter", startIntent);
-    name.addEventListener("pointerenter", startIntent);
-    strip.addEventListener("pointerleave", (event) => {
-      if (!isOpen() && !name.contains(event.relatedTarget)) cancelIntent();
-    });
-    name.addEventListener("pointerleave", (event) => {
-      if (!isOpen() && !strip.contains(event.relatedTarget)) cancelIntent();
+    strip.addEventListener("pointerleave", () => {
+      if (!isOpen()) cancelIntent();
     });
     card.addEventListener("pointerenter", cancelGrace);
     card.addEventListener("pointerleave", (event) => {
@@ -1158,10 +1157,20 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         if (parts.name.isConnected) fitName(parts.name, track.name);
         parts.node.classList.toggle("recording", recordingActive && state.focusTrack === track.id);
         // Clip labels start right of the collapsed header (strip + name pill),
-        // so the overlay never covers a clip's name.
+        // so the overlay never covers a clip's name. The painter works in canvas
+        // coordinates; the header overlay includes the control gutter, so the
+        // measured reach comes down by the gutter's width (owner, 2026-11-19).
+        const gutter =
+          parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue("--track-gutter-w"),
+          ) || 0;
         setLaneInset(
           track.id,
-          Math.round(parts.card.offsetLeft + parts.name.offsetLeft + parts.name.offsetWidth + 8),
+          Math.max(
+            0,
+            Math.round(parts.card.offsetLeft + parts.name.offsetLeft + parts.name.offsetWidth + 8) -
+              gutter,
+          ),
         );
         if (!parts.tag.classList.contains(`kind-${track.kind}`)) paintTag(parts.tag, track.kind);
         const differs = roleDiffers(state.project, track);

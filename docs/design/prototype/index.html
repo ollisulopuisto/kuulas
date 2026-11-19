@@ -342,6 +342,9 @@
   --corner-h: 72px; /* the transport corner above the track headers = overview + ruler */
   --overview-h: calc(var(--corner-h) - var(--ruler-h));
   --ruler-h: 24px; /* lanes.js RULER_HEIGHT (both densities) */
+  /* The permanent control gutter left of the wave area (owner, 2026-11-19): the
+     collapsed track tab lives here and the waveforms begin at its right edge. */
+  --track-gutter-w: 80px;
   --heads-w: 160px; /* track identity stays fixed; mixer controls float above the timeline */
   --heads-w-min: 152px;
   --heads-w-max: 220px;
