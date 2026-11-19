@@ -177,6 +177,25 @@ for (const density of ["comfortable", "compact"]) {
   });
 }
 
+test("Escape on a pinned header is consumed before the global key dispatcher", async () => {
+  // Devin review on #240: the dispatcher (document, bubble phase) would also
+  // run goHome on the same press, clearing the clip selection and marks.
+  const result = await measure("esc=1");
+  assert.equal(result.harnessError, undefined);
+  assert.equal(result.pinned, true, "the name click did not pin the card");
+  assert.equal(result.unpinned, true, "Escape did not unpin the card");
+  assert.equal(
+    result.globalAfterPinnedEsc,
+    0,
+    "the pinned-header Escape leaked to the global key dispatcher",
+  );
+  assert.equal(
+    result.globalAfterPlainEsc,
+    1,
+    "a plain Escape no longer reaches the global key dispatcher",
+  );
+});
+
 test("a compact lane hides the read-only state column but keeps the hover rule", async () => {
   const result = await measure(`density=compact&lane=32&hover=Bob`);
   assert.equal(result.openAt200, true, "the compact card never opens");

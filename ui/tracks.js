@@ -308,19 +308,33 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
   // A pinned header (name click, owner 2026-11-19) closes on a click anywhere
   // else or on Escape; a rebuild drops the pins with their nodes.
   const unpinHeaders = (except = null) => {
+    let dismissed = false;
     for (const header of root.querySelectorAll(".track-header.pinned"))
-      if (header !== except) header.dispatchEvent(new CustomEvent("kuulas:unpin"));
+      if (header !== except) {
+        header.dispatchEvent(new CustomEvent("kuulas:unpin"));
+        dismissed = true;
+      }
+    return dismissed;
   };
   document.addEventListener("pointerdown", (event) => {
     unpinHeaders(
       event.target instanceof Element ? event.target.closest(".track-header.pinned") : null,
     );
   });
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
-    if (event.target instanceof Element && event.target.closest("input, textarea, select")) return; // Esc in a field (rename, dials) belongs to the field
-    unpinHeaders();
-  });
+  // Capture phase, before the global key dispatcher (document, bubble): Escape
+  // that dismisses a pin is consumed, so one press never also clears the clip
+  // selection and range marks via goHome (Devin review on #240). A press with
+  // no pin passes through untouched.
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key !== "Escape") return;
+      if (event.target instanceof Element && event.target.closest("input, textarea, select"))
+        return; // Esc in a field (rename, dials) belongs to the field
+      if (unpinHeaders()) event.stopPropagation();
+    },
+    true,
+  );
   window.addEventListener("resize", positionFlyout);
   window.addEventListener("scroll", positionFlyout, true);
 

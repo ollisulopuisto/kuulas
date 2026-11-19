@@ -277,6 +277,32 @@ if (intent) {
     finish();
   });
   runSteps(0);
+} else if (query.get("esc")) {
+  // Devin review on #240: a pinned header's Escape must be consumed before the
+  // global keyboard dispatcher (a document bubble listener, installed first in
+  // the real app) sees it, so one press unpins without also clearing the clip
+  // selection and range marks. Escape in a field still belongs to the field.
+  const node = root.querySelector(".track-header[data-track]");
+  const nameEl = node.querySelector(".track-name");
+  let globalSawEsc = 0;
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") globalSawEsc += 1;
+  });
+  nameEl.dispatchEvent(
+    new PointerEvent("pointerenter", { bubbles: false, clientX: 5, clientY: 5 }),
+  );
+  setTimeout(() => nameEl.click(), 200);
+  setTimeout(() => {
+    out.pinned = node.classList.contains("pinned");
+    node.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    out.globalAfterPinnedEsc = globalSawEsc;
+    out.unpinned = !node.classList.contains("pinned");
+  }, 600);
+  setTimeout(() => {
+    node.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    out.globalAfterPlainEsc = globalSawEsc;
+    finish();
+  }, 700);
 } else {
   const open = query.get("open");
   if (!open) finish();
