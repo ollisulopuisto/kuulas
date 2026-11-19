@@ -130,10 +130,16 @@ jobs:
       # PortAudio needs a PulseAudio server; the ubuntu-latest image no longer
       # runs one, so every Python run since 2026-11-19 failed at collection
       # with "PulseAudio_Initialize: Can't connect to server".
+      # A null sink and source give PortAudio a real default device: the image
+      # has no audio hardware, so detection alone finds nothing to open.
       - name: Start PulseAudio (Linux)
         if: runner.os == 'Linux'
         run: |
           pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ci_null
+          pactl load-module module-null-source source_name=ci_null
+          pactl set-default-sink ci_null
+          pactl set-default-source ci_null
           pactl info
       - name: ffmpeg and tzdata (Windows)
         if: runner.os == 'Windows'
@@ -221,10 +227,16 @@ jobs:
       # PortAudio needs a PulseAudio server; the ubuntu-latest image no longer
       # runs one, so every Python run since 2026-11-19 failed at collection
       # with "PulseAudio_Initialize: Can't connect to server".
+      # A null sink and source give PortAudio a real default device: the image
+      # has no audio hardware, so detection alone finds nothing to open.
       - name: Start PulseAudio (Linux)
         if: runner.os == 'Linux'
         run: |
           pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ci_null
+          pactl load-module module-null-source source_name=ci_null
+          pactl set-default-sink ci_null
+          pactl set-default-source ci_null
           pactl info
       - name: ffmpeg and tzdata (Windows)
         if: runner.os == 'Windows'
@@ -294,10 +306,16 @@ jobs:
       # Audio decoding tests need ffmpeg and libsndfile/PortAudio, as in the full suites.
       - name: ffmpeg and audio libraries (Linux)
         run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1 pulseaudio
+      # A null sink and source give PortAudio a real default device: the image
+      # has no audio hardware, so detection alone finds nothing to open.
       - name: Start PulseAudio (Linux)
         if: runner.os == 'Linux'
         run: |
           pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ci_null
+          pactl load-module module-null-source source_name=ci_null
+          pactl set-default-sink ci_null
+          pactl set-default-source ci_null
           pactl info
       - name: Prepare pytest report directory
         run: uv run python -c "from pathlib import Path; Path('test-results').mkdir(exist_ok=True)"
