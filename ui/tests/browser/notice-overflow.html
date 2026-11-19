@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fi" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="/tokens.css" />
+    <link rel="stylesheet" href="/style.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #12161c;
+      }
+      .stage {
+        width: 1100px;
+        height: 420px;
+        position: relative;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <div id="notice" class="notice" data-kind="ok" role="status">
+        <span id="notice-text"></span>
+        <button id="notice-action" type="button" class="button">Näytä Finderissä</button>
+        <button id="notice-action2" type="button" class="button">Näytä loki</button>
+        <button id="notice-close" type="button" class="button ghost icon">×</button>
+      </div>
+    </div>
+    <pre id="result"></pre>
+    <script type="module" src="/tests/browser/notice-overflow.js"></script>
+  </body>
+</html>

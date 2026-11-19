@@ -1638,7 +1638,12 @@ input[type="text"] {
   background: var(--accent);
 }
 #notice-text {
+  /* Let the column give the buttons room: without min-width a long export path keeps the
+     column at its full content width and pushes the actions past the panel (owner, 2026-11-19).
+     anywhere, not break-word: the same long path overflows a narrow pane before wrapping. */
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding-top: 3px;
   /* The message can be selected and copied (owner, 2026-10-24); the toast waits while you do. */
   user-select: text;
