@@ -8,6 +8,7 @@ import { createAutomixDialog } from "./automix-dialog.js";
 import { createAutomixLiveDialog } from "./automix-live-dialog.js";
 import { createAutomixToast } from "./automix-toast.js";
 import { automixToast } from "./automix-toast-model.js";
+import { createBlockLevelActions } from "./block-level-actions.js";
 import { createBlockLevelPanel } from "./block-level-panel.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { trackRoleChoice } from "./bus-role.js";
@@ -2805,11 +2806,14 @@ function openBlockLevel() {
       const { inPoint, outPoint } = getState();
       return inPoint !== null && outPoint > inPoint ? { start: inPoint, end: outPoint } : null;
     },
-    onListen: (row) => void transport.preview(row.start, row.end),
-    onJump: (row) => {
-      if (row.track_ids?.[0]) setState({ focusTrack: row.track_ids[0] });
-      jumpTo(row.start);
-    },
+    ...createBlockLevelActions({
+      api,
+      getState,
+      setState,
+      transport,
+      jumpTo,
+      onError: showError,
+    }),
     onApply: (args) => void levelBlocks(args),
   });
   blockLevelPanel.open();
