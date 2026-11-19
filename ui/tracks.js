@@ -750,6 +750,8 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         node.classList.remove("dragging");
         delete node.dataset.dropIndex;
         if (e.type === "pointerup") move(e);
+        // The capture is over: the DOM can follow the visual order again.
+        syncDomOrder(layoutFor(latest));
       };
       handle.addEventListener("pointermove", move);
       handle.addEventListener("pointerup", done);
@@ -1040,6 +1042,17 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     control.input.setAttribute("aria-valuetext", text);
   }
 
+  // CSS `order` carries the visual order during a drag (it keeps the captured
+  // handle attached), but Tab and screen-reader order follow the DOM: once no
+  // drag holds a pointer, the DOM must match the project order (owner,
+  // 2026-11-19). Appending existing nodes reorders them without detaching.
+  const syncDomOrder = (layout) => {
+    for (const row of layout.rows) {
+      const parts = rows.get(row.id);
+      if (parts) root.append(parts.node);
+    }
+  };
+
   function update(state) {
     latest = state;
     if (!state.project) {
@@ -1186,6 +1199,11 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.pan.paintDial();
       }
     }
+    // Keyboard moves, undo and other external reorders land here with no drag
+    // holding a pointer: the DOM follows the project order, so Tab stops match
+    // what is on screen. A drag skips this (the capture would break) and
+    // resyncs when it ends.
+    if (!root.querySelector(".track-header.dragging")) syncDomOrder(layout);
   }
 
   function setRecording(active) {

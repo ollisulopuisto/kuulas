@@ -63,13 +63,19 @@ test("track order changes before release and the dragged controls survive repeat
   assert.deepEqual(result.afterSecondMove, ["b", "c", "a"]);
   assert.deepEqual(result.afterBackMove, ["a", "b", "c"]);
   assert.equal(result.sameHandle, true);
-  assert.equal(result.detachedRows, 0, "moving a captured handle releases native pointer capture");
+  assert.equal(
+    result.detachedDuringDrag,
+    0,
+    "moving a captured handle releases native pointer capture",
+  );
   assert.equal(result.stoppedOnCancel, true);
   assert.equal(result.separateDragsHaveDifferentKeys, true);
   assert.equal(result.connectedThroughout, true);
   assert.equal(result.uniqueDragKeys, 1);
   assert.equal(result.callsBeforeUp, 3);
   assert.equal(result.callsAfterUp, 3, "release must not add a duplicate edit");
+  assert.deepEqual(result.domAfterCancel, ["b", "c", "a"], "DOM order is stale after a drag");
+  assert.deepEqual(result.domAfterExternal, ["a", "c", "b"], "external reorder leaves stale DOM");
 });
 
 test("a stationary click never moves a track past folded bus members", async () => {

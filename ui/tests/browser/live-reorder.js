@@ -125,9 +125,13 @@ if (terminal) {
     out.connectedThroughout = connected;
     out.callsBeforeUp = calls.length;
     out.uniqueDragKeys = new Set(calls.map((c) => c.coalesce)).size;
+    // While the pointer is captured nothing may detach; once it is released the
+    // DOM resync is exactly what should happen.
+    out.detachedDuringDrag = observer
+      .takeRecords()
+      .flatMap((record) => [...record.removedNodes]).length;
     fire("pointerup", 10);
     out.callsAfterUp = calls.length;
-    out.detachedRows = observer.takeRecords().flatMap((record) => [...record.removedNodes]).length;
     fire("pointerdown", 30);
     fire("pointermove", 290);
     fire("pointercancel", 290);
@@ -135,6 +139,15 @@ if (terminal) {
     fire("pointermove", 10);
     out.stoppedOnCancel = atCancel === calls.length;
     out.separateDragsHaveDifferentKeys = new Set(calls.map((edit) => edit.coalesce)).size === 2;
+    // Visual order is CSS `order` during a drag; once it ends the DOM must match,
+    // or Tab stops follow the stale pre-drag order (owner, 2026-11-19).
+    const domOrder = () =>
+      [...root.children].filter((n) => n.dataset?.track).map((n) => n.dataset.track);
+    out.domAfterCancel = domOrder();
+    // A reorder from elsewhere (keyboard move, undo) must reorder the DOM too.
+    project = { ...project, tracks: [...project.tracks].reverse() };
+    headers.update(state());
+    out.domAfterExternal = domOrder();
   } catch (e) {
     out.error = String(e);
   }
