@@ -4,7 +4,6 @@ import { test } from "node:test";
 
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const source = readFileSync(new URL("../tracks.js", import.meta.url), "utf8");
-const tokens = readFileSync(new URL("../tokens.css", import.meta.url), "utf8");
 test("the expanded card lays the level and pan controls out in one row", () => {
   assert.match(css, /\.th-main\s*\n\s*> \.th-controls \{[^}]*display: flex/s);
   assert.match(css, /\.th-card \.slider-control\.pan \{[^}]*width: 28px/s);
