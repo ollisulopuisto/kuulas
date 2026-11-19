@@ -6,7 +6,7 @@ const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const source = readFileSync(new URL("../tracks.js", import.meta.url), "utf8");
 const tokens = readFileSync(new URL("../tokens.css", import.meta.url), "utf8");
 test("the expanded card lays the level and pan controls out in one row", () => {
-  assert.match(css, /\.th-card > \.th-controls \{[^}]*display: flex/s);
+  assert.match(css, /\.th-main\s*\n\s*> \.th-controls \{[^}]*display: flex/s);
   assert.match(css, /\.th-card \.slider-control\.pan \{[^}]*width: 28px/s);
   assert.match(css, /slider-caption/);
   assert.match(source, /"aria-label": label/);
@@ -40,7 +40,7 @@ test("collapsed tracks keep mute/solo and role icon beside the name", () => {
 test("the current track's name pill gets a subtle tint in its track color", () => {
   assert.match(
     css,
-    /\.track-header\[data-track\]\.current \.th-row1 > \.track-name\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--panel-bg\) 80%, var\(--track-colour\)\)/,
+    /\.track-header\[data-track\]\.current \.th-main > \.track-name\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--panel-bg\) 80%, var\(--track-colour\)\)/,
   );
 });
 
@@ -56,7 +56,7 @@ test("track metadata opens in a popover under the header card", () => {
   assert.match(css, /.track-controls-flyout\s*\{[^}]*position:\s*fixed/s);
   assert.match(css, /.track-controls-flyout\s*\[hidden\]\s*\{\s*display:\s*none/s);
   assert.match(source, /"aria-controls": `track-controls-\$\{id\}`/);
-  assert.match(source, /card\.append\(row1, controls\)/);
+  assert.match(source, /card\.append\(strip, main\)/);
   assert.match(source, /flyout\.append\(metadata\)/);
   assert.match(source, /disclosure\.addEventListener\("keydown"/);
   assert.match(source, /window\.addEventListener\("scroll", positionFlyout, true\)/);
@@ -70,7 +70,7 @@ test("the collapsed header is a drag strip with M/S plus a separate name pill", 
     "strip holds handle, M/S, rec dot",
   );
   assert.ok(
-    /\.th-row1 > \.track-name,\s*\.th-row1 > \.bus-name\s*\{[^}]*border-radius: 999px/s.test(css),
+    /\.th-main > \.track-name,\s*\.th-row1 > \.bus-name\s*\{[^}]*border-radius: 999px/s.test(css),
     "name is a pill",
   );
   assert.ok(

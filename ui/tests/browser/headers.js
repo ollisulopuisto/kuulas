@@ -100,45 +100,52 @@ if (intent) {
   const cy = box.top + box.height / 2;
   const gain = node.querySelector('.th-controls input[type="range"]');
   gain.addEventListener("input", () => calls.push(["input", "gain"]));
-  node.dispatchEvent(
-    new PointerEvent("pointerenter", { bubbles: false, clientX: cx, clientY: cy }),
-  );
+  // A full press: down, up, click on whatever the pointer rests on.
+  const press = (target, { shift = false } = {}) => {
+    const down = new PointerEvent("pointerdown", {
+      bubbles: true,
+      cancelable: true,
+      clientX: cx,
+      clientY: cy,
+      shiftKey: shift,
+    });
+    target.dispatchEvent(down);
+    target.dispatchEvent(
+      new PointerEvent("pointerup", { bubbles: true, clientX: cx, clientY: cy, shiftKey: shift }),
+    );
+    target.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, clientX: cx, clientY: cy, shiftKey: shift }),
+    );
+    return down;
+  };
+  // Enter over the collapsed strip's Solo: the card must NOT open at once
+  // (owner, 2026-11-19: ~120 ms of intent first), and with the persistent
+  // strip nothing shifts, so the press lands on Solo itself.
+  node
+    .querySelector(".th-strip")
+    .dispatchEvent(new PointerEvent("pointerenter", { bubbles: false, clientX: cx, clientY: cy }));
   out.intentImmediate = getComputedStyle(node.querySelector(".th-controls")).display;
   const hit = document.elementFromPoint(cx, cy);
   out.hitInControls = Boolean(hit && hit.closest(".th-controls"));
-  const down = new PointerEvent("pointerdown", {
-    bubbles: true,
-    cancelable: true,
-    clientX: cx,
-    clientY: cy,
-  });
-  (hit ?? node).dispatchEvent(down);
+  const down = press(hit ?? node);
   out.pressSwallowed = down.defaultPrevented;
   out.calls = calls.slice();
   soloBtn.click();
   out.callsAfter = calls.slice();
-  // Fresh entry with Shift held (Devin, #233): the redirected press must keep
-  // the modifier - Shift-click on Solo is non-exclusive (exclusive === false).
+  // Fresh entry with Shift held: a Shift press is a non-exclusive Solo.
   calls.length = 0;
   node.classList.remove("hover-open");
-  node.dispatchEvent(
-    new PointerEvent("pointerenter", { bubbles: false, clientX: cx, clientY: cy }),
-  );
+  node
+    .querySelector(".th-strip")
+    .dispatchEvent(new PointerEvent("pointerenter", { bubbles: false, clientX: cx, clientY: cy }));
   const shiftHit = document.elementFromPoint(cx, cy);
-  const shiftDown = new PointerEvent("pointerdown", {
-    bubbles: true,
-    cancelable: true,
-    clientX: cx,
-    clientY: cy,
-    shiftKey: true,
-  });
-  (shiftHit ?? node).dispatchEvent(shiftDown);
+  const shiftDown = press(shiftHit ?? node, { shift: true });
   out.shiftSwallowed = shiftDown.defaultPrevented;
   out.shiftCalls = calls.slice();
   setTimeout(() => {
     out.intentAfter = getComputedStyle(node.querySelector(".th-controls")).display;
     finish();
-  }, 100);
+  }, 200);
 } else if (query.get("pan")) {
   // Devin (#233): in the expanded card the pan dial's hover/focus readout must
   // stay hidden - shown, its stale fixed positioning lands at the viewport top.
@@ -150,6 +157,126 @@ if (intent) {
   panWrap.querySelector("input").focus();
   out.panOutputDisplay = getComputedStyle(panWrap.querySelector("output")).display;
   finish();
+} else if (query.get("hover")) {
+  // The approved hover rule (owner, 2026-11-19): the card opens only from the
+  // collapsed strip or the name pill, after ~120 ms of intent; leaving starts
+  // a ~250 ms grace; open while the pointer is inside the card; a name click
+  // pins (double-click still renames); no layout shift under the pointer.
+  const name = query.get("hover");
+  const node = [...root.querySelectorAll(".track-header[data-track]")].find(
+    (header) => header.querySelector(".track-name").textContent === name,
+  );
+  const strip = node.querySelector(".th-strip");
+  const nameEl = node.querySelector(".track-name");
+  const card = node.querySelector(".th-card");
+  const openNow = () => node.classList.contains("hover-open");
+  const stripRect = () => JSON.stringify(strip.getBoundingClientRect());
+  out.collapsedStrip = stripRect();
+  const steps = [];
+  const at = (ms, fn) => steps.push([ms, fn]);
+  const runSteps = (start) => {
+    let t = start;
+    for (const [ms, fn] of steps) {
+      t += ms;
+      setTimeout(fn, t);
+    }
+    return t;
+  };
+  // 1. Intent: entering the strip opens after ~120 ms, not at once.
+  const sc = strip.getBoundingClientRect();
+  strip.dispatchEvent(
+    new PointerEvent("pointerenter", { bubbles: false, clientX: sc.left + 4, clientY: sc.top + 4 }),
+  );
+  at(60, () => {
+    out.openAt60 = openNow();
+  });
+  at(140, () => {
+    out.openAt200 = openNow();
+    out.openStrip = stripRect();
+  });
+  // 2. Stay open anywhere inside the card: move to the controls, still open.
+  at(20, () => {
+    const cc = card.getBoundingClientRect();
+    node.dispatchEvent(
+      new PointerEvent("pointermove", {
+        bubbles: false,
+        clientX: cc.right - 8,
+        clientY: cc.top + 8,
+      }),
+    );
+    out.openInsideCard = openNow();
+  });
+  // 3. Grace: leaving the card keeps it open briefly, then closes.
+  at(20, () => {
+    card.dispatchEvent(
+      new PointerEvent("pointerleave", { bubbles: false, relatedTarget: document.body }),
+    );
+    node.dispatchEvent(
+      new PointerEvent("pointerleave", { bubbles: false, relatedTarget: document.body }),
+    );
+  });
+  at(100, () => {
+    out.openAfterLeave100 = openNow();
+  });
+  at(300, () => {
+    out.openAfterLeave400 = openNow();
+  });
+  // 4. The card gaps are not a trigger: entering the node away from the strip
+  // and the name never opens (today the whole card is the trigger).
+  at(50, () => {
+    node.dispatchEvent(
+      new PointerEvent("pointerenter", {
+        bubbles: false,
+        clientX: sc.right + 30,
+        clientY: sc.top + 4,
+      }),
+    );
+  });
+  at(250, () => {
+    out.openFromGap = openNow();
+  });
+  // 5. A name click pins: the card stays open after leaving, until a click
+  // elsewhere; Escape also unpins. Double-click still renames, never pins.
+  at(50, () => {
+    nameEl.dispatchEvent(
+      new PointerEvent("pointerenter", {
+        bubbles: false,
+        clientX: sc.left + 4,
+        clientY: sc.top + 4,
+      }),
+    );
+  });
+  at(200, () => {
+    out.openFromName = openNow();
+    nameEl.click();
+  });
+  at(300, () => {
+    card.dispatchEvent(
+      new PointerEvent("pointerleave", { bubbles: false, relatedTarget: document.body }),
+    );
+  });
+  at(400, () => {
+    out.pinnedAfterLeave = openNow();
+    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+  });
+  at(60, () => {
+    out.openAfterOutsideClick = openNow();
+    nameEl.click();
+  });
+  at(300, () => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+  at(60, () => {
+    out.openAfterEsc = openNow();
+    nameEl.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  });
+  at(300, () => {
+    out.renameStillWorks = Boolean(node.querySelector("input"));
+    out.pinnedByDblclick = openNow() && !node.querySelector("input");
+    out.noShift = out.collapsedStrip === out.openStrip;
+    finish();
+  });
+  runSteps(0);
 } else {
   const open = query.get("open");
   if (!open) finish();

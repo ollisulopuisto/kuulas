@@ -106,13 +106,11 @@ for (const density of ["comfortable", "compact"]) {
 
 test("a fast press at Solo's original centre runs only Solo (Devin, #233)", async () => {
   const result = await measure(`density=comfortable&intent=Bob`);
-  assert.equal(result.intentImmediate, "flex", "hover does not open the card at once");
-  assert.equal(
-    result.hitInControls,
-    true,
-    "the in-flight press no longer lands on the revealed controls",
-  );
-  assert.equal(result.pressSwallowed, true, "the in-flight press is not swallowed");
+  assert.equal(result.intentImmediate, "none", "hover opens the card at once, without intent");
+  // The strip is persistent and nothing shifts, so the press lands on Solo
+  // itself: nothing to swallow, nothing to forward.
+  assert.equal(result.hitInControls, false, "the in-flight press misses the collapsed strip");
+  assert.equal(result.pressSwallowed, false, "the press needs no redirect");
   assert.deepEqual(
     result.calls,
     [["change", "solo", true]],
@@ -126,8 +124,8 @@ test("a fast press at Solo's original centre runs only Solo (Devin, #233)", asyn
     ],
     "the deliberate Solo click failed",
   );
-  // Shift survives the redirect: a Shift press is a non-exclusive Solo.
-  assert.equal(result.shiftSwallowed, true, "the Shift press is not swallowed");
+  // Shift survives: a Shift press is a non-exclusive Solo.
+  assert.equal(result.shiftSwallowed, false, "the Shift press needs no redirect");
   assert.deepEqual(
     result.shiftCalls,
     [["change", "solo", false]],
@@ -151,3 +149,35 @@ for (const lane of [80, 140, 240]) {
     assert.deepEqual(result.calls, [["setLaneHeight", "t2", null]], "double-click resets the lane");
   });
 }
+
+for (const density of ["comfortable", "compact"]) {
+  test(`${density} density: the hover rule - intent, grace, pin, no gap trigger`, async () => {
+    const result = await measure(`density=${density}&hover=Bob`);
+    assert.equal(result.harnessError, undefined);
+    // Opens only after ~120 ms on the strip, never at once.
+    assert.equal(result.openAt60, false, "the card opens without the intent delay");
+    assert.equal(result.openAt200, true, "the card never opens over the strip");
+    // Open while the pointer is anywhere inside the expanded card.
+    assert.equal(result.openInsideCard, true, "the card closes while the pointer rests in it");
+    // ~250 ms close grace.
+    assert.equal(result.openAfterLeave100, true, "the card closes without its close grace");
+    assert.equal(result.openAfterLeave400, false, "the card never closes after the pointer left");
+    // The card gaps and the area past the pill are not a trigger.
+    assert.equal(result.openFromGap, false, "the card opens from a gap past the pill");
+    // The name pill is a trigger too, and its click pins the card open.
+    assert.equal(result.openFromName, true, "hovering the name pill does not open the card");
+    assert.equal(result.pinnedAfterLeave, true, "a name click does not pin the card open");
+    assert.equal(result.openAfterOutsideClick, false, "clicking elsewhere does not unpin");
+    assert.equal(result.openAfterEsc, false, "Escape does not unpin");
+    // Double-click renames, and must not leave the card pinned.
+    assert.equal(result.renameStillWorks, true, "double-click no longer renames");
+    assert.equal(result.pinnedByDblclick, false, "a rename double-click pinned the card");
+    // No layout shift under the pointer: the strip does not move when the card opens.
+    assert.equal(result.noShift, true, "the strip moves when the card opens");
+  });
+}
+
+test("a compact lane hides the read-only state column but keeps the hover rule", async () => {
+  const result = await measure(`density=compact&lane=32&hover=Bob`);
+  assert.equal(result.openAt200, true, "the compact card never opens");
+});

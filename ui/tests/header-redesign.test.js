@@ -17,7 +17,10 @@ test("the headers overlay the lanes: a strip and a name pill, expanding on hover
   // floats over the lane (header redesign, 2026-11-18).
   assert.match(css, /\.th-card\s*\{/);
   assert.match(css, /\.th-strip\s*\{/);
-  assert.match(css, /\.track-header:is\(\.hover-open, :focus-within, \.controls-open\) \.th-card/);
+  assert.match(
+    css,
+    /\.track-header:not\(\.bus-header\):is\(\.hover-open, :focus-within, \.controls-open\)\s*\.th-main\s*\n\s*> \.track-name/,
+  );
   assert.match(source, /setRecording\(active\)/);
 });
 

@@ -34,6 +34,11 @@ const PAN = { min: -100, max: 100, step: 1 };
 // Below this height show the name + loudness dot; exact controls stay in Inspector.
 // Never expose half-clipped level rows when users shrink lanes.
 const COMPACT_BELOW_PX = 40;
+// The approved hover rule (owner, 2026-11-19): the card opens only from the
+// strip or the name pill, after ~120 ms of intent; leaving gives a ~250 ms
+// grace; a name click pins it until a click elsewhere or Escape.
+const HEADER_OPEN_INTENT_MS = 120;
+const HEADER_CLOSE_GRACE_MS = 250;
 /** Below the smallest lane a user can size (lanes.js MIN_LANE) a header is a focus-mode strip
  *  (WP28): the name only, small. */
 const STRIP_BELOW_PX = 24;
@@ -300,6 +305,22 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
   };
   root.addEventListener("keydown", dismissFlyoutOnEscape);
   flyoutLayer.addEventListener("keydown", dismissFlyoutOnEscape);
+  // A pinned header (name click, owner 2026-11-19) closes on a click anywhere
+  // else or on Escape; a rebuild drops the pins with their nodes.
+  const unpinHeaders = (except = null) => {
+    for (const header of root.querySelectorAll(".track-header.pinned"))
+      if (header !== except) header.dispatchEvent(new CustomEvent("kuulas:unpin"));
+  };
+  document.addEventListener("pointerdown", (event) => {
+    unpinHeaders(
+      event.target instanceof Element ? event.target.closest(".track-header.pinned") : null,
+    );
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (event.target instanceof Element && event.target.closest("input, textarea, select")) return; // Esc in a field (rename, dials) belongs to the field
+    unpinHeaders();
+  });
   window.addEventListener("resize", positionFlyout);
   window.addEventListener("scroll", positionFlyout, true);
 
@@ -427,7 +448,13 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     bus.append(newBus);
     // A small handle at the left: drag the header up or down to move the track.
     const handle = el("span", "track-handle", { title: t("ui.track.drag"), "aria-hidden": "true" });
-    strip.append(handle, buttons, el("span", "th-rec-dot", { "aria-hidden": "true" }));
+    // The state column: current gain and pan, read-only, so the resting strip
+    // already says where the track sits (header design C, owner 2026-11-19).
+    const stateCol = el("div", "th-state", { "aria-hidden": "true" });
+    const stateGain = el("span", "th-state-gain");
+    const statePan = el("span", "th-state-pan");
+    stateCol.append(stateGain, statePan);
+    strip.append(handle, buttons, el("span", "th-rec-dot", { "aria-hidden": "true" }), stateCol);
     // Level and pan sit in the card (they show when it expands); the popover
     // keeps the metadata: kind, role, channels, bus and the loudness readout.
     const controls = el("div", "th-controls");
@@ -447,9 +474,14 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     controls.append(gain.wrap, pan.wrap);
     // A thin grab zone on the bottom edge: drag to size this lane, double-click to reset it.
     const grip = el("div", "lane-grip", { title: t("ui.track.resize"), "aria-hidden": "true" });
-    const row1 = el("div", "th-row1");
-    row1.append(strip, name, disclosure, compactSummary);
-    card.append(row1, controls);
+    // Design C (owner, 2026-11-19): the strip is a persistent left column, so
+    // nothing under the pointer moves when the card opens; the right column
+    // stacks the name, the ".." + summary row and the level/pan controls.
+    const row2 = el("div", "th-row2");
+    row2.append(disclosure, compactSummary);
+    const main = el("div", "th-main");
+    main.append(name, row2, controls);
+    card.append(strip, main);
     node.append(card, grip);
     // Hover opens the card at once (header redesign, 2026-11-18). Devin's finding (#233)
     // stays fixed without a delay: a press that was already in flight as the
@@ -458,23 +490,89 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     // entered moments ago, the press goes to the control it was actually
     // resting on at entry (Solo stays Solo), never to the slider. The next,
     // deliberate click works on the expanded layout.
+    // The hover rule (owner, 2026-11-19): the strip or the name pill opens the
+    // card after ~120 ms of intent - never the card's gaps - and leaving the
+    // open card starts a ~250 ms grace. The Devin (#233) press forwarding
+    // stays: its window now starts when the card really opens.
     let enteredAt = 0;
     let movedSinceEnter = false;
     let entryControl = null;
-    node.addEventListener("pointerenter", (event) => {
-      cancelClose();
+    let intentTimer = null;
+    let graceTimer = null;
+    let pinTimer = null;
+    let pinned = false;
+    const isOpen = () => node.classList.contains("hover-open");
+    const cancelIntent = () => {
+      if (intentTimer === null) return;
+      window.clearTimeout(intentTimer);
+      intentTimer = null;
+    };
+    const cancelGrace = () => {
+      if (graceTimer === null) return;
+      window.clearTimeout(graceTimer);
+      graceTimer = null;
+    };
+    const openCard = () => {
+      cancelIntent();
       enteredAt = Date.now();
+      node.classList.add("hover-open");
+    };
+    const startIntent = (event) => {
+      cancelClose();
+      cancelGrace();
+      if (isOpen() || intentTimer !== null) return;
       movedSinceEnter = false;
       const hovered = document.elementFromPoint(event.clientX, event.clientY);
       entryControl = hovered && node.contains(hovered) ? hovered.closest("button") : null;
-      node.classList.add("hover-open");
+      intentTimer = window.setTimeout(openCard, HEADER_OPEN_INTENT_MS);
+    };
+    const scheduleGrace = () => {
+      cancelGrace();
+      graceTimer = window.setTimeout(() => {
+        graceTimer = null;
+        if (!pinned) node.classList.remove("hover-open");
+      }, HEADER_CLOSE_GRACE_MS);
+    };
+    strip.addEventListener("pointerenter", startIntent);
+    name.addEventListener("pointerenter", startIntent);
+    strip.addEventListener("pointerleave", (event) => {
+      if (!isOpen() && !name.contains(event.relatedTarget)) cancelIntent();
+    });
+    name.addEventListener("pointerleave", (event) => {
+      if (!isOpen() && !strip.contains(event.relatedTarget)) cancelIntent();
+    });
+    card.addEventListener("pointerenter", cancelGrace);
+    card.addEventListener("pointerleave", (event) => {
+      if (card.contains(event.relatedTarget)) return;
+      if (isOpen()) scheduleGrace();
+      if (!node.contains(event.relatedTarget)) scheduleClose(id);
+    });
+    // A name click pins the card open until a click elsewhere or Escape; a
+    // rename double-click must not pin, so the pin waits the double-click out.
+    name.addEventListener("click", () => {
+      if (pinned || pinTimer !== null) return;
+      pinTimer = window.setTimeout(() => {
+        pinTimer = null;
+        pinned = true;
+        node.classList.add("pinned");
+        cancelIntent();
+        cancelGrace();
+        openCard();
+      }, 200);
+    });
+    name.addEventListener("dblclick", () => {
+      window.clearTimeout(pinTimer);
+      pinTimer = null;
+    });
+    node.addEventListener("kuulas:unpin", () => {
+      window.clearTimeout(pinTimer);
+      pinTimer = null;
+      pinned = false;
+      node.classList.remove("pinned");
+      node.classList.remove("hover-open");
     });
     node.addEventListener("pointermove", () => {
       movedSinceEnter = true;
-    });
-    node.addEventListener("pointerleave", (event) => {
-      node.classList.remove("hover-open");
-      if (!node.contains(event.relatedTarget)) scheduleClose(id);
     });
     card.addEventListener(
       "pointerdown",
@@ -693,6 +791,8 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       gain,
       pan,
       compactSummary,
+      stateGain,
+      statePan,
       kind: "track",
     };
   }
@@ -949,6 +1049,8 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         ]
           .filter(Boolean)
           .join(" · ");
+        parts.stateGain.textContent = formatNumber(track.gain_db, { digits: 1 });
+        parts.statePan.textContent = panText(track.pan);
         paintLoudness(parts.loudness, trackReadout(state.loudness, track.id));
         parts.loudness.hidden = false;
         parts.loudness.textContent = contextualReadout(state.loudness, track.id, formatNumber, t);
