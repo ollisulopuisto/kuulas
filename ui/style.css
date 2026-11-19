@@ -1212,16 +1212,19 @@ input.has-ab {
   top: var(--ruler-h);
   right: 0;
   bottom: 0;
-  width: 6px;
+  width: 10px;
+  /* Keep waveform detail out of the scroll indicator. Native overlay bars are
+     hidden, so this rail must remain legible in both themes. */
+  background: var(--surface-panel);
+  z-index: 5;
   pointer-events: none;
 }
 .lanes-thumb {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 2px;
+  right: 2px;
   border-radius: var(--radius-sm);
   background: var(--text-secondary);
-  opacity: 0.6;
 }
 #timeline:focus-visible {
   outline-offset: -2px;

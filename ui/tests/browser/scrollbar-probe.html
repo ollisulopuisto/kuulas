@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="/tokens.css" />
+    <link rel="stylesheet" href="/style.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #11151a;
+      }
+      .tl-column {
+        position: relative;
+        width: 800px;
+        height: 400px;
+      }
+      .timeline-stack {
+        height: 400px;
+      }
+      .probe-label {
+        position: absolute;
+        left: 20px;
+        top: 20px;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="tl-column">
+      <div class="timeline-stack" id="timeline-stack">
+        <canvas id="wave" class="layer" width="800" height="400"></canvas
+        ><canvas id="timeline" class="layer" width="800" height="400"></canvas
+        ><canvas
+          id="playhead"
+          class="layer playhead-layer"
+          width="800"
+          height="400"
+        ></canvas>
+        <div id="lanes-scroll" class="lanes-scroll">
+          <div class="lanes-thumb"></div>
+        </div>
+      </div>
+      <div id="track-headers" class="heads-scroll">
+        <div style="height: 900px"></div>
+      </div>
+    </section>
+    <pre id="result"></pre>
+    <script type="module" src="/tests/browser/scrollbar-probe.js"></script>
+  </body>
+</html>
