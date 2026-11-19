@@ -84,6 +84,11 @@ test("track order changes before release and the dragged controls survive repeat
     "a reorder landed while a control held the pointer",
   );
   assert.deepEqual(result.domAfterRelease, ["c", "b", "a"], "the deferred reorder never landed");
+  assert.deepEqual(
+    result.domAfterMissedRelease,
+    result.expectedAfterMissedRelease,
+    "a release outside the headers froze the DOM order",
+  );
 });
 
 test("a stationary click never moves a track past folded bus members", async () => {

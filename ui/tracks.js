@@ -1079,8 +1079,12 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       if (latest?.project) syncDomOrder(layoutFor(latest));
     }
   };
-  root.addEventListener("pointerup", released, true);
-  root.addEventListener("pointercancel", released, true);
+  // Releases land anywhere, not only inside the headers: a click on a plain control
+  // holds no pointer capture, so a release past the sidebar edge never reaches a
+  // root-level listener and the tally would freeze the DOM order (Devin Review,
+  // 2026-11-19). The tally stays clamped at zero for presses that began elsewhere.
+  window.addEventListener("pointerup", released, true);
+  window.addEventListener("pointercancel", released, true);
 
   function update(state) {
     latest = state;

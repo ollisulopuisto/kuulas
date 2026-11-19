@@ -165,6 +165,19 @@ if (terminal) {
     out.domWhileHeld = domOrder();
     pill.dispatchEvent(new PointerEvent("pointerup", { button: 0, pointerId: 9, bubbles: true }));
     out.domAfterRelease = domOrder();
+    // A press released outside the headers (no pointer capture on a plain click) still
+    // counts as released: the next reorder must sync the DOM right away (Devin Review,
+    // 2026-11-19). The pill's pointerup listener must not be the only release path.
+    pill.dispatchEvent(
+      new PointerEvent("pointerdown", { button: 0, pointerId: 11, bubbles: true }),
+    );
+    document.body.dispatchEvent(
+      new PointerEvent("pointerup", { button: 0, pointerId: 11, bubbles: true }),
+    );
+    project = { ...project, tracks: [...project.tracks].reverse() };
+    headers.update(state());
+    out.domAfterMissedRelease = domOrder();
+    out.expectedAfterMissedRelease = [...project.tracks].map((t) => t.id);
   } catch (e) {
     out.error = String(e);
   }
