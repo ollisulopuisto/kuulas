@@ -5126,6 +5126,12 @@ legend.form-heading {
 .block-level-lists {
   min-width: 0;
 }
+/* Speaker legends float in shared forms. Start the block rows below the legend:
+   a long imported filename otherwise leaves only a character-wide strip beside it
+   (owner, 2026-11-19). */
+.block-level-lists .form-choices {
+  clear: both;
+}
 .block-level-choice {
   padding-block: var(--space-2);
   border-bottom: 1px solid var(--panel-divider);
