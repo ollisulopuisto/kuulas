@@ -148,6 +148,23 @@ if (terminal) {
     project = { ...project, tracks: [...project.tracks].reverse() };
     headers.update(state());
     out.domAfterExternal = domOrder();
+    // Routine updates (level paints, focus changes) must not churn the DOM or
+    // steal focus, and a reorder landing while a control holds the pointer must
+    // wait for release (owner, 2026-11-19).
+    observer.takeRecords();
+    const mButton = root.querySelector('[data-track="c"] .ms-button');
+    mButton.focus();
+    out.focusedBefore = document.activeElement === mButton;
+    headers.update(state());
+    out.noopRemovals = observer.takeRecords().flatMap((record) => [...record.removedNodes]).length;
+    out.focusKept = document.activeElement === mButton;
+    const pill = root.querySelector('[data-track="c"] .track-name');
+    pill.dispatchEvent(new PointerEvent("pointerdown", { button: 0, pointerId: 9, bubbles: true }));
+    project = { ...project, tracks: [project.tracks[1], project.tracks[2], project.tracks[0]] };
+    headers.update(state());
+    out.domWhileHeld = domOrder();
+    pill.dispatchEvent(new PointerEvent("pointerup", { button: 0, pointerId: 9, bubbles: true }));
+    out.domAfterRelease = domOrder();
   } catch (e) {
     out.error = String(e);
   }

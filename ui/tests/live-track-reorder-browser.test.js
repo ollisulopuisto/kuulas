@@ -76,6 +76,14 @@ test("track order changes before release and the dragged controls survive repeat
   assert.equal(result.callsAfterUp, 3, "release must not add a duplicate edit");
   assert.deepEqual(result.domAfterCancel, ["b", "c", "a"], "DOM order is stale after a drag");
   assert.deepEqual(result.domAfterExternal, ["a", "c", "b"], "external reorder leaves stale DOM");
+  assert.equal(result.noopRemovals, 0, "a routine update churns the DOM");
+  assert.equal(result.focusKept, true, "a routine update steals focus");
+  assert.deepEqual(
+    result.domWhileHeld,
+    ["a", "c", "b"],
+    "a reorder landed while a control held the pointer",
+  );
+  assert.deepEqual(result.domAfterRelease, ["c", "b", "a"], "the deferred reorder never landed");
 });
 
 test("a stationary click never moves a track past folded bus members", async () => {

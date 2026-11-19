@@ -751,7 +751,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         delete node.dataset.dropIndex;
         if (e.type === "pointerup") move(e);
         // The capture is over: the DOM can follow the visual order again.
-        syncDomOrder(layoutFor(latest));
+        syncWhenFree(layoutFor(latest));
       };
       handle.addEventListener("pointermove", move);
       handle.addEventListener("pointerup", done);
@@ -1047,11 +1047,34 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
   // drag holds a pointer, the DOM must match the project order (owner,
   // 2026-11-19). Appending existing nodes reorders them without detaching.
   const syncDomOrder = (layout) => {
-    for (const row of layout.rows) {
-      const parts = rows.get(row.id);
-      if (parts) root.append(parts.node);
+    const wanted = layout.rows.map((row) => rows.get(row.id)?.node).filter(Boolean);
+    const current = [...root.children];
+    // A routine update (level paints, focus changes) leaves the order alone:
+    // re-appending anyway would churn the DOM and interrupt active controls.
+    if (wanted.length === current.length && wanted.every((node, i) => node === current[i])) return;
+    for (const node of wanted) root.append(node);
+  };
+  // Pointers held anywhere in the headers (a dial drag, a lane resize) defer the
+  // sync: re-appending rows would release their capture.
+  let heldPointers = 0;
+  let domSyncPending = false;
+  const syncWhenFree = (layout) => {
+    if (heldPointers > 0) {
+      domSyncPending = true;
+      return;
+    }
+    syncDomOrder(layout);
+  };
+  root.addEventListener("pointerdown", () => (heldPointers += 1), true);
+  const released = () => {
+    heldPointers = Math.max(0, heldPointers - 1);
+    if (heldPointers === 0 && domSyncPending) {
+      domSyncPending = false;
+      if (latest?.project) syncDomOrder(layoutFor(latest));
     }
   };
+  root.addEventListener("pointerup", released, true);
+  root.addEventListener("pointercancel", released, true);
 
   function update(state) {
     latest = state;
@@ -1201,9 +1224,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     }
     // Keyboard moves, undo and other external reorders land here with no drag
     // holding a pointer: the DOM follows the project order, so Tab stops match
-    // what is on screen. A drag skips this (the capture would break) and
-    // resyncs when it ends.
-    if (!root.querySelector(".track-header.dragging")) syncDomOrder(layout);
+    // what is on screen. A held pointer defers this (the capture would break)
+    // and the release resyncs.
+    syncWhenFree(layout);
   }
 
   function setRecording(active) {
