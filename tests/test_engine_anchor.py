@@ -11,12 +11,9 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from test_engine import RATE, Clock, install_rig, make, noise
+from test_engine import RATE, Clock, install_rig, make, noise, sd
 
 from kuulas import messages
-
-# No audio server: skip the audio tests, not the whole shard (2026-11-19).
-sd = pytest.importorskip("sounddevice", exc_type=Exception)
 
 
 @pytest.fixture(autouse=True)

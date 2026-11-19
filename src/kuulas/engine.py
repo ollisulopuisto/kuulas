@@ -1578,6 +1578,13 @@ class Engine:
 
     def _open(self, refresh: bool, device=None) -> None:
         """Open and start a stream on ``device`` (default: the engine's)."""
+        # Load outside the PortAudioError handlers: evaluating their exception
+        # type must not retry a failed import and mask the localized error.
+        if isinstance(sd, _LazySounddevice):
+            try:
+                sd._resolve()
+            except Exception as exc:
+                raise EngineError("error.engine.no_device") from exc
         if refresh:
             self._refresh_devices()
         device = self._device if device is None else device
