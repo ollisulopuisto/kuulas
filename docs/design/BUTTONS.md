@@ -163,3 +163,5 @@ C = conforms, F = fixed in this change, D = deferred (reason given), S = special
 | Command search | show in menu | `.cmd-search-show` | S |
 | Launcher page | Open (primary), New | `.button` | C |
 | Launcher page | project rows | `.row` | S |
+
+Level blocks uses `.block-overview-bar` for proportional gain-change bars on its timeline. Bars are keyboard-focusable and show the selected block details. The detailed-list disclosure offers full-size labeled checkboxes as an alternative to the narrow plot marks.

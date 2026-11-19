@@ -12,14 +12,10 @@ document.getElementById("notice-text").textContent =
   " 1.7 LU → /Users/dst/Dropbox/podcastit/vikasietotila/pikis/pikis" +
   " 2026-11-19/pikis 2026-11-19 automixer 2026-11-19 18-23-58.partial.wav";
 const out = {};
-requestAnimationFrame(() =>
-  requestAnimationFrame(() => {
-    const panel = notice.getBoundingClientRect();
-    for (const id of ["notice-action", "notice-action2", "notice-close"]) {
-      out[id] = Math.round(document.getElementById(id).getBoundingClientRect().right - panel.right);
-    }
-    out.panelRight = Math.round(panel.right);
-    out.stageWidth = Math.round(document.querySelector(".stage").getBoundingClientRect().width);
-    document.getElementById("result").textContent = JSON.stringify(out);
-  }),
-);
+const panel = notice.getBoundingClientRect();
+for (const id of ["notice-action", "notice-action2", "notice-close"]) {
+  out[id] = Math.round(document.getElementById(id).getBoundingClientRect().right - panel.right);
+}
+out.panelRight = Math.round(panel.right);
+out.stageWidth = Math.round(document.querySelector(".stage").getBoundingClientRect().width);
+document.getElementById("result").textContent = JSON.stringify(out);

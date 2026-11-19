@@ -29,12 +29,10 @@ for (const name of [
   field.append(legend, choices);
   lists.append(field);
 }
-requestAnimationFrame(() =>
-  requestAnimationFrame(() => {
-    document.getElementById("result").textContent = JSON.stringify(
-      [...document.querySelectorAll(".block-level-line")].map((n) =>
-        Math.round(n.getBoundingClientRect().width),
-      ),
-    );
-  }),
+// Layout reads force style calculation; a hidden/occluded headless tab need not
+// deliver animation frames merely to measure this static fixture.
+document.getElementById("result").textContent = JSON.stringify(
+  [...document.querySelectorAll(".block-level-line")].map((n) =>
+    Math.round(n.getBoundingClientRect().width),
+  ),
 );

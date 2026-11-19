@@ -2801,6 +2801,15 @@ function openBlockLevel() {
     t,
     fmt: (value) => formatNumber(value, { digits: 1 }),
     clock: (seconds) => formatClock(seconds),
+    getRange: () => {
+      const { inPoint, outPoint } = getState();
+      return inPoint !== null && outPoint > inPoint ? { start: inPoint, end: outPoint } : null;
+    },
+    onListen: (row) => void transport.preview(row.start, row.end),
+    onJump: (row) => {
+      if (row.track_ids?.[0]) setState({ focusTrack: row.track_ids[0] });
+      jumpTo(row.start);
+    },
     onApply: (args) => void levelBlocks(args),
   });
   blockLevelPanel.open();
