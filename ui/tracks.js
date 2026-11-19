@@ -331,7 +331,17 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       if (event.key !== "Escape") return;
       if (event.target instanceof Element && event.target.closest("input, textarea, select"))
         return; // Esc in a field (rename, dials) belongs to the field
-      if (unpinHeaders()) event.stopPropagation();
+      if (unpinHeaders()) {
+        // A pinned card can also hold an open controls flyout; the stopped key
+        // never reaches dismissFlyoutOnEscape, so dismiss it here too (Devin
+        // review on #240).
+        if (openTrackFlyoutId(flyoutState)) {
+          cancelClose();
+          flyoutState = trackFlyoutReducer(flyoutState, { type: "escape" });
+          syncFlyout();
+        }
+        event.stopPropagation();
+      }
     },
     true,
   );

@@ -194,6 +194,11 @@ test("Escape on a pinned header is consumed before the global key dispatcher", a
     1,
     "a plain Escape no longer reaches the global key dispatcher",
   );
+  // Round 2: with the controls flyout open over a pinned card, the same
+  // press dismisses the flyout too.
+  assert.equal(result.flyoutOpen, true, "the disclosure did not open the flyout");
+  assert.equal(result.flyoutAfterEsc, false, "Escape left the controls flyout open");
+  assert.equal(result.pinnedAfterFlyoutEsc, false, "Escape did not unpin the card");
 });
 
 test("a compact lane hides the read-only state column but keeps the hover rule", async () => {

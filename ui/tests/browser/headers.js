@@ -301,8 +301,23 @@ if (intent) {
   setTimeout(() => {
     node.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     out.globalAfterPlainEsc = globalSawEsc;
-    finish();
+    // Devin review on #240, round 2: pin the card again, open its controls
+    // flyout, then Escape must dismiss both - the consumed key never reaches
+    // the flyout's own Escape handler.
+    nameEl.click();
   }, 700);
+  setTimeout(() => node.querySelector(".th-disclosure").click(), 1000);
+  setTimeout(() => {
+    const flyout = () =>
+      document.querySelector(".track-flyout-layer .track-controls-flyout:not([hidden])");
+    out.flyoutOpen = Boolean(flyout());
+    node
+      .querySelector(".th-disclosure")
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    out.flyoutAfterEsc = Boolean(flyout());
+    out.pinnedAfterFlyoutEsc = node.classList.contains("pinned");
+    finish();
+  }, 1200);
 } else {
   const open = query.get("open");
   if (!open) finish();
