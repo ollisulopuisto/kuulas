@@ -136,14 +136,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           pulseaudio --start --exit-idle-time=-1
+          sleep 2
           pactl load-module module-null-sink sink_name=ci_null
           pactl load-module module-null-source source_name=ci_null
-          # Module load returns before the device registers; wait for both
-          # before making them the defaults ("Failure: No such entity").
-          for i in $(seq 1 20); do
-            pactl list short sinks | grep -q ci_null && pactl list short sources | grep -q ci_null && break
-            sleep 0.5
-          done
+          sleep 2
+          # Diagnostics: "Failure: No such entity" from set-default-sink despite
+          # the modules loading; show the names the server actually registered.
+          pactl list short sinks
+          pactl list short sources
           pactl set-default-sink ci_null
           pactl set-default-source ci_null
           pactl info
@@ -239,14 +239,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           pulseaudio --start --exit-idle-time=-1
+          sleep 2
           pactl load-module module-null-sink sink_name=ci_null
           pactl load-module module-null-source source_name=ci_null
-          # Module load returns before the device registers; wait for both
-          # before making them the defaults ("Failure: No such entity").
-          for i in $(seq 1 20); do
-            pactl list short sinks | grep -q ci_null && pactl list short sources | grep -q ci_null && break
-            sleep 0.5
-          done
+          sleep 2
+          # Diagnostics: "Failure: No such entity" from set-default-sink despite
+          # the modules loading; show the names the server actually registered.
+          pactl list short sinks
+          pactl list short sources
           pactl set-default-sink ci_null
           pactl set-default-source ci_null
           pactl info
@@ -324,14 +324,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           pulseaudio --start --exit-idle-time=-1
+          sleep 2
           pactl load-module module-null-sink sink_name=ci_null
           pactl load-module module-null-source source_name=ci_null
-          # Module load returns before the device registers; wait for both
-          # before making them the defaults ("Failure: No such entity").
-          for i in $(seq 1 20); do
-            pactl list short sinks | grep -q ci_null && pactl list short sources | grep -q ci_null && break
-            sleep 0.5
-          done
+          sleep 2
+          # Diagnostics: "Failure: No such entity" from set-default-sink despite
+          # the modules loading; show the names the server actually registered.
+          pactl list short sinks
+          pactl list short sources
           pactl set-default-sink ci_null
           pactl set-default-source ci_null
           pactl info
