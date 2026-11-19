@@ -354,7 +354,13 @@ describe("createNativeMenuSync install outcome", () => {
     const installed = [];
     let result = true;
     const sync = createNativeMenuSync({
-      getMenus: () => [{ id: "file", label: "Tiedosto", items: [{ kind: "item", id: "a", label: "A", keys: "", enabled: true }] }],
+      getMenus: () => [
+        {
+          id: "file",
+          label: "Tiedosto",
+          items: [{ kind: "item", id: "a", label: "A", keys: "", enabled: true }],
+        },
+      ],
       getApi: () => ({ set_native_menu: () => Promise.resolve(result) }),
       delay: 0,
       onInstall: (ok) => installed.push(ok),
