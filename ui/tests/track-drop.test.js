@@ -41,3 +41,17 @@ test("a folded bus row stands in for its first member", async () => {
   assert.equal(trackDropIndex(order, "a", visible, 100), 0);
   assert.equal(trackDropIndex(order, "a", visible, 200), 2);
 });
+
+test("a terminal folded bus stands in for its last member below it", async () => {
+  const { trackDropIndex } = await import("../track-drop.js");
+  const order = ["hidden-1", "hidden-2", "a"];
+  const visible = [
+    // The caller maps the folded bus header to both edge members, first then last.
+    { id: "hidden-1", midpoint: 150 },
+    { id: "hidden-2", midpoint: 150 },
+  ];
+  // Below the bus the below-all fallback lands after the whole group, not between
+  // the members; above it still lands before the group.
+  assert.equal(trackDropIndex(order, "a", visible, 300), 2);
+  assert.equal(trackDropIndex(order, "a", visible, 100), 0);
+});

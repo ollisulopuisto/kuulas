@@ -82,3 +82,12 @@ test("a stationary click never moves a track past folded bus members", async () 
   assert.equal(result.belowBusCalls, 1);
   assert.deepEqual(result.belowBusOrder, ["h1", "h2", "a", "b"]);
 });
+
+test("a stationary click after a terminal folded bus stays put", async () => {
+  const result = await measure("terminal=1");
+  assert.equal(result.error, undefined);
+  assert.equal(result.stationaryCalls, 0, "a click without movement sent edits");
+  assert.deepEqual(result.stationaryOrder, ["h1", "h2", "a"]);
+  assert.equal(result.aboveBusCalls, 1);
+  assert.deepEqual(result.aboveBusOrder, ["a", "h1", "h2"]);
+});

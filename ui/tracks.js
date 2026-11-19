@@ -726,17 +726,20 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
           });
         // A folded bus hides its members' headers; without a row for it a drop above
         // the bus lands BEHIND the hidden members, so even a stationary click moved
-        // the track past them (owner, 2026-11-19). The bus header stands in for its
-        // first other member, above or below the pointer like any row.
+        // the track past them (owner, 2026-11-19). The bus header stands in for both
+        // edge members: a drop above it lands before the first, and the below-all
+        // fallback lands after the last, never between the hidden members.
         for (const busHeader of node.parentElement.querySelectorAll(
           ".track-header.bus-header[data-bus-id]",
         )) {
-          const first = latestProject().tracks.find(
+          const members = latestProject().tracks.filter(
             (track) => track.bus === busHeader.dataset.busId && track.id !== id,
           );
-          if (!first) continue;
+          if (members.length === 0) continue;
           const box = busHeader.getBoundingClientRect();
-          rows.push({ id: first.id, midpoint: box.top + box.height / 2 });
+          const midpoint = box.top + box.height / 2;
+          rows.push({ id: members[0].id, midpoint });
+          if (members.length > 1) rows.push({ id: members.at(-1).id, midpoint });
         }
         return rows;
       };

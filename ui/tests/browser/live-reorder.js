@@ -1,7 +1,9 @@
 import { createTrackHeaders } from "../../tracks.js";
 
 const root = document.getElementById("track-headers");
-const folded = new URLSearchParams(location.search).has("folded");
+const params = new URLSearchParams(location.search);
+const folded = params.has("folded");
+const terminal = params.has("terminal");
 const track = (id, bus = null) => ({
   id,
   name: id,
@@ -10,22 +12,30 @@ const track = (id, bus = null) => ({
   gain_db: 0,
   pan: 0,
 });
+const bus = { id: "v", name: "Voices", gain_db: 0, pan: 0, mute: false };
 let project = folded
   ? {
       // h1 and h2 sit in a bus folded to its header row, between a and b.
       tracks: [track("a"), track("h1", "v"), track("h2", "v"), track("b")],
-      buses: [{ id: "v", name: "Voices", gain_db: 0, pan: 0, mute: false }],
+      buses: [bus],
     }
-  : {
-      tracks: ["a", "b", "c"].map((id) => track(id)),
-      buses: [],
-    };
+  : terminal
+    ? {
+        // The folded bus is the last row before the dragged track: nothing visible
+        // follows a, so the below-all-rows fallback decides (owner, 2026-11-19).
+        tracks: [track("h1", "v"), track("h2", "v"), track("a")],
+        buses: [bus],
+      }
+    : {
+        tracks: ["a", "b", "c"].map((id) => track(id)),
+        buses: [],
+      };
 const calls = [];
 const state = () => ({
   project,
   laneHeight: 100,
   laneHeights: {},
-  collapsedBuses: folded ? new Set(["v"]) : new Set(),
+  collapsedBuses: folded || terminal ? new Set(["v"]) : new Set(),
   focusTrack: null,
 });
 const headers = createTrackHeaders({
@@ -54,7 +64,25 @@ const fire = (type, y) =>
 const out = {};
 const observer = new MutationObserver(() => {});
 observer.observe(root, { childList: true });
-if (folded) {
+if (terminal) {
+  const rectOf = (sel) => root.querySelector(sel).getBoundingClientRect();
+  const mid = (rect) => rect.top + rect.height / 2;
+  try {
+    const aMid = mid(rectOf('[data-track="a"]'));
+    fire("pointerdown", aMid);
+    fire("pointerup", aMid);
+    out.stationaryCalls = calls.length;
+    out.stationaryOrder = project.tracks.map((t) => t.id);
+    const busMid = mid(rectOf(".bus-header"));
+    fire("pointerdown", aMid);
+    fire("pointermove", busMid - 1);
+    fire("pointerup", busMid - 1);
+    out.aboveBusCalls = calls.length;
+    out.aboveBusOrder = project.tracks.map((t) => t.id);
+  } catch (e) {
+    out.error = String(e);
+  }
+} else if (folded) {
   // A folded bus between the dragged track and the next visible one: pressing and
   // releasing the handle without moving (or hovering the bus's top half) must not
   // move `a` behind the hidden members (owner, 2026-11-19).
