@@ -7041,3 +7041,72 @@ legend.form-heading {
   font-size: var(--text-sm);
   padding-inline: var(--space-2);
 }
+
+/* Speaker-at-a-time summary: the reference is local to the speaker, not LUFS.
+   Keep actions and the all-speaker impact outside the scrolling body. */
+.block-speaker-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.block-speaker-tab {
+  flex: 1 1 100px;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-height: 44px;
+  height: auto;
+}
+
+.block-speaker-summary {
+  margin-bottom: var(--space-4);
+}
+.block-speaker-summary p {
+  margin-block: var(--space-3);
+}
+.block-speaker-zero,
+.block-speaker-left {
+  color: var(--text-secondary);
+}
+.block-speaker-before,
+.block-speaker-after {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-strong);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.block-speaker-after {
+  color: var(--accent);
+}
+.block-speaker-count {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
+}
+.block-speaker-warning {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  color: var(--text);
+  background: var(--surface-raised);
+  font-weight: var(--weight-strong);
+}
+.block-level-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-strong);
+  padding-block: var(--space-2);
+}
+.block-level-total {
+  font-size: var(--text-sm);
+  margin-block: 0 var(--space-2);
+}
+.block-level-panel .block-level-footer .actionbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.block-level-footer .button {
+  flex: 1;
+  height: auto;
+  min-height: var(--control-h);
+  white-space: normal;
+}

@@ -57,6 +57,14 @@ test("overview keeps selection, filters and stale apply safe", async () => {
   const result = JSON.parse(
     stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/)[1].replaceAll("&amp;", "&"),
   );
+  assert.equal(result.speakerTabs, 3);
+  assert.equal(result.sharedToggleColors, true);
+  assert.equal(result.oneSpeaker, 1);
+  assert.equal(result.ownZero, true);
+  assert.match(result.estimate, /Arvio/);
+  assert.match(result.countedApply, /15/);
+  assert.match(result.switchedSpeaker, /guest232006/);
+  assert.equal(result.hiddenPrevious, true);
   assert.equal(result.bars, 15);
   assert.equal(result.closedList, true);
   assert.match(result.legend, /Nosto.*Vaimennus/);
@@ -65,6 +73,9 @@ test("overview keeps selection, filters and stale apply safe", async () => {
   assert.deepEqual(result.listened, ["0:1"]);
   assert.deepEqual(result.jumped, ["0:1"]);
   assert.equal(result.excluded, true);
+  assert.match(result.afterExclusion, /8,0/);
+  assert.match(result.footerAfterExclusion, /14/);
+  assert.match(result.leftAfterExclusion, /4/);
   assert.equal(result.liftDisabled, true);
   assert.equal(result.manualExclusionKept, true);
   assert.equal(result.enabledInRange, 6);

@@ -3693,5 +3693,21 @@
   "ui.block_level.all_blocks": "Kaikki ({count})",
   "ui.block_level.filter_explain": "Miten lohkot valitaan?",
   "ui.block_level.rule_heading": "Tasauksen säännöt",
-  "ui.block_level.listen_hint": "Kuuntelu toistaa nykyisen muokkauksen ennen näitä vahvistusmuutoksia."
+  "ui.block_level.listen_hint": "Kuuntelu toistaa nykyisen muokkauksen ennen näitä vahvistusmuutoksia.",
+  "ui.block_level.own_zero": "Puhujan oma vertailutaso = 0 dB",
+  "ui.block_level.before_span": "Ennen: {low}…{high} dB",
+  "ui.block_level.after_span": "Arvio: {low}…{high} dB",
+  "ui.block_level.no_span": "Mitattua tasovaihtelua ei ole",
+  "ui.block_level.estimate_hint": "Mitatut lohkot suhteessa puhujan omaan vertailutasoon, eivät ohjelman LUFS-tasoa. Arvio lisää vain valitut vahvistukset; ääntä ei ole renderöity. Leikkeen vahvistusrajat voivat pienentää muutosta.",
+  "ui.block_level.change_count": "{count} lohkoa muuttuu",
+  "ui.block_level.gain_extremes": "Enintään +{lift} / −{cut} dB",
+  "ui.block_level.limit_warning": "{count} lohkoa ehdotuksen rajalla (+{boost} / −{cut} dB). Tarkista ennen tasausta.",
+  "ui.block_level.left_count": "{count} lohkoa jätetään ennalleen",
+  "ui.block_level.left_hint": "Mukana ovat kynnyksen sisällä, rajauksen ulkopuolella ja valitsematta jääneet lohkot.",
+  "ui.block_level.apply_count": "Tasaa {count} lohkoa",
+  "ui.block_level.all_count": "Kaikki puhujat: {blocks} lohkoa · {speakers} puhujaa",
+  "ui.block_level.filters": "Rajaus ja pienin muutos",
+  "ui.block_level.speakers": "Puhujat",
+  "ui.block_level.gain_strip": "Ehdotetut vahvistusmuutokset",
+  "ui.block_level.estimate_more": "Tietoa arviosta"
 }
