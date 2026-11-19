@@ -36,7 +36,16 @@ jobs:
           sudo apt-get update && sudo apt-get install -y
           python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1
           libcairo2-dev libgirepository1.0-dev pkg-config
-          ffmpeg libportaudio2 libsndfile1
+          ffmpeg libportaudio2 libsndfile1 pulseaudio
+      # The windowless desktop tests still open an Engine; PortAudio needs a
+      # server even when the host has no audio hardware.
+      - name: Start virtual audio
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ci_null_sink
+          pactl load-module module-null-source source_name=ci_null_source
+          pactl set-default-sink ci_null_sink
+          pactl set-default-source ci_null_source
       - run: uv sync --extra desktop
       - name: pywebview imports
         run: uv run python -c "import webview; print(webview.__file__)"
