@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import {
   createNativeMenuSync,
@@ -6,6 +7,7 @@ import {
   MAX_NATIVE_ITEMS,
   nativeMenuSpec,
   runNativeChoice,
+  syncWindowMenuHidden,
 } from "../native-menu.js";
 
 const item = (id, extra = {}) => ({
@@ -291,5 +293,88 @@ describe("native commands behind a modal", () => {
     assert.equal(out[0].items[1].items[0].enabled, false);
     assert.equal(out[0].items[2].enabled, true);
     assert.equal(isolateMenusForModal(menus, { explains, isModal: () => false }), menus);
+  });
+});
+
+describe("syncWindowMenuHidden", () => {
+  function fakeDocument() {
+    const attrs = new Set();
+    return {
+      documentElement: {
+        toggleAttribute: (name, force) => (force ? attrs.add(name) : attrs.delete(name)),
+        hasAttribute: (name) => attrs.has(name),
+      },
+    };
+  }
+
+  test("hides the window menu only on a confirmed native install", () => {
+    // Owner, 2026-11-19: "now that we have the native menu, we don't need to
+    // duplicate it inside the app window". Hiding waits for the wrapper's
+    // report that the native menus are really drawn, and comes back when the
+    // install fails (Devin review on #239: a hidden window menu plus a failed
+    // native draw would leave no menus at all).
+    const doc = fakeDocument();
+    assert.equal(syncWindowMenuHidden(doc, false), false);
+    assert.equal(doc.documentElement.hasAttribute("data-native-menu"), false);
+    assert.equal(syncWindowMenuHidden(doc, true), true);
+    assert.equal(doc.documentElement.hasAttribute("data-native-menu"), true);
+    assert.equal(syncWindowMenuHidden(doc, false), false);
+    assert.equal(doc.documentElement.hasAttribute("data-native-menu"), false);
+  });
+
+  test("the CSS drops the window menu and slims the top bar under the marker", () => {
+    const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+    assert.match(css, /\[data-native-menu\][^{]*#menubar\s*\{[^}]*display:\s*none/);
+    const tokens = readFileSync(new URL("../tokens.css", import.meta.url), "utf8");
+    assert.match(tokens, /\[data-native-menu\][^{]*\{[^}]*--topbar-h:\s*38px/);
+  });
+
+  test("the shell hides the window menu from the wrapper's report", () => {
+    const shell = readFileSync(new URL("../shell-keys.js", import.meta.url), "utf8");
+    assert.match(shell, /window\.__kuulasNativeMenuResult = \(ok\) => syncWindowMenuHidden\(/);
+  });
+
+  test("help search and Show in Menu skip the hidden window menu", () => {
+    // Devin review on #239: help.search must not open the Help menu's field
+    // under display: none; Show in Menu needs a visible destination instead.
+    const shell = readFileSync(new URL("../shell-keys.js", import.meta.url), "utf8");
+    assert.match(
+      shell,
+      /openSearch: \(\) =>[\s\S]*?hasAttribute\("data-native-menu"\)\s*\?\s*searchPanel\.open\(\)/,
+    );
+    assert.match(
+      shell,
+      /reveal: \(id\) =>[\s\S]*?hasAttribute\("data-native-menu"\)\s*\?\s*searchPanel\.open\(\)/,
+    );
+  });
+});
+
+describe("createNativeMenuSync install outcome", () => {
+  test("a refused push reports not-installed; a queued push stays unconfirmed", () => {
+    const installed = [];
+    let result = true;
+    const sync = createNativeMenuSync({
+      getMenus: () => [
+        {
+          id: "file",
+          label: "Tiedosto",
+          items: [{ kind: "item", id: "a", label: "A", keys: "", enabled: true }],
+        },
+      ],
+      getApi: () => ({ set_native_menu: () => Promise.resolve(result) }),
+      delay: 0,
+      onInstall: (ok) => installed.push(ok),
+    });
+    sync.push(true);
+    return new Promise((resolve) => setTimeout(resolve, 10))
+      .then(() => {
+        assert.deepEqual(installed, []); // queued: the wrapper's report confirms
+        result = false;
+        sync.push(true);
+        return new Promise((r) => setTimeout(r, 10));
+      })
+      .then(() => {
+        assert.deepEqual(installed, [false]); // refused: show the window menu
+      });
   });
 });

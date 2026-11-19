@@ -435,8 +435,25 @@ class Bridge:
     def set_native_menu(self, spec) -> bool:
         """The page's resolved menu, to draw as the macOS menu bar (``native_menu``).
         The window that calls it last owns the bar; the page calls only while it has
-        focus. False off macOS."""
-        return native_menu.install(spec, self._run_native_command)
+        focus. False off macOS. The draw is queued on the main thread, so its real
+        outcome reaches the page as ``window.__kuulasNativeMenuResult(ok)``: the page
+        hides its in-window menu only on a confirmed install (Devin review on #239)."""
+        def report(ok: bool) -> None:
+            window = self._window
+            if window is None:
+                return
+            run = "window.__kuulasNativeMenuResult"
+            script = f"{run} && {run}({json.dumps(bool(ok))})"
+
+            def go() -> None:
+                try:
+                    window.evaluate_js(script)
+                except Exception as e:  # noqa: BLE001 - the window may be gone
+                    log.debug("native menu report: %s", e)
+
+            threading.Thread(target=go, daemon=True).start()
+
+        return native_menu.install(spec, self._run_native_command, on_done=report)
 
     def _run_native_command(self, choice: dict) -> None:
         """A native menu item was chosen: run its command in this window's page. Off the

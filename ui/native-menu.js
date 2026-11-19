@@ -59,6 +59,22 @@ export function nativeMenuSpec(menus) {
 }
 
 /**
+ * Hides the in-window menu once the wrapper confirms it holds the same menu
+ * natively (owner, 2026-11-19: "now that we have the native menu, we don't
+ * need to duplicate it inside the app window"): marks the document root, and
+ * the CSS drops the menu bar and slims the top bar to the brand and mode
+ * chips. The wrapper's draw is queued, so the page waits for its report
+ * instead of the bridge method existing (Devin review on #239: a hidden
+ * window menu plus a failed native draw leaves no menu at all). A false
+ * report brings the in-window menu back. Returns whether it is hidden.
+ */
+export function syncWindowMenuHidden(doc, installed) {
+  const hidden = installed === true;
+  doc.documentElement.toggleAttribute("data-native-menu", hidden);
+  return hidden;
+}
+
+/**
  * Keeps the native menus in step with the window: `push()` sends the menu when it changed
  * (after `delay` ms, so a burst of state changes is one send, but never later than `maxWait` ms). Only the window that has focus
  * sends, since the bar belongs to the front window; `push(true)` (on focus) sends at once, regardless of
@@ -73,6 +89,7 @@ export function createNativeMenuSync({
   now = Date.now,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
+  onInstall,
 }) {
   let last = "";
   let timer = null;
@@ -88,9 +105,17 @@ export function createNativeMenuSync({
     const text = JSON.stringify(spec);
     if (text === last) return;
     last = text;
-    Promise.resolve(api.set_native_menu(spec)).catch(() => {
-      last = ""; // let the next change try again
-    });
+    // `false` (or a rejection) is a definite failure: the window menu returns.
+    // `true` only means the draw was queued; the wrapper's own report
+    // (__kuulasNativeMenuResult) is what confirms it.
+    Promise.resolve(api.set_native_menu(spec))
+      .then((ok) => {
+        if (ok === false) onInstall?.(false);
+      })
+      .catch(() => {
+        last = ""; // let the next change try again
+        onInstall?.(false);
+      });
   }
 
   return {

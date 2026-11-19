@@ -12,3 +12,8 @@ node_modules/
 /build/
 /dist/
 .tmpvenv/
+
+# Generated locale bundles and the local sketch harness (never commit)
+ui/api/locales/
+ui/tests/browser/sketch.html
+ui/tests/browser/sketch.js

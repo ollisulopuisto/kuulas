@@ -7,7 +7,7 @@ import { registerAppCommands } from "./app-commands.js";
 import { registerCandidateCommands } from "./candidate-commands.js";
 import { cheatSheetData, createCheatSheet } from "./cheatsheet.js";
 import { commandRecords, isRepeatable, searchAll } from "./command-search.js";
-import { createCommandSearch, createSearchPanel } from "./command-search-ui.js";
+import { createCommandSearch, createSearchPanel, loadOnFocus } from "./command-search-ui.js";
 import { synonymsFor } from "./command-synonyms.js";
 import { createRegistry } from "./commands.js";
 import { openDialogs } from "./dialog-keys.js";
@@ -40,7 +40,12 @@ import { registerMarkerCommands } from "./marker-commands.js";
 import { MENU, MENU_ALIASES, resolveMenu } from "./menu-model.js";
 import { createMenubar } from "./menubar.js";
 import { createModifierTracker } from "./modifiers.js";
-import { createNativeMenuSync, isolateMenusForModal, runNativeChoice } from "./native-menu.js";
+import {
+  createNativeMenuSync,
+  isolateMenusForModal,
+  runNativeChoice,
+  syncWindowMenuHidden,
+} from "./native-menu.js";
 import { copiesToastText } from "./notice-hold.js";
 import { createPalette, paletteRows } from "./palette.js";
 import { registerPlaceholderCommands } from "./placeholder-commands.js";
@@ -167,7 +172,14 @@ export function setupKeyboard({
       openPalette: () => palette.toggle(),
       // Help search (WP75): the field in the in-window Help menu; the panel over the window
       // where there is no such menu (or the desktop app's native Help menu asks for it).
-      openSearch: () => (menubar?.openSearch() ? true : searchPanel.open()),
+      // The window menu hides while macOS holds it natively, Help's field with it:
+      // search opens in the panel then (Devin review on #239).
+      openSearch: () =>
+        document.documentElement.hasAttribute("data-native-menu")
+          ? searchPanel.open()
+          : menubar?.openSearch()
+            ? true
+            : searchPanel.open(),
       openKeys: () => cheat.toggle(),
       importKeys: () => importKeys(),
       exportKeys: () => exportKeys(),
@@ -276,17 +288,24 @@ export function setupKeyboard({
       search: (query) =>
         searchAll({ records: searchRecords(), topics: help?.topics() ?? [], query, recent }),
       run: (id) => registry.run(id, null, app.getState()),
-      reveal: (id) => menubar?.reveal(id) ?? false,
+      reveal: (id) =>
+        document.documentElement.hasAttribute("data-native-menu")
+          ? searchPanel.open()
+          : (menubar?.reveal(id) ?? false),
       openTopic: (id) => help?.open(id),
     });
   const menuSearch = makeSearch({});
-  menuSearch.input.addEventListener(
-    "focus",
-    () => void help?.load().then(() => menuSearch.refresh()),
-  );
+  // Help topics load lazily; whichever search field is focused first loads them.
+  // Devin review on #239: the panel's field never did, so a first search before
+  // opening the Help sidebar found no topics (owner, 2026-11-19).
+  loadOnFocus(menuSearch, () => help?.load());
   searchPanel = createSearchPanel({
     t,
-    makeSearch: (hooks) => makeSearch(hooks),
+    makeSearch: (hooks) => {
+      const widget = makeSearch(hooks);
+      loadOnFocus(widget, () => help?.load());
+      return widget;
+    },
   });
   function refreshSearch() {
     if (menubar?.isOpen()) menuSearch.refresh();
@@ -400,11 +419,16 @@ export function setupKeyboard({
             ),
           getApi: () => window.pywebview?.api,
           hasFocus: () => document.hasFocus(),
+          onInstall: (ok) => syncWindowMenuHidden(document, ok),
         })
       : null;
   if (nativeSync) {
     window.__kuulasNativeRun = (choice) =>
       runNativeChoice(choice, { registry, getState: app.getState, isModal: modalOpen });
+    // The window's menu copy hides once the wrapper confirms the native draw
+    // (owner, 2026-11-19), and returns if it fails (Devin review on #239).
+    window.__kuulasNativeMenuResult = (ok) => syncWindowMenuHidden(document, ok);
+    window.__kuulasNativeMenuResult(false);
     // A dialog closing changes what the menu may do; opening one is caught by the next push.
     document.addEventListener("close", () => nativeSync.push(), true);
     window.addEventListener("focus", () => nativeSync.push(true));

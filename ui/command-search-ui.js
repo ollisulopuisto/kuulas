@@ -298,6 +298,20 @@ export function createCommandSearch({ t, search, run, reveal, openTopic, hooks =
  * "Search commands…"). `makeSearch(hooks)` builds a createCommandSearch with its hooks; reveal
  * is not available there (the in-window bar may be hidden), so the panel runs and opens topics.
  */
+// Both search surfaces share this loader: the first focus loads whatever backs the
+// search (help topics load lazily), then refreshes so the first query already sees
+// it. A failed load must not break the field.
+export function loadOnFocus(widget, load) {
+  widget.input.addEventListener(
+    "focus",
+    () =>
+      void Promise.resolve()
+        .then(load)
+        .catch(() => {})
+        .then(() => widget.refresh()),
+  );
+}
+
 export function createSearchPanel({ t, makeSearch, root = document.body }) {
   const panel = document.createElement("div");
   panel.className = "cmd-search-panel";
