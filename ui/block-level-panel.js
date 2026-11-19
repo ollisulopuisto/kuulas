@@ -11,7 +11,6 @@
 import {
   allChangedIds,
   canApply,
-  changedBySpeaker,
   impactSummary,
   loudBySpeaker,
   loudText,
@@ -98,8 +97,11 @@ export function createBlockLevelPanel({
   const buttons = el("div", "actionbar");
   buttons.setAttribute("role", "group");
   buttons.setAttribute("aria-label", t("ui.block_level.title"));
+  const footer = el("div", "block-level-footer");
+  const total = el("p", "block-level-total");
+  footer.append(total, buttons);
   buttons.append(again, apply); // the primary last (BUTTONS.md)
-  root.append(head, body, buttons);
+  root.append(head, body, footer);
 
   // -- state ------------------------------------------------------------------------------
   let isOpen = false;
@@ -120,27 +122,14 @@ export function createBlockLevelPanel({
   function show() {
     lists.replaceChildren();
     const rate = measured.rate;
-    const changed = changedBySpeaker(measured);
     rule.textContent = ruleText(measured, t, fmt);
     rule.hidden = true;
     const updateImpact = () => {
-      if (changed.length === 0) {
-        status.textContent = t("ui.block_level.none");
-        return;
-      }
+      status.hidden = phase !== "stale";
       const impact = impactSummary(measured, ticked);
       apply.disabled = !canApply(phase) || impact.blocks === 0;
-      const left = impact.unchanged;
-      status.replaceChildren(el("span", "block-level-impact", t("ui.block_level.summary", impact)));
-      if (left > 0) {
-        status.append(
-          el(
-            "span",
-            "block-level-unchanged",
-            t("ui.block_level.left", { count: left, threshold: fmt(measured.threshold_db) }),
-          ),
-        );
-      }
+      apply.textContent = t("ui.block_level.apply_count", { count: impact.blocks });
+      total.textContent = t("ui.block_level.all_count", impact);
     };
     updateImpact();
     createBlockOverview({
@@ -203,6 +192,7 @@ export function createBlockLevelPanel({
 
   function setPhase(next) {
     phase = next;
+    if (phase !== "ready") status.hidden = false;
     apply.disabled =
       !canApply(phase) || (phase === "ready" && impactSummary(measured, ticked).blocks === 0);
     again.disabled = phase === "measuring";
@@ -240,6 +230,8 @@ export function createBlockLevelPanel({
 
   async function measure() {
     stop();
+    total.textContent = "";
+    apply.textContent = t("ui.block_level.apply");
     const mine = watching;
     measured = null;
     error.hidden = true;

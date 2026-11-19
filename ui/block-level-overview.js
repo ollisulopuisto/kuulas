@@ -30,3 +30,23 @@ export function eligibleBlockIds(
       .map((row) => row.id),
   );
 }
+
+// Deviations already use each speaker's own reference. Adding the checked gain is
+// an estimate only: no audio is rendered, and final clip gain limits can differ.
+export function speakerSummary(speaker, ticked, limits) {
+  const rows = speaker.blocks ?? [];
+  const valid = rows.filter((row) => Number.isFinite(row.deviation_db));
+  const changed = rows.filter((row) => row.gain_db !== 0 && ticked.has(row.id));
+  const spread = (values) => (values.length ? [Math.min(...values), Math.max(...values)] : null);
+  return {
+    before: spread(valid.map((row) => row.deviation_db)),
+    after: spread(valid.map((row) => row.deviation_db + (ticked.has(row.id) ? row.gain_db : 0))),
+    blocks: changed.length,
+    lift: Math.max(0, ...changed.map((row) => row.gain_db)),
+    cut: Math.max(0, ...changed.map((row) => -row.gain_db)),
+    limited: changed.filter(
+      (row) => row.gain_db >= limits.max_boost_db || -row.gain_db >= limits.max_cut_db,
+    ).length,
+    leftOut: rows.length - changed.length,
+  };
+}

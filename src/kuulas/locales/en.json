@@ -3693,5 +3693,21 @@
   "ui.block_level.all_blocks": "All ({count})",
   "ui.block_level.filter_explain": "How block selection works",
   "ui.block_level.rule_heading": "Leveling rules",
-  "ui.block_level.listen_hint": "Listen plays the current edit, before these gain changes are applied."
+  "ui.block_level.listen_hint": "Listen plays the current edit, before these gain changes are applied.",
+  "ui.block_level.own_zero": "Speaker’s own reference = 0 dB",
+  "ui.block_level.before_span": "Before: {low}…{high} dB",
+  "ui.block_level.after_span": "Estimate: {low}…{high} dB",
+  "ui.block_level.no_span": "No measured level spread",
+  "ui.block_level.estimate_hint": "Measured blocks relative to this speaker’s own reference, not programme LUFS. The estimate adds only checked gains; audio has not been rendered. Clip gain limits may reduce the change.",
+  "ui.block_level.change_count": "{count} blocks change",
+  "ui.block_level.gain_extremes": "Up to +{lift} / −{cut} dB",
+  "ui.block_level.limit_warning": "{count} blocks at the proposal limit (+{boost} / −{cut} dB). Check before applying.",
+  "ui.block_level.left_count": "{count} blocks left unchanged",
+  "ui.block_level.left_hint": "Includes blocks within the threshold, outside the range or left unchecked.",
+  "ui.block_level.apply_count": "Level {count} blocks",
+  "ui.block_level.all_count": "All speakers: {blocks} blocks · {speakers} speakers",
+  "ui.block_level.filters": "Scope and minimum change",
+  "ui.block_level.speakers": "Speakers",
+  "ui.block_level.gain_strip": "Proposed gain changes",
+  "ui.block_level.estimate_more": "About the estimate"
 }

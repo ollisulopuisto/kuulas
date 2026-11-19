@@ -1,7 +1,12 @@
 // The approved compact overview (owner, 2026-11-19). Bars are proposed gain
 // changes, not quality scores; the detailed list remains available on demand.
 import { blockText } from "./block-level-model.js";
-import { eligibleBlockIds, overviewScale, overviewSpeakers } from "./block-level-overview.js";
+import {
+  eligibleBlockIds,
+  overviewScale,
+  overviewSpeakers,
+  speakerSummary,
+} from "./block-level-overview.js";
 
 const el = (tag, className = "", text) => {
   const node = document.createElement(tag);
@@ -28,6 +33,14 @@ export function createBlockOverview({
   const boxes = new Map();
   const groupBoxes = [];
   let selected = null;
+  const summaries = new Map();
+  const panels = new Map();
+  const tabButtons = new Map();
+  let activeSpeaker = speakers[0];
+  const tabs = el("div", "block-speaker-tabs");
+  tabs.setAttribute("role", "group");
+  tabs.setAttribute("aria-label", t("ui.block_level.speakers"));
+  host.append(tabs);
   let eligible = eligibleBlockIds(measured);
   const describe = (row) => blockText(row, measured.rate, t, fmt, clock);
   const controls = el("div", "block-overview-controls");
@@ -63,7 +76,8 @@ export function createBlockOverview({
     el("summary", "", t("ui.block_level.filter_explain")),
     el("p", "form-help", t("ui.block_level.filter_hint")),
   );
-  host.append(controls, filterHelp);
+  const filters = el("details", "block-overview-list block-overview-filters");
+  filters.append(el("summary", "", t("ui.block_level.filters")), controls, filterHelp);
   const legend = el("p", "block-overview-legend");
   legend.append(
     el("span", "block-overview-lift", t("ui.block_level.lift")),
@@ -71,12 +85,12 @@ export function createBlockOverview({
   );
   const help = el("p", "form-help", t("ui.block_level.graph_help"));
   legend.append(el("span", "", `±${fmt(scale.gain)} dB`));
-  host.append(legend, help);
+
   const plots = el("div", "block-overview-plots");
   const detail = el("div", "block-overview-detail");
   detail.setAttribute("aria-live", "polite");
   detail.textContent = t("ui.block_level.pick");
-  host.append(plots, detail);
+  host.append(plots, legend, help, detail, filters);
   const details = el("details", "block-overview-list");
   details.append(el("summary", "", t("ui.block_level.details")));
   const list = el("div", "form-grid");
@@ -100,7 +114,38 @@ export function createBlockOverview({
       box.indeterminate = count > 0 && count < active.length;
       box.disabled = active.length === 0;
     }
+    for (const [speaker, nodes] of summaries) {
+      const view = speakerSummary(speaker, ticked, measured);
+      const span = (key, values) =>
+        values
+          ? t(`ui.block_level.${key}`, { low: signed(values[0]), high: signed(values[1]) })
+          : t("ui.block_level.no_span");
+      nodes.before.textContent = span("before_span", view.before);
+      nodes.after.textContent = span("after_span", view.after);
+      nodes.count.textContent = t("ui.block_level.change_count", { count: view.blocks });
+      nodes.extremes.textContent = t("ui.block_level.gain_extremes", {
+        lift: fmt(view.lift),
+        cut: fmt(view.cut),
+      });
+      nodes.warning.hidden = view.limited === 0;
+      nodes.warning.textContent = t("ui.block_level.limit_warning", {
+        count: view.limited,
+        boost: fmt(measured.max_boost_db),
+        cut: fmt(measured.max_cut_db),
+      });
+      nodes.left.textContent = t("ui.block_level.left_count", { count: view.leftOut });
+    }
     onChange();
+  }
+  const signed = (value) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${fmt(Math.abs(value))}`;
+  function activate(speaker) {
+    activeSpeaker = speaker;
+    for (const [owner, panel] of panels) panel.hidden = owner !== speaker;
+    for (const [owner, button] of tabButtons)
+      button.setAttribute("aria-pressed", String(owner === speaker));
+    selected = null;
+    detail.textContent = t("ui.block_level.pick");
+    sync();
   }
   function include(row, yes) {
     if (yes && eligible.has(row.id)) {
@@ -112,6 +157,7 @@ export function createBlockOverview({
     }
   }
   function pick(speaker, row) {
+    if (activeSpeaker !== speaker) activate(speaker);
     selected = row;
     detail.replaceChildren(
       el(
@@ -157,8 +203,42 @@ export function createBlockOverview({
   }
   for (const speaker of speakers) {
     const section = el("section", "block-overview-speaker");
+    panels.set(speaker, section);
+    section.hidden = speaker !== activeSpeaker;
+    const tab = el("button", "button block-speaker-tab", speaker.name);
+    tab.type = "button";
+    tab.title = speaker.name;
+    tab.setAttribute("aria-pressed", String(speaker === activeSpeaker));
+    tab.addEventListener("click", () => activate(speaker));
+    tabButtons.set(speaker, tab);
+    tabs.append(tab);
+    const summary = el("div", "block-speaker-summary");
+    const before = el("p", "block-speaker-before");
+    const after = el("p", "block-speaker-after");
+    const count = el("p", "block-speaker-count");
+    const extremes = el("p", "block-speaker-extremes");
+    const warning = el("p", "block-speaker-warning");
+    const left = el("p", "block-speaker-left");
+    left.title = t("ui.block_level.left_hint");
+    const explanation = el("details", "block-overview-filter-help");
+    explanation.append(
+      el("summary", "", t("ui.block_level.estimate_more")),
+      el("p", "form-help", t("ui.block_level.estimate_hint")),
+    );
+    summary.append(
+      el("p", "block-speaker-zero", t("ui.block_level.own_zero")),
+      before,
+      after,
+      explanation,
+      count,
+      extremes,
+      warning,
+      left,
+    );
+    summaries.set(speaker, { before, after, count, extremes, warning, left });
+    section.append(summary);
     const header = el("div", "block-overview-speaker-head");
-    const speakerName = el("strong", "", speaker.name);
+    const speakerName = el("strong", "", t("ui.block_level.gain_strip"));
     speakerName.title = speaker.name;
     header.append(speakerName);
     const label = el("label", "check-row");

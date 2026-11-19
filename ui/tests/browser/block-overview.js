@@ -30,6 +30,10 @@ for (let s = 0; s < 3; s++) {
     loud: [{ start: 3 * 48000, end: 4 * 48000, excess_db: 8 }],
   });
 }
+if (new URLSearchParams(location.search).has("visual")) {
+  measured.speakers[0].blocks[2].gain_db = 6;
+  measured.speakers[0].blocks[2].deviation_db = -10;
+}
 let applied = null;
 const listened = [],
   jumped = [];
@@ -54,6 +58,20 @@ const panel = createBlockLevelPanel({
 panel.open();
 await new Promise((resolve) => setTimeout(resolve, 20));
 const result = {};
+const tabs = [...root.querySelectorAll(".block-speaker-tab")];
+result.speakerTabs = tabs.length;
+result.oneSpeaker = [...root.querySelectorAll(".block-overview-speaker")].filter(
+  (n) => !n.hidden,
+).length;
+result.ownZero = root.textContent.includes("oma vertailutaso = 0");
+result.estimate = root.querySelector(".block-speaker-after")?.textContent;
+result.countedApply = root.querySelector(".primary").textContent;
+if (tabs[1]) {
+  tabs[1].click();
+  result.switchedSpeaker = root.querySelector(".block-speaker-tab[aria-pressed=true]")?.textContent;
+  result.hiddenPrevious = root.querySelector(".block-overview-speaker").hidden;
+  tabs[0].click();
+}
 result.bars = root.querySelectorAll(".block-overview-bar").length;
 result.closedList = !root.querySelector(".block-overview-list").open;
 result.legend = root.querySelector(".block-overview-legend").textContent;
@@ -68,6 +86,9 @@ result.jumped = jumped;
 const include = root.querySelector(".block-overview-detail input");
 include.click();
 result.excluded = bar.dataset.included === "false";
+result.afterExclusion = root.querySelector(".block-speaker-after").textContent;
+result.footerAfterExclusion = root.querySelector(".primary").textContent;
+result.leftAfterExclusion = root.querySelector(".block-speaker-left").textContent;
 const number = root.querySelector("input[type=number]");
 number.value = "6";
 number.dispatchEvent(new Event("input"));
