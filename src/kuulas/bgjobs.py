@@ -351,7 +351,7 @@ def remove_files(folder: Path | str, job_id: str, *, keep_cancel: bool = False) 
     ``keep_cancel`` leaves the stop request standing: dismissing another
     computer's cancelled job here must not erase a request its worker has not
     seen yet (the project sync may be paused), or it keeps transcribing. The
-    remote worker deletes the file when it takes the request
+    remote worker deletes the file once it has stopped
     (``acknowledge_cancel``), so the tombstone cleans itself up."""
     _job_path(folder, job_id, ".json")  # validate before interpolating the glob
     root = jobs_dir(folder)
@@ -367,8 +367,9 @@ def remove_files(folder: Path | str, job_id: str, *, keep_cancel: bool = False) 
 
 
 def acknowledge_cancel(folder: Path | str, job_id: str) -> None:
-    """The worker takes the stop request: delete the file. The request is kept
-    by a dismissal on another computer until this, so it still reaches a worker
+    """Delete the stop request once the job has actually stopped: a crash
+    before that must not lose it (review on #238). The request is kept by a
+    dismissal on another computer until this, so it still reaches a worker
     whose project sync was paused (Devin review on #238)."""
     with contextlib.suppress(OSError):
         cancel_file(folder, job_id).unlink()

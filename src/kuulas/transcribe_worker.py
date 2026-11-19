@@ -244,10 +244,10 @@ def run_job(job_path: Path | str, *, local: Callable | None = None,
     stop_watch = threading.Event()
 
     def cancel_requested() -> bool:
-        if bgjobs.cancel_file(folder, job_id).exists():
-            bgjobs.acknowledge_cancel(folder, job_id)
-            return True
-        return False
+        # Only look, do not take: the request file is deleted once the job has
+        # actually stopped, so a crash before that cannot lose it (review on
+        # #238).
+        return bgjobs.cancel_file(folder, job_id).exists()
 
     def watch() -> None:
         while not stop_watch.wait(CANCEL_POLL_S):
@@ -283,6 +283,8 @@ def run_job(job_path: Path | str, *, local: Callable | None = None,
             keep_awake.stop()
     status.update(force=True, state=final, indeterminate=False,
                   finished=bgjobs.now_iso(), **fields)
+    # The job stopped (one way or another): take the stop request now.
+    bgjobs.acknowledge_cancel(folder, job_id)
     return final
 
 
