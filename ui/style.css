@@ -780,6 +780,8 @@ button.chip {
    its scrollTop and its scroll event drives state.scrollY. It never catches
    pointer events itself; the header cards and lane grips opt back in. */
 .heads-scroll {
+  display: flex;
+  flex-direction: column;
   position: absolute;
   left: 0;
   right: 0;
@@ -791,6 +793,9 @@ button.chip {
   scrollbar-width: none;
   background: transparent;
   pointer-events: none;
+}
+.heads-scroll > * {
+  flex-shrink: 0;
 }
 .track-header {
   position: relative;

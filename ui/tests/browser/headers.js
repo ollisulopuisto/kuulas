@@ -81,7 +81,7 @@ const finish = () => {
 };
 addEventListener("error", (event) => {
   document.getElementById("result").textContent = JSON.stringify({
-    harnessError: String((event.error && event.error.stack) || event.message),
+    harnessError: String(event.error?.stack || event.message),
   });
 });
 const intent = query.get("intent");
@@ -126,7 +126,7 @@ if (intent) {
     .dispatchEvent(new PointerEvent("pointerenter", { bubbles: false, clientX: cx, clientY: cy }));
   out.intentImmediate = getComputedStyle(node.querySelector(".th-controls")).display;
   const hit = document.elementFromPoint(cx, cy);
-  out.hitInControls = Boolean(hit && hit.closest(".th-controls"));
+  out.hitInControls = Boolean(hit?.closest(".th-controls"));
   const down = press(hit ?? node);
   out.pressSwallowed = down.defaultPrevented;
   out.calls = calls.slice();

@@ -20,13 +20,14 @@ import { modClick } from "./modifiers.js";
 import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
-import { dropIndex } from "./track-drop.js";
+import { trackDropIndex } from "./track-drop.js";
 import {
   initialTrackFlyoutState,
   openTrackFlyoutId,
   TRACK_FLYOUT_CLOSE_DELAY_MS,
   trackFlyoutReducer,
 } from "./track-header-flyout.js";
+import { moveToIndex } from "./track-order.js";
 import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
@@ -236,6 +237,7 @@ function paintLoudness(node, readout) {
 
 export function createTrackHeaders({ root, editor, actions, onBusCreated = () => {} }) {
   let signature = "";
+  let reorderSerial = 0;
   let rows = new Map();
   let flyoutState = initialTrackFlyoutState();
   let closeTimer = null;
@@ -690,28 +692,66 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       event.stopPropagation();
       handle.setPointerCapture(event.pointerId);
       node.classList.add("dragging");
+      const dragKey = `track-order-${id}-${Date.now()}-${++reorderSerial}`;
       const move = (e) => {
-        const index = dropIndex(otherMidpoints(), e.clientY);
-        node.style.setProperty("--drop-index", String(index));
-        node.dataset.dropIndex = String(index);
+        const index = trackDropIndex(
+          latestProject().tracks.map((track) => track.id),
+          id,
+          otherMidpoints(),
+          e.clientY,
+        );
+        const from = lookupIndex(id);
+        if (index === from) return;
+        editor.change({
+          op: "move_track",
+          args: { track_id: id, index },
+          coalesce: dragKey,
+          provisional: (project) => {
+            const order = moveToIndex(
+              project.tracks.map((track) => track.id),
+              id,
+              index,
+            );
+            const byId = new Map(project.tracks.map((track) => [track.id, track]));
+            return { ...project, tracks: order.map((trackId) => byId.get(trackId)) };
+          },
+        });
       };
-      const otherMidpoints = () =>
-        [...node.parentElement.querySelectorAll(".track-header[data-track]")]
+      const otherMidpoints = () => {
+        const rows = [...node.parentElement.querySelectorAll(".track-header[data-track]")]
           .filter((other) => other !== node)
           .map((other) => {
             const box = other.getBoundingClientRect();
-            return box.top + box.height / 2;
+            return { id: other.dataset.track, midpoint: box.top + box.height / 2 };
           });
+        // A folded bus hides its members' headers; without a row for it a drop above
+        // the bus lands BEHIND the hidden members, so even a stationary click moved
+        // the track past them (owner, 2026-11-19). The bus header stands in for both
+        // edge members: a drop above it lands before the first, and the below-all
+        // fallback lands after the last, never between the hidden members.
+        for (const busHeader of node.parentElement.querySelectorAll(
+          ".track-header.bus-header[data-bus-id]",
+        )) {
+          const members = latestProject().tracks.filter(
+            (track) => track.bus === busHeader.dataset.busId && track.id !== id,
+          );
+          if (members.length === 0) continue;
+          const box = busHeader.getBoundingClientRect();
+          const midpoint = box.top + box.height / 2;
+          rows.push({ id: members[0].id, midpoint });
+          if (members.length > 1) rows.push({ id: members.at(-1).id, midpoint });
+        }
+        return rows;
+      };
       const done = (e) => {
         handle.removeEventListener("pointermove", move);
         handle.removeEventListener("pointerup", done);
         handle.removeEventListener("pointercancel", done);
         node.classList.remove("dragging");
         delete node.dataset.dropIndex;
-        if (e.type !== "pointerup") return;
-        const index = dropIndex(otherMidpoints(), e.clientY);
-        const from = lookupIndex(id);
-        if (index !== from) editor.change({ op: "move_track", args: { track_id: id, index } });
+        if (e.type === "pointerup") move(e);
+        // The capture is over: the DOM can follow the visual order again.
+        syncWhenFree(layoutFor(latest));
       };
       handle.addEventListener("pointermove", move);
       handle.addEventListener("pointerup", done);
@@ -823,6 +863,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
 
   function buildBus(bus, index) {
     const node = el("section", "track-header bus-header");
+    // The drag maths reads this: folded members render no headers of their own, so
+    // the bus header stands in for the group (owner, 2026-11-19).
+    node.dataset.busId = bus.id;
     // A group header, like a folder: the same card as a track, with the bus
     // letter badge and the fold chevron in the strip.
     const card = el("div", "th-card");
@@ -999,6 +1042,50 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     control.input.setAttribute("aria-valuetext", text);
   }
 
+  // CSS `order` carries the visual order during a drag (it keeps the captured
+  // handle attached), but Tab and screen-reader order follow the DOM: once no
+  // drag holds a pointer, the DOM must match the project order (owner,
+  // 2026-11-19). Appending existing nodes reorders them without detaching.
+  const syncDomOrder = (layout) => {
+    const wanted = layout.rows.map((row) => rows.get(row.id)?.node).filter(Boolean);
+    const current = [...root.children];
+    // A routine update (level paints, focus changes) leaves the order alone:
+    // re-appending anyway would churn the DOM and interrupt active controls.
+    if (wanted.length === current.length && wanted.every((node, i) => node === current[i])) return;
+    for (const node of wanted) root.append(node);
+  };
+  // Pointers held anywhere in the headers (a dial drag, a lane resize) defer the
+  // sync: re-appending rows would release their capture.
+  let heldPointers = 0;
+  let domSyncPending = false;
+  const syncWhenFree = (layout) => {
+    if (heldPointers > 0) {
+      domSyncPending = true;
+      return;
+    }
+    syncDomOrder(layout);
+  };
+  root.addEventListener(
+    "pointerdown",
+    () => {
+      heldPointers += 1;
+    },
+    true,
+  );
+  const released = () => {
+    heldPointers = Math.max(0, heldPointers - 1);
+    if (heldPointers === 0 && domSyncPending) {
+      domSyncPending = false;
+      if (latest?.project) syncDomOrder(layoutFor(latest));
+    }
+  };
+  // Releases land anywhere, not only inside the headers: a click on a plain control
+  // holds no pointer capture, so a release past the sidebar edge never reaches a
+  // root-level listener and the tally would freeze the DOM order (Devin Review,
+  // 2026-11-19). The tally stays clamped at zero for presses that began elsewhere.
+  window.addEventListener("pointerup", released, true);
+  window.addEventListener("pointercancel", released, true);
+
   function update(state) {
     latest = state;
     if (!state.project) {
@@ -1007,7 +1094,10 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       return;
     }
     const next = JSON.stringify([
-      state.project.tracks.map((track) => [track.id, track.kind, track.bus ?? ""]),
+      // Reordering must not rebuild the controls holding pointer capture.
+      state.project.tracks
+        .map((track) => [track.id, track.kind, track.bus ?? ""])
+        .sort((a, b) => a[0].localeCompare(b[0])),
       state.project.buses.map((bus) => [bus.id, bus.name]),
       [...(state.collapsedBuses ?? [])],
       document.documentElement.lang,
@@ -1017,12 +1107,31 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       build(state);
     }
     const layout = layoutFor(state);
+    // Gap ids depend on layout positions. Reconcile only those spacers when
+    // groups move, never detach a track with an active captured pointer.
+    const gapIds = new Set(layout.rows.filter((row) => row.kind === "gap").map((row) => row.id));
+    for (const [id, parts] of rows) {
+      if (parts.kind === "gap" && !gapIds.has(id)) {
+        parts.node.remove();
+        rows.delete(id);
+      }
+    }
+    for (const id of gapIds) {
+      if (!rows.has(id)) {
+        const node = el("div", "group-gap", { "aria-hidden": "true" });
+        rows.set(id, { node, kind: "gap" });
+        root.append(node);
+      }
+    }
     const hues = trackHues(state.project);
     const busHue = busHues(state.project);
     const dimmed = inactiveTracks(state);
-    for (const row of layout.rows) {
+    for (const [order, row] of layout.rows.entries()) {
       const parts = rows.get(row.id);
       if (!parts) continue;
+      // CSS ordering leaves the handle attached, unlike remove/insertBefore,
+      // which releases native pointer capture during the drag.
+      parts.node.style.order = String(order);
       parts.node.style.height = `${row.height}px`;
       parts.node.classList.toggle("micro-controls", row.height < 32);
       if (parts.kind === "gap") continue;
@@ -1123,6 +1232,11 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.pan.paintDial();
       }
     }
+    // Keyboard moves, undo and other external reorders land here with no drag
+    // holding a pointer: the DOM follows the project order, so Tab stops match
+    // what is on screen. A held pointer defers this (the capture would break)
+    // and the release resyncs.
+    syncWhenFree(layout);
   }
 
   function setRecording(active) {
