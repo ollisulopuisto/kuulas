@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -431,7 +432,7 @@ def test_the_bridge_draws_the_menu_and_runs_a_chosen_command_in_its_window(monke
     monkeypatch.setattr(
         desktop.native_menu,
         "install",
-        lambda spec, run: seen.update(spec=spec, run=run) or True,
+        lambda spec, run, **_kw: seen.update(spec=spec, run=run) or True,
     )
     bridge = desktop.Bridge(SimpleNamespace(), None)
     scripts = []
@@ -451,3 +452,64 @@ def test_the_bridge_draws_the_menu_and_runs_a_chosen_command_in_its_window(monke
 
 def test_a_bridge_without_a_window_ignores_a_chosen_command():
     desktop.Bridge(SimpleNamespace(), None)._run_native_command({"id": "app.save"})
+
+
+def test_the_queued_draw_outcome_is_reported_through_on_done():
+    """install returns once the draw is queued (production AppHelper.callAfter),
+    so the page learns the real outcome through on_done (Devin review on #239:
+    the in-window menu must stay until the native one really holds the menus)."""
+    main = pywebview_menu()
+    queued, got = [], []
+    ok = native_menu.install(
+        SPEC, lambda _c: None, platform="darwin", appkit=FakeAppKit(main),
+        main_thread=queued.append, target_factory=lambda run: object(),
+        on_done=got.append)
+    assert ok is True  # queued, not yet drawn
+    assert got == []
+    queued[0]()
+    assert got == [True]
+
+
+def test_a_failed_queued_draw_is_reported_through_on_done():
+    main = pywebview_menu()
+    queued, got = [], []
+
+    class Boom(FakeAppKit):
+        class NSMenuItem(FakeItem):
+            def initWithTitle_action_keyEquivalent_(self, *_a):  # noqa: N802
+                raise RuntimeError("appkit")
+
+    ok = native_menu.install(
+        SPEC, lambda _c: None, platform="darwin", appkit=Boom(main),
+        main_thread=queued.append, target_factory=lambda run: object(),
+        on_done=got.append)
+    assert ok is True  # queued; the failure has not happened yet
+    queued[0]()
+    assert got == [False]
+
+
+def test_the_bridge_reports_the_draw_outcome_to_the_page(tmp_path, monkeypatch):
+    """The window menu hides only on a confirmed native install."""
+    calls = []
+    bridge = desktop.Bridge(SimpleNamespace(), tmp_path)
+    bridge._window = SimpleNamespace(
+        evaluate_js=calls.append)
+    captured = {}
+
+    def fake_install(spec, run, *, on_done=None, **_kw):
+        captured["on_done"] = on_done
+        return True
+
+    monkeypatch.setattr(desktop.native_menu, "install", fake_install)
+    assert bridge.set_native_menu(SPEC) is True
+    captured["on_done"](False)
+    deadline = time.monotonic() + 2
+    while not calls and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert calls
+    assert "__kuulasNativeMenuResult(false)" in calls[0]
+    captured["on_done"](True)
+    deadline = time.monotonic() + 2
+    while len(calls) < 2 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert "__kuulasNativeMenuResult(true)" in calls[-1]

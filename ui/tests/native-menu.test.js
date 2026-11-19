@@ -307,17 +307,18 @@ describe("syncWindowMenuHidden", () => {
     };
   }
 
-  test("hides the window menu only when the wrapper draws it natively", () => {
+  test("hides the window menu only on a confirmed native install", () => {
     // Owner, 2026-11-19: "now that we have the native menu, we don't need to
-    // duplicate it inside the app window". A plain browser (no wrapper API)
-    // keeps its menu.
+    // duplicate it inside the app window". Hiding waits for the wrapper's
+    // report that the native menus are really drawn, and comes back when the
+    // install fails (Devin review on #239: a hidden window menu plus a failed
+    // native draw would leave no menus at all).
     const doc = fakeDocument();
-    assert.equal(syncWindowMenuHidden(doc, undefined), false);
+    assert.equal(syncWindowMenuHidden(doc, false), false);
     assert.equal(doc.documentElement.hasAttribute("data-native-menu"), false);
-    assert.equal(syncWindowMenuHidden(doc, { set_native_menu() {} }), true);
+    assert.equal(syncWindowMenuHidden(doc, true), true);
     assert.equal(doc.documentElement.hasAttribute("data-native-menu"), true);
-    // The wrapper going away (or a reload into a browser) brings the menu back.
-    assert.equal(syncWindowMenuHidden(doc, null), false);
+    assert.equal(syncWindowMenuHidden(doc, false), false);
     assert.equal(doc.documentElement.hasAttribute("data-native-menu"), false);
   });
 
@@ -328,9 +329,46 @@ describe("syncWindowMenuHidden", () => {
     assert.match(tokens, /\[data-native-menu\][^{]*\{[^}]*--topbar-h:\s*38px/);
   });
 
-  test("the shell marks the window when the wrapper's menu API is there", () => {
+  test("the shell hides the window menu from the wrapper's report", () => {
     const shell = readFileSync(new URL("../shell-keys.js", import.meta.url), "utf8");
-    assert.match(shell, /syncWindowMenuHidden\(document, window\.pywebview\?\.api\)/);
-    assert.match(shell, /addEventListener\("pywebviewready", syncWindowMenu\)/);
+    assert.match(shell, /window\.__kuulasNativeMenuResult = \(ok\) => syncWindowMenuHidden\(/);
+  });
+
+  test("help search and Show in Menu skip the hidden window menu", () => {
+    // Devin review on #239: help.search must not open the Help menu's field
+    // under display: none; Show in Menu needs a visible destination instead.
+    const shell = readFileSync(new URL("../shell-keys.js", import.meta.url), "utf8");
+    assert.match(
+      shell,
+      /openSearch: \(\) =>[\s\S]*?hasAttribute\("data-native-menu"\)\s*\?\s*searchPanel\.open\(\)/,
+    );
+    assert.match(
+      shell,
+      /reveal: \(id\) =>[\s\S]*?hasAttribute\("data-native-menu"\)\s*\?\s*searchPanel\.open\(\)/,
+    );
+  });
+});
+
+describe("createNativeMenuSync install outcome", () => {
+  test("a refused push reports not-installed; a queued push stays unconfirmed", () => {
+    const installed = [];
+    let result = true;
+    const sync = createNativeMenuSync({
+      getMenus: () => [{ id: "file", label: "Tiedosto", items: [{ kind: "item", id: "a", label: "A", keys: "", enabled: true }] }],
+      getApi: () => ({ set_native_menu: () => Promise.resolve(result) }),
+      delay: 0,
+      onInstall: (ok) => installed.push(ok),
+    });
+    sync.push(true);
+    return new Promise((resolve) => setTimeout(resolve, 10))
+      .then(() => {
+        assert.deepEqual(installed, []); // queued: the wrapper's report confirms
+        result = false;
+        sync.push(true);
+        return new Promise((r) => setTimeout(r, 10));
+      })
+      .then(() => {
+        assert.deepEqual(installed, [false]); // refused: show the window menu
+      });
   });
 });

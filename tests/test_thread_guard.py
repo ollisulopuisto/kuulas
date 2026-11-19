@@ -40,6 +40,10 @@ ALLOWED = {
     ("server.py", "create_app"):
         "the live channel's one-thread reader of the engine status: the playhead "
         "never waits for playback priority",
+    ("desktop.py", "Bridge.set_native_menu"):
+        "the native draw's outcome report to the page: evaluate_js waits on the page "
+        "(IO), and the draw itself runs on the AppKit main thread, so the report hops "
+        "off it; no compute",
     ("desktop.py", "Bridge._run_native_command"):
         "a native menu choice handed to the page: evaluate_js waits on the page (IO), "
         "no compute; it must not run on the main thread",

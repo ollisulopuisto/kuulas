@@ -299,9 +299,12 @@ def install(
     appkit: Any = None,
     main_thread: Callable[[Callable[[], None]], None] | None = None,
     target_factory: Callable[[Callable[[dict], None]], Any] | None = None,
+    on_done: Callable[[bool], None] | None = None,
 ) -> bool:
     """Draw ``spec`` as the native menus. True once queued; False off macOS, for an empty
-    spec, or when AppKit is missing. Never raises."""
+    spec, or when AppKit is missing. Never raises. The draw itself runs later on the
+    main thread; ``on_done`` hears its real outcome, so the page keeps its in-window
+    menu until the native one truly holds the menus (Devin review on #239)."""
     platform = sys.platform if platform is None else platform
     if platform != "darwin":
         return False
@@ -326,6 +329,8 @@ def install(
         except Exception as e:  # noqa: BLE001 - the default menus stay
             result["ok"] = False
             log.warning(t("log.desktop.native_menu_failed", error=str(e)))
+        if on_done is not None:
+            on_done(result["ok"])
 
     main_thread(work)
     return result["ok"]

@@ -172,7 +172,12 @@ export function setupKeyboard({
       openPalette: () => palette.toggle(),
       // Help search (WP75): the field in the in-window Help menu; the panel over the window
       // where there is no such menu (or the desktop app's native Help menu asks for it).
-      openSearch: () => (menubar?.openSearch() ? true : searchPanel.open()),
+      // The window menu hides while macOS holds it natively, Help's field with it:
+      // search opens in the panel then (Devin review on #239).
+      openSearch: () =>
+        document.documentElement.hasAttribute("data-native-menu")
+          ? searchPanel.open()
+          : (menubar?.openSearch() ? true : searchPanel.open()),
       openKeys: () => cheat.toggle(),
       importKeys: () => importKeys(),
       exportKeys: () => exportKeys(),
@@ -281,7 +286,10 @@ export function setupKeyboard({
       search: (query) =>
         searchAll({ records: searchRecords(), topics: help?.topics() ?? [], query, recent }),
       run: (id) => registry.run(id, null, app.getState()),
-      reveal: (id) => menubar?.reveal(id) ?? false,
+      reveal: (id) =>
+        document.documentElement.hasAttribute("data-native-menu")
+          ? searchPanel.open()
+          : (menubar?.reveal(id) ?? false),
       openTopic: (id) => help?.open(id),
     });
   const menuSearch = makeSearch({});
@@ -405,15 +413,16 @@ export function setupKeyboard({
             ),
           getApi: () => window.pywebview?.api,
           hasFocus: () => document.hasFocus(),
+          onInstall: (ok) => syncWindowMenuHidden(document, ok),
         })
       : null;
   if (nativeSync) {
     window.__kuulasNativeRun = (choice) =>
       runNativeChoice(choice, { registry, getState: app.getState, isModal: modalOpen });
-    // With the menu drawn natively, the window's copy hides (owner, 2026-11-19).
-    const syncWindowMenu = () => syncWindowMenuHidden(document, window.pywebview?.api);
-    syncWindowMenu();
-    window.addEventListener("pywebviewready", syncWindowMenu);
+    // The window's menu copy hides once the wrapper confirms the native draw
+    // (owner, 2026-11-19), and returns if it fails (Devin review on #239).
+    window.__kuulasNativeMenuResult = (ok) => syncWindowMenuHidden(document, ok);
+    window.__kuulasNativeMenuResult(false);
     // A dialog closing changes what the menu may do; opening one is caught by the next push.
     document.addEventListener("close", () => nativeSync.push(), true);
     window.addEventListener("focus", () => nativeSync.push(true));
