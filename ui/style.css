@@ -2320,6 +2320,12 @@ input[type="text"] {
 /* -- keyboard layer: menu bar, command palette, keyboard sheet ---------------------
    FIRST CUT for the designer to review: behaviour is settled, the look is not.
    Nothing here animates, so reduced motion needs no special case. */
+/* macOS desktop: the native bar holds the menu (owner, 2026-11-19: no copy of
+   it inside the window), so the window menu leaves and the top bar slims
+   (tokens.css --topbar-h under the same marker). */
+[data-native-menu] #menubar {
+  display: none;
+}
 .menubar {
   display: flex;
   align-items: center;

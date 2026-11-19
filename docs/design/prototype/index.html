@@ -932,6 +932,12 @@
   --dur-slow: 0ms;
   --dur-flash: 0ms;
 }
+
+/* macOS desktop with the native menu bar: no in-window menu, so the top bar
+   slims to the brand and the mode chips (style.css [data-native-menu]). */
+:root[data-native-menu] {
+  --topbar-h: 38px;
+}
 /* -- end of tokens.css -- */
 
 /* ===== base ============================================================= */
@@ -3117,6 +3123,8 @@ const HELP_FILES = {
   "cmd.track.move_up.hint": "Moves the current track one place up the list. The clips and their time stay as they are. One undo step.",
   "cmd.track.move_down": "Move track down",
   "cmd.track.move_down.hint": "Moves the current track one place down the list. The clips and their time stay as they are. One undo step.",
+  "cmd.clip.processed": "Use the processed version",
+  "cmd.clip.processed.hint": "Switch the selected clip between its source and its voice-chain version. Toggles: used again it returns to the other one. One undo step.",
   "cmd.transport.play": "Play / stop",
   "cmd.transport.play_before": "Jump back and play",
   "cmd.transport.play_before.hint": "Jumps back 3 seconds and plays, to hear a spot again.",
@@ -3822,6 +3830,8 @@ const HELP_FILES = {
   "cmd.track.move_up.hint": "Siirtää valitun raidan yhden paikan ylöspäin. Leikkeet ja niiden ajat pysyvät ennallaan. Yksi kumoamisaskel.",
   "cmd.track.move_down": "Siirrä raita alas",
   "cmd.track.move_down.hint": "Siirtää valitun raidan yhden paikan alaspäin. Leikkeet ja niiden ajat pysyvät ennallaan. Yksi kumoamisaskel.",
+  "cmd.clip.processed": "Käytä käsiteltyä versiota",
+  "cmd.clip.processed.hint": "Vaihtaa valitun leikkeen lähteen ja äänenkäsittelyketjun version välillä. Vaihtaa tilaa: uudelleen käytettynä palaa toiseen. Yksi undo-askel.",
   "cmd.transport.play": "Toista / pysäytä",
   "cmd.transport.play_before": "Hyppää taakse ja toista",
   "cmd.transport.play_before.hint": "Hyppää 3 sekuntia taaksepäin ja toistaa, jotta kohdan kuulee uudelleen.",

@@ -21,7 +21,10 @@ the project opens in a window of its own; a plain browser asks for a path instea
 
 On macOS the native bar mirrors the in-window bar. This reverses the 2026-10-19
 "empty on purpose" decision (owner report 2026-11-18: the native bar should hold the
-real menus). The in-window bar stays and is still the only menu on Windows and Linux.
+real menus). With the native bar holding the menu, the window's copy hides and the top
+bar slims (owner, 2026-11-19: no duplicate inside the window); `syncWindowMenuHidden`
+marks the document root when the wrapper's menu API is there. On Windows, Linux and in
+a plain browser the in-window bar stays and is the only menu.
 
 How it works: `ui/native-menu.js` turns the resolved menus (`resolveMenu`) into a plain
 spec (`nativeMenuSpec`) and `createNativeMenuSync` pushes it to

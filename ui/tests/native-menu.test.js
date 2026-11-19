@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import {
   createNativeMenuSync,
@@ -6,6 +7,7 @@ import {
   MAX_NATIVE_ITEMS,
   nativeMenuSpec,
   runNativeChoice,
+  syncWindowMenuHidden,
 } from "../native-menu.js";
 
 const item = (id, extra = {}) => ({
@@ -291,5 +293,44 @@ describe("native commands behind a modal", () => {
     assert.equal(out[0].items[1].items[0].enabled, false);
     assert.equal(out[0].items[2].enabled, true);
     assert.equal(isolateMenusForModal(menus, { explains, isModal: () => false }), menus);
+  });
+});
+
+describe("syncWindowMenuHidden", () => {
+  function fakeDocument() {
+    const attrs = new Set();
+    return {
+      documentElement: {
+        toggleAttribute: (name, force) => (force ? attrs.add(name) : attrs.delete(name)),
+        hasAttribute: (name) => attrs.has(name),
+      },
+    };
+  }
+
+  test("hides the window menu only when the wrapper draws it natively", () => {
+    // Owner, 2026-11-19: "now that we have the native menu, we don't need to
+    // duplicate it inside the app window". A plain browser (no wrapper API)
+    // keeps its menu.
+    const doc = fakeDocument();
+    assert.equal(syncWindowMenuHidden(doc, undefined), false);
+    assert.equal(doc.documentElement.hasAttribute("data-native-menu"), false);
+    assert.equal(syncWindowMenuHidden(doc, { set_native_menu() {} }), true);
+    assert.equal(doc.documentElement.hasAttribute("data-native-menu"), true);
+    // The wrapper going away (or a reload into a browser) brings the menu back.
+    assert.equal(syncWindowMenuHidden(doc, null), false);
+    assert.equal(doc.documentElement.hasAttribute("data-native-menu"), false);
+  });
+
+  test("the CSS drops the window menu and slims the top bar under the marker", () => {
+    const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+    assert.match(css, /\[data-native-menu\][^{]*#menubar\s*\{[^}]*display:\s*none/);
+    const tokens = readFileSync(new URL("../tokens.css", import.meta.url), "utf8");
+    assert.match(tokens, /\[data-native-menu\][^{]*\{[^}]*--topbar-h:\s*38px/);
+  });
+
+  test("the shell marks the window when the wrapper's menu API is there", () => {
+    const shell = readFileSync(new URL("../shell-keys.js", import.meta.url), "utf8");
+    assert.match(shell, /syncWindowMenuHidden\(document, window\.pywebview\?\.api\)/);
+    assert.match(shell, /addEventListener\("pywebviewready", syncWindowMenu\)/);
   });
 });

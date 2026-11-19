@@ -40,7 +40,12 @@ import { registerMarkerCommands } from "./marker-commands.js";
 import { MENU, MENU_ALIASES, resolveMenu } from "./menu-model.js";
 import { createMenubar } from "./menubar.js";
 import { createModifierTracker } from "./modifiers.js";
-import { createNativeMenuSync, isolateMenusForModal, runNativeChoice } from "./native-menu.js";
+import {
+  createNativeMenuSync,
+  isolateMenusForModal,
+  runNativeChoice,
+  syncWindowMenuHidden,
+} from "./native-menu.js";
 import { copiesToastText } from "./notice-hold.js";
 import { createPalette, paletteRows } from "./palette.js";
 import { registerPlaceholderCommands } from "./placeholder-commands.js";
@@ -405,6 +410,10 @@ export function setupKeyboard({
   if (nativeSync) {
     window.__kuulasNativeRun = (choice) =>
       runNativeChoice(choice, { registry, getState: app.getState, isModal: modalOpen });
+    // With the menu drawn natively, the window's copy hides (owner, 2026-11-19).
+    const syncWindowMenu = () => syncWindowMenuHidden(document, window.pywebview?.api);
+    syncWindowMenu();
+    window.addEventListener("pywebviewready", syncWindowMenu);
     // A dialog closing changes what the menu may do; opening one is caught by the next push.
     document.addEventListener("close", () => nativeSync.push(), true);
     window.addEventListener("focus", () => nativeSync.push(true));

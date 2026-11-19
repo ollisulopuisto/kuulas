@@ -59,6 +59,20 @@ export function nativeMenuSpec(menus) {
 }
 
 /**
+ * Hides the in-window menu while the wrapper holds the same menu natively
+ * (owner, 2026-11-19: "now that we have the native menu, we don't need to
+ * duplicate it inside the app window"): marks the document root, and the CSS
+ * drops the menu bar and slims the top bar to the brand and mode chips. A
+ * plain browser has no wrapper API and keeps its menu. Returns whether the
+ * window menu is hidden.
+ */
+export function syncWindowMenuHidden(doc, api) {
+  const hidden = Boolean(api && typeof api.set_native_menu === "function");
+  doc.documentElement.toggleAttribute("data-native-menu", hidden);
+  return hidden;
+}
+
+/**
  * Keeps the native menus in step with the window: `push()` sends the menu when it changed
  * (after `delay` ms, so a burst of state changes is one send, but never later than `maxWait` ms). Only the window that has focus
  * sends, since the bar belongs to the front window; `push(true)` (on focus) sends at once, regardless of
