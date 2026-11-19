@@ -126,7 +126,15 @@ jobs:
         run: brew install ffmpeg
       - name: ffmpeg and audio libraries (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1 pulseaudio
+      # PortAudio needs a PulseAudio server; the ubuntu-latest image no longer
+      # runs one, so every Python run since 2026-11-19 failed at collection
+      # with "PulseAudio_Initialize: Can't connect to server".
+      - name: Start PulseAudio (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl info
       - name: ffmpeg and tzdata (Windows)
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
@@ -209,7 +217,15 @@ jobs:
         run: brew install ffmpeg
       - name: ffmpeg and audio libraries (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1 pulseaudio
+      # PortAudio needs a PulseAudio server; the ubuntu-latest image no longer
+      # runs one, so every Python run since 2026-11-19 failed at collection
+      # with "PulseAudio_Initialize: Can't connect to server".
+      - name: Start PulseAudio (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl info
       - name: ffmpeg and tzdata (Windows)
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
@@ -277,7 +293,12 @@ jobs:
       - run: uv sync
       # Audio decoding tests need ffmpeg and libsndfile/PortAudio, as in the full suites.
       - name: ffmpeg and audio libraries (Linux)
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1 pulseaudio
+      - name: Start PulseAudio (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl info
       - name: Prepare pytest report directory
         run: uv run python -c "from pathlib import Path; Path('test-results').mkdir(exist_ok=True)"
       - name: Run changed Python test modules
