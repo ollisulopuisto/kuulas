@@ -322,12 +322,14 @@ def describe(folder: Path | str, job_id: str) -> dict | None:
 
 def request_cancel(folder: Path | str, job_id: str) -> None:
     """Ask the worker to stop (it polls for this file). A job nobody is running
-    is marked cancelled at once. Refused for another computer's job."""
+    is marked cancelled at once. Another computer's job can be cancelled too
+    (owner, 2026-11-19: a job he could never stop from his own machine is a
+    bug): the request file reaches the remote worker over the synced project,
+    and the status is marked cancelled here, so a machine that never comes back
+    stops showing the job as running forever. Restarting stays refused there."""
     info = describe(folder, job_id)
     if info is None:
         return
-    if info["foreign"] and info["state"] in {"queued", "running"}:
-        raise BackgroundJobError("error.transcribe.foreign_host", host=info["host"])
     if info["state"] == "interrupted":
         status = read_json(status_file(folder, job_id)) or {}
         write_json_atomic(status_file(folder, job_id), {
@@ -335,17 +337,42 @@ def request_cancel(folder: Path | str, job_id: str) -> None:
         return
     if info["state"] in {"queued", "running"}:
         cancel_file(folder, job_id).write_text("cancel\n", encoding="utf-8")
+        if info["foreign"]:
+            # The remote worker may never answer (asleep, sold, off the sync):
+            # do not let its last write pin this machine's view at "running".
+            status = read_json(status_file(folder, job_id)) or {}
+            write_json_atomic(status_file(folder, job_id), {
+                **status, "state": "cancelled", "finished": now_iso(),
+                "error": None})
 
 
-def remove_files(folder: Path | str, job_id: str) -> None:
-    """Delete every file of the job (dismissing it, or after its results are in)."""
+def remove_files(folder: Path | str, job_id: str, *, keep_cancel: bool = False) -> None:
+    """Delete every file of the job (dismissing it, or after its results are in).
+    ``keep_cancel`` leaves the stop request standing: dismissing another
+    computer's cancelled job here must not erase a request its worker has not
+    seen yet (the project sync may be paused), or it keeps transcribing. The
+    remote worker deletes the file once it has stopped
+    (``acknowledge_cancel``), so the tombstone cleans itself up."""
     _job_path(folder, job_id, ".json")  # validate before interpolating the glob
     root = jobs_dir(folder)
     base_dir = os.path.realpath(root)
     for path in root.glob(f"{job_id}.*"):
+        # By name: cancel_file resolves symlinks, the glob does not (Devin
+        # review on dc87648b). The id is already validated glob-safe above.
+        if keep_cancel and path.name == f"{job_id}.cancel":
+            continue
         if os.path.realpath(path.parent) == base_dir:
             with contextlib.suppress(OSError):
                 path.unlink()
+
+
+def acknowledge_cancel(folder: Path | str, job_id: str) -> None:
+    """Delete the stop request once the job has actually stopped: a crash
+    before that must not lose it (review on #238). The request is kept by a
+    dismissal on another computer until this, so it still reaches a worker
+    whose project sync was paused (Devin review on #238)."""
+    with contextlib.suppress(OSError):
+        cancel_file(folder, job_id).unlink()
 
 
 def worker_argv(path: Path | str) -> list[str]:

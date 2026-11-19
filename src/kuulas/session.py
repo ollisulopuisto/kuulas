@@ -3445,14 +3445,19 @@ class Session:
 
     def cancel_background(self, job_id: str) -> None:
         """Cancel a running job; dismiss a failed or cancelled one; an interrupted
-        one becomes cancelled. Refused for another computer's running job."""
+        one becomes cancelled. Another computer's running job is cancelled too:
+        the request reaches its worker over the synced project and the local
+        view is marked cancelled (owner, 2026-11-19)."""
         self._finished_jobs.pop(job_id, None)
         folder = self.package.path
         info = bgjobs.describe(folder, job_id)
         if info is None:
             return
         if info["state"] in {"failed", "cancelled"}:
-            bgjobs.remove_files(folder, job_id)
+            # Another computer's job: keep the stop request until its worker
+            # takes it; deleting it here (sync may be paused) would let the
+            # remote transcription run on (Devin review on #238).
+            bgjobs.remove_files(folder, job_id, keep_cancel=info["foreign"])
         elif info["state"] != "completed":
             bgjobs.request_cancel(folder, job_id)
 

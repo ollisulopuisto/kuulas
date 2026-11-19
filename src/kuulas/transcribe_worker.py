@@ -243,10 +243,16 @@ def run_job(job_path: Path | str, *, local: Callable | None = None,
     status = _Status(bgjobs.status_file(folder, job_id), status_interval)
     stop_watch = threading.Event()
 
+    def cancel_requested() -> bool:
+        # Only look, do not take: the request file is deleted once the job has
+        # actually stopped, so a crash before that cannot lose it (review on
+        # #238).
+        return bgjobs.cancel_file(folder, job_id).exists()
+
     def watch() -> None:
         while not stop_watch.wait(CANCEL_POLL_S):
             status.flush_due()
-            if bgjobs.cancel_file(folder, job_id).exists():
+            if cancel_requested():
                 cancel.set()
 
     watcher = threading.Thread(target=watch, daemon=True, name="kuulas-cancel-watch")
@@ -256,7 +262,7 @@ def run_job(job_path: Path | str, *, local: Callable | None = None,
     watcher.start()
     final, fields = "completed", {"progress": 1.0, "message": ""}
     try:
-        if bgjobs.cancel_file(folder, job_id).exists():
+        if cancel_requested():
             cancel.set()
         _stop_if_cancelled(cancel)
         if job["backend"] == "local":
@@ -277,6 +283,8 @@ def run_job(job_path: Path | str, *, local: Callable | None = None,
             keep_awake.stop()
     status.update(force=True, state=final, indeterminate=False,
                   finished=bgjobs.now_iso(), **fields)
+    # The job stopped (one way or another): take the stop request now.
+    bgjobs.acknowledge_cancel(folder, job_id)
     return final
 
 
