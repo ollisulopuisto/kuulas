@@ -60,6 +60,18 @@ await new Promise((resolve) => setTimeout(resolve, 20));
 const result = {};
 const tabs = [...root.querySelectorAll(".block-speaker-tab")];
 result.speakerTabs = tabs.length;
+const referenceToggle = document.createElement("button");
+referenceToggle.className = "button";
+referenceToggle.setAttribute("aria-pressed", "true");
+root.append(referenceToggle);
+const selectedTab = tabs.find((tab) => tab.getAttribute("aria-pressed") === "true");
+result.sharedToggleColors =
+  selectedTab &&
+  ["backgroundColor", "borderTopColor", "color"].every(
+    (property) =>
+      getComputedStyle(selectedTab)[property] === getComputedStyle(referenceToggle)[property],
+  );
+referenceToggle.remove();
 result.oneSpeaker = [...root.querySelectorAll(".block-overview-speaker")].filter(
   (n) => !n.hidden,
 ).length;

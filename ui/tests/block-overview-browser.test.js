@@ -58,6 +58,7 @@ test("overview keeps selection, filters and stale apply safe", async () => {
     stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/)[1].replaceAll("&amp;", "&"),
   );
   assert.equal(result.speakerTabs, 3);
+  assert.equal(result.sharedToggleColors, true);
   assert.equal(result.oneSpeaker, 1);
   assert.equal(result.ownZero, true);
   assert.match(result.estimate, /Arvio/);

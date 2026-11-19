@@ -43,3 +43,17 @@ test("empty and non-finite measurements do not claim a level spread", () => {
   assert.equal(summary.after, null);
   assert.equal(summary.blocks, 0);
 });
+
+test("long recordings do not spread block arrays into function arguments", () => {
+  const blocks = Array.from({ length: 200000 }, (_, i) => ({
+    id: String(i),
+    deviation_db: i % 2 ? 22 : -12,
+    gain_db: i % 2 ? -18 : 6,
+  }));
+  const summary = speakerSummary({ blocks }, new Set(blocks.map((row) => row.id)), limits);
+  assert.deepEqual(summary.before, [-12, 22]);
+  assert.deepEqual(summary.after, [-6, 4]);
+  assert.equal(summary.blocks, 200000);
+  assert.equal(summary.lift, 6);
+  assert.equal(summary.cut, 18);
+});
