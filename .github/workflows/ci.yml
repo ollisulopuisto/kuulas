@@ -136,17 +136,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           pulseaudio --start --exit-idle-time=-1
-          sleep 2
-          pactl load-module module-null-sink sink_name=ci_null
-          pactl load-module module-null-source source_name=ci_null
-          sleep 2
-          # Diagnostics: "Failure: No such entity" from set-default-sink despite
-          # the modules loading; show the names the server actually registered.
-          pactl list short sinks
-          pactl list short sources
-          pactl set-default-sink ci_null
-          pactl set-default-source ci_null
-          pactl info
+          # Distinct names: a null sink also creates a monitor source, and the
+          # server dedupes device names across sinks and sources, so a source
+          # asked to share the sink's name registers as <name>.2 and
+          # set-default-source then fails "No such entity" (CI run 44532709272).
+          pactl load-module module-null-sink sink_name=ci_null_sink
+          pactl load-module module-null-source source_name=ci_null_source
+          pactl set-default-sink ci_null_sink
+          pactl set-default-source ci_null_source
       - name: ffmpeg and tzdata (Windows)
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
@@ -239,17 +236,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           pulseaudio --start --exit-idle-time=-1
-          sleep 2
-          pactl load-module module-null-sink sink_name=ci_null
-          pactl load-module module-null-source source_name=ci_null
-          sleep 2
-          # Diagnostics: "Failure: No such entity" from set-default-sink despite
-          # the modules loading; show the names the server actually registered.
-          pactl list short sinks
-          pactl list short sources
-          pactl set-default-sink ci_null
-          pactl set-default-source ci_null
-          pactl info
+          # Distinct names: a null sink also creates a monitor source, and the
+          # server dedupes device names across sinks and sources, so a source
+          # asked to share the sink's name registers as <name>.2 and
+          # set-default-source then fails "No such entity" (CI run 44532709272).
+          pactl load-module module-null-sink sink_name=ci_null_sink
+          pactl load-module module-null-source source_name=ci_null_source
+          pactl set-default-sink ci_null_sink
+          pactl set-default-source ci_null_source
       - name: ffmpeg and tzdata (Windows)
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
@@ -324,17 +318,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           pulseaudio --start --exit-idle-time=-1
-          sleep 2
-          pactl load-module module-null-sink sink_name=ci_null
-          pactl load-module module-null-source source_name=ci_null
-          sleep 2
-          # Diagnostics: "Failure: No such entity" from set-default-sink despite
-          # the modules loading; show the names the server actually registered.
-          pactl list short sinks
-          pactl list short sources
-          pactl set-default-sink ci_null
-          pactl set-default-source ci_null
-          pactl info
+          # Distinct names: a null sink also creates a monitor source, and the
+          # server dedupes device names across sinks and sources, so a source
+          # asked to share the sink's name registers as <name>.2 and
+          # set-default-source then fails "No such entity" (CI run 44532709272).
+          pactl load-module module-null-sink sink_name=ci_null_sink
+          pactl load-module module-null-source source_name=ci_null_source
+          pactl set-default-sink ci_null_sink
+          pactl set-default-source ci_null_source
       - name: Prepare pytest report directory
         run: uv run python -c "from pathlib import Path; Path('test-results').mkdir(exist_ok=True)"
       - name: Run changed Python test modules
