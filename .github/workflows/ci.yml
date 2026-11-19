@@ -138,6 +138,12 @@ jobs:
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=ci_null
           pactl load-module module-null-source source_name=ci_null
+          # Module load returns before the device registers; wait for both
+          # before making them the defaults ("Failure: No such entity").
+          for i in $(seq 1 20); do
+            pactl list short sinks | grep -q ci_null && pactl list short sources | grep -q ci_null && break
+            sleep 0.5
+          done
           pactl set-default-sink ci_null
           pactl set-default-source ci_null
           pactl info
@@ -235,6 +241,12 @@ jobs:
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=ci_null
           pactl load-module module-null-source source_name=ci_null
+          # Module load returns before the device registers; wait for both
+          # before making them the defaults ("Failure: No such entity").
+          for i in $(seq 1 20); do
+            pactl list short sinks | grep -q ci_null && pactl list short sources | grep -q ci_null && break
+            sleep 0.5
+          done
           pactl set-default-sink ci_null
           pactl set-default-source ci_null
           pactl info
@@ -314,6 +326,12 @@ jobs:
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=ci_null
           pactl load-module module-null-source source_name=ci_null
+          # Module load returns before the device registers; wait for both
+          # before making them the defaults ("Failure: No such entity").
+          for i in $(seq 1 20); do
+            pactl list short sinks | grep -q ci_null && pactl list short sources | grep -q ci_null && break
+            sleep 0.5
+          done
           pactl set-default-sink ci_null
           pactl set-default-source ci_null
           pactl info
