@@ -28,3 +28,16 @@ test("visible rows translate to project indices without displacing folded tracks
   assert.equal(trackDropIndex(order, "b", visible, 50), 2);
   assert.equal(trackDropIndex(order, "b", [], 50), 3);
 });
+
+test("a folded bus row stands in for its first member", async () => {
+  const { trackDropIndex } = await import("../track-drop.js");
+  const order = ["a", "hidden-1", "hidden-2", "b"];
+  const visible = [
+    // The caller maps the folded bus header to its first member.
+    { id: "hidden-1", midpoint: 150 },
+    { id: "b", midpoint: 250 },
+  ];
+  // A stationary click stays put instead of jumping the hidden members.
+  assert.equal(trackDropIndex(order, "a", visible, 100), 0);
+  assert.equal(trackDropIndex(order, "a", visible, 200), 2);
+});

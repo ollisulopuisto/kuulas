@@ -717,13 +717,29 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
           },
         });
       };
-      const otherMidpoints = () =>
-        [...node.parentElement.querySelectorAll(".track-header[data-track]")]
+      const otherMidpoints = () => {
+        const rows = [...node.parentElement.querySelectorAll(".track-header[data-track]")]
           .filter((other) => other !== node)
           .map((other) => {
             const box = other.getBoundingClientRect();
             return { id: other.dataset.track, midpoint: box.top + box.height / 2 };
           });
+        // A folded bus hides its members' headers; without a row for it a drop above
+        // the bus lands BEHIND the hidden members, so even a stationary click moved
+        // the track past them (owner, 2026-11-19). The bus header stands in for its
+        // first other member, above or below the pointer like any row.
+        for (const busHeader of node.parentElement.querySelectorAll(
+          ".track-header.bus-header[data-bus-id]",
+        )) {
+          const first = latestProject().tracks.find(
+            (track) => track.bus === busHeader.dataset.busId && track.id !== id,
+          );
+          if (!first) continue;
+          const box = busHeader.getBoundingClientRect();
+          rows.push({ id: first.id, midpoint: box.top + box.height / 2 });
+        }
+        return rows;
+      };
       const done = (e) => {
         handle.removeEventListener("pointermove", move);
         handle.removeEventListener("pointerup", done);
@@ -842,6 +858,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
 
   function buildBus(bus, index) {
     const node = el("section", "track-header bus-header");
+    // The drag maths reads this: folded members render no headers of their own, so
+    // the bus header stands in for the group (owner, 2026-11-19).
+    node.dataset.busId = bus.id;
     // A group header, like a folder: the same card as a track, with the bus
     // letter badge and the fold chevron in the strip.
     const card = el("div", "th-card");

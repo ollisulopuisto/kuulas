@@ -1,23 +1,31 @@
 import { createTrackHeaders } from "../../tracks.js";
 
 const root = document.getElementById("track-headers");
-let project = {
-  tracks: ["a", "b", "c"].map((id) => ({
-    id,
-    name: id,
-    kind: "speech",
-    bus: null,
-    gain_db: 0,
-    pan: 0,
-  })),
-  buses: [],
-};
+const folded = new URLSearchParams(location.search).has("folded");
+const track = (id, bus = null) => ({
+  id,
+  name: id,
+  kind: "speech",
+  bus,
+  gain_db: 0,
+  pan: 0,
+});
+let project = folded
+  ? {
+      // h1 and h2 sit in a bus folded to its header row, between a and b.
+      tracks: [track("a"), track("h1", "v"), track("h2", "v"), track("b")],
+      buses: [{ id: "v", name: "Voices", gain_db: 0, pan: 0, mute: false }],
+    }
+  : {
+      tracks: ["a", "b", "c"].map((id) => track(id)),
+      buses: [],
+    };
 const calls = [];
 const state = () => ({
   project,
   laneHeight: 100,
   laneHeights: {},
-  collapsedBuses: new Set(),
+  collapsedBuses: folded ? new Set(["v"]) : new Set(),
   focusTrack: null,
 });
 const headers = createTrackHeaders({
@@ -46,32 +54,61 @@ const fire = (type, y) =>
 const out = {};
 const observer = new MutationObserver(() => {});
 observer.observe(root, { childList: true });
-try {
-  fire("pointerdown", 30);
-  fire("pointermove", 160);
-  out.afterFirstMove = project.tracks.map((t) => t.id);
-  let connected = handle.isConnected;
-  fire("pointermove", 290);
-  out.afterSecondMove = project.tracks.map((t) => t.id);
-  connected &&= handle.isConnected;
-  fire("pointermove", 10);
-  out.afterBackMove = project.tracks.map((t) => t.id);
-  connected &&= handle.isConnected;
-  out.sameHandle = handle === root.querySelector('[data-track="a"] .track-handle');
-  out.connectedThroughout = connected;
-  out.callsBeforeUp = calls.length;
-  out.uniqueDragKeys = new Set(calls.map((c) => c.coalesce)).size;
-  fire("pointerup", 10);
-  out.callsAfterUp = calls.length;
-  out.detachedRows = observer.takeRecords().flatMap((record) => [...record.removedNodes]).length;
-  fire("pointerdown", 30);
-  fire("pointermove", 290);
-  fire("pointercancel", 290);
-  const atCancel = calls.length;
-  fire("pointermove", 10);
-  out.stoppedOnCancel = atCancel === calls.length;
-  out.separateDragsHaveDifferentKeys = new Set(calls.map((edit) => edit.coalesce)).size === 2;
-} catch (e) {
-  out.error = String(e);
+if (folded) {
+  // A folded bus between the dragged track and the next visible one: pressing and
+  // releasing the handle without moving (or hovering the bus's top half) must not
+  // move `a` behind the hidden members (owner, 2026-11-19).
+  const rectOf = (sel) => root.querySelector(sel).getBoundingClientRect();
+  const mid = (rect) => rect.top + rect.height / 2;
+  try {
+    const aMid = mid(rectOf('[data-track="a"]'));
+    fire("pointerdown", aMid);
+    fire("pointerup", aMid);
+    out.stationaryCalls = calls.length;
+    out.stationaryOrder = project.tracks.map((t) => t.id);
+    const busMid = mid(rectOf(".bus-header"));
+    const bMid = mid(rectOf('[data-track="b"]'));
+    fire("pointerdown", aMid);
+    fire("pointermove", busMid - 1);
+    fire("pointerup", busMid - 1);
+    out.aboveBusCalls = calls.length;
+    out.aboveBusOrder = project.tracks.map((t) => t.id);
+    fire("pointerdown", aMid);
+    fire("pointermove", (busMid + bMid) / 2);
+    fire("pointerup", (busMid + bMid) / 2);
+    out.belowBusCalls = calls.length;
+    out.belowBusOrder = project.tracks.map((t) => t.id);
+  } catch (e) {
+    out.error = String(e);
+  }
+} else {
+  try {
+    fire("pointerdown", 30);
+    fire("pointermove", 160);
+    out.afterFirstMove = project.tracks.map((t) => t.id);
+    let connected = handle.isConnected;
+    fire("pointermove", 290);
+    out.afterSecondMove = project.tracks.map((t) => t.id);
+    connected &&= handle.isConnected;
+    fire("pointermove", 10);
+    out.afterBackMove = project.tracks.map((t) => t.id);
+    connected &&= handle.isConnected;
+    out.sameHandle = handle === root.querySelector('[data-track="a"] .track-handle');
+    out.connectedThroughout = connected;
+    out.callsBeforeUp = calls.length;
+    out.uniqueDragKeys = new Set(calls.map((c) => c.coalesce)).size;
+    fire("pointerup", 10);
+    out.callsAfterUp = calls.length;
+    out.detachedRows = observer.takeRecords().flatMap((record) => [...record.removedNodes]).length;
+    fire("pointerdown", 30);
+    fire("pointermove", 290);
+    fire("pointercancel", 290);
+    const atCancel = calls.length;
+    fire("pointermove", 10);
+    out.stoppedOnCancel = atCancel === calls.length;
+    out.separateDragsHaveDifferentKeys = new Set(calls.map((edit) => edit.coalesce)).size === 2;
+  } catch (e) {
+    out.error = String(e);
+  }
 }
 document.getElementById("result").textContent = JSON.stringify(out);

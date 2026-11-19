@@ -71,3 +71,14 @@ test("track order changes before release and the dragged controls survive repeat
   assert.equal(result.callsBeforeUp, 3);
   assert.equal(result.callsAfterUp, 3, "release must not add a duplicate edit");
 });
+
+test("a stationary click never moves a track past folded bus members", async () => {
+  const result = await measure("folded=1");
+  assert.equal(result.error, undefined);
+  assert.equal(result.stationaryCalls, 0, "a click without movement sent edits");
+  assert.deepEqual(result.stationaryOrder, ["a", "h1", "h2", "b"]);
+  assert.equal(result.aboveBusCalls, 0, "hovering the folded bus's top half moved the track");
+  assert.deepEqual(result.aboveBusOrder, ["a", "h1", "h2", "b"]);
+  assert.equal(result.belowBusCalls, 1);
+  assert.deepEqual(result.belowBusOrder, ["h1", "h2", "a", "b"]);
+});
