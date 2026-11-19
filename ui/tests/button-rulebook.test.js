@@ -17,6 +17,8 @@ const read = (path) => readFileSync(path, "utf8");
  * needs a reason here and a line in docs/design/BUTTONS.md ("Special widgets").
  */
 export const SPECIAL = {
+  "block-overview-bar":
+    "gain-change bars on a proportional timeline, with a full-size checkbox alternative in the detailed list",
   play: "Play and Record in the transport corner: the one Play shape (GUI-DESIGN.md 'Transport')",
   chip: "status chips in the top and status bars: a pill, not a button (GUI-DESIGN.md 8.2)",
   "menu-title": "menu bar titles: role=menuitem, menus have their own look",

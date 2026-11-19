@@ -10,7 +10,6 @@
 
 import {
   allChangedIds,
-  blockText,
   canApply,
   changedBySpeaker,
   impactSummary,
@@ -21,6 +20,7 @@ import {
   ruleText,
   skipIds,
 } from "./block-level-model.js";
+import { createBlockOverview } from "./block-level-overview-view.js";
 import { progressView } from "./job-progress.js";
 
 const POLL_MS = 400;
@@ -38,7 +38,17 @@ const el = (tag, className, text) => {
  * `onApply({ measured, skip, markers })`. Returns { element, open, close, isOpen,
  * projectChanged }.
  */
-export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
+export function createBlockLevelPanel({
+  root,
+  api,
+  t,
+  fmt,
+  clock,
+  onApply,
+  getRange = () => null,
+  onListen,
+  onJump,
+}) {
   root.setAttribute("aria-labelledby", "block-level-title");
   root.tabIndex = -1;
   const head = el("div", "silence-head");
@@ -81,9 +91,6 @@ export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
   const again = el("button", "button", t("ui.block_level.measure_again"));
   again.type = "button";
   again.dataset.icon = "reset";
-  const close = el("button", "button", t("ui.block_level.close"));
-  close.type = "button";
-  close.dataset.icon = "close";
   const apply = el("button", "button primary", t("ui.block_level.apply"));
   apply.type = "button";
   apply.dataset.icon = "check";
@@ -91,7 +98,7 @@ export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
   const buttons = el("div", "actionbar");
   buttons.setAttribute("role", "group");
   buttons.setAttribute("aria-label", t("ui.block_level.title"));
-  buttons.append(again, close, apply); // the primary last (BUTTONS.md)
+  buttons.append(again, apply); // the primary last (BUTTONS.md)
   root.append(head, body, buttons);
 
   // -- state ------------------------------------------------------------------------------
@@ -102,6 +109,7 @@ export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
   let jobId = null;
   let measured = null;
   let ticked = new Set();
+  let openedRange = null;
 
   const group = (legendText) => {
     const set = el("fieldset", "form-fieldset");
@@ -114,14 +122,14 @@ export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
     const rate = measured.rate;
     const changed = changedBySpeaker(measured);
     rule.textContent = ruleText(measured, t, fmt);
-    rule.hidden = false;
+    rule.hidden = true;
     const updateImpact = () => {
       if (changed.length === 0) {
         status.textContent = t("ui.block_level.none");
         return;
       }
       const impact = impactSummary(measured, ticked);
-      apply.disabled = impact.blocks === 0;
+      apply.disabled = !canApply(phase) || impact.blocks === 0;
       const left = impact.unchanged;
       status.replaceChildren(el("span", "block-level-impact", t("ui.block_level.summary", impact)));
       if (left > 0) {
@@ -135,28 +143,28 @@ export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
       }
     };
     updateImpact();
-    for (const speaker of changed) {
-      const set = group(speaker.name);
-      const choices = el("div", "form-choices");
-      for (const row of speaker.rows) {
-        const box = el("input");
-        box.type = "checkbox";
-        box.name = row.id;
-        box.checked = ticked.has(row.id);
-        box.addEventListener("change", () => {
-          if (box.checked) ticked.add(row.id);
-          else ticked.delete(row.id);
-          updateImpact();
-        });
-        const choice = el("label", "form-choice block-level-choice");
-        choice.append(box, el("span", "block-level-line", blockText(row, rate, t, fmt, clock)));
-        choices.append(choice);
-      }
-      set.append(choices);
-      lists.append(set);
-    }
+    createBlockOverview({
+      host: lists,
+      measured,
+      ticked,
+      t,
+      fmt,
+      clock,
+      range: openedRange,
+      onChange: updateImpact,
+      onListen,
+      onJump,
+    });
+    const ruleDetails = el("details", "block-overview-list");
+    ruleDetails.append(
+      el("summary", "", t("ui.block_level.rule_heading")),
+      el("p", "form-help", ruleText(measured, t, fmt)),
+    );
+    lists.append(ruleDetails);
     const loud = loudBySpeaker(measured);
     if (loud.length > 0) {
+      const disclosure = el("details", "block-overview-list");
+      disclosure.append(el("summary", "", t("ui.block_level.loud")));
       const set = group(t("ui.block_level.loud"));
       const field = el("div", "form-field");
       for (const speaker of loud) {
@@ -171,7 +179,8 @@ export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
         }
       }
       set.append(field);
-      lists.append(set);
+      disclosure.append(set);
+      lists.append(disclosure);
     }
     markersRow.hidden = loud.length === 0;
     setPhase("ready");
@@ -220,7 +229,6 @@ export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
     if (returnFocus?.isConnected) returnFocus.focus();
     returnFocus = null;
   }
-  close.addEventListener("click", hide);
   hidePanel.addEventListener("click", hide);
   again.addEventListener("click", () => void measure());
   root.addEventListener("keydown", (event) => {
@@ -308,10 +316,18 @@ export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
       }
       returnFocus = document.activeElement;
       isOpen = true;
+      const range = getRange();
+      openedRange =
+        range &&
+        Number.isFinite(range.start) &&
+        Number.isFinite(range.end) &&
+        range.end > range.start
+          ? { ...range }
+          : null;
       root.hidden = false;
       root.closest(".sidebar")?.toggleAttribute("data-silence-open", true);
       void measure();
-      close.focus();
+      hidePanel.focus();
     },
   };
 }
