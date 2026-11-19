@@ -283,6 +283,11 @@ jobs:
       - name: Python tests
         if: runner.os != 'Windows' && needs.changes.outputs.python == 'true'
         run: uv run pytest -q --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml --kuulas-shard=${{ matrix.shard }}/2
+      # Ground rule 4: the audio-server contract is a hardware test, invoked
+      # explicitly here, never skipped in the default suite.
+      - name: Audio server smoke check (Linux)
+        if: runner.os == 'Linux' && needs.changes.outputs.python == 'true'
+        run: uv run pytest -q tests/hardware/test_ci_audio_server.py
       - uses: actions/upload-artifact@v7
         if: always()
         with:
