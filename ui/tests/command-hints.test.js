@@ -55,3 +55,42 @@ test("a view can replace a generated tip with a state-specific tip", () => {
   apply(node, ["F9"], en);
   assert.equal(node.dataset.tip, "Current range: 0:10 to 0:20");
 });
+
+test("the app translation pass removes native titles after refreshing command hints", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { runInNewContext } = await import("node:vm");
+  const source = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+  const code = source.slice(
+    source.indexOf("function translate()"),
+    source.indexOf("\nlet noticeTimer"),
+  );
+  const node = makeNode();
+  node.dataset.i18nTitle = "fit.title";
+  node.attrs.title = "Old title";
+  node.getAttribute = (key) => node.attrs[key] ?? null;
+  node.removeAttribute = (key) => {
+    delete node.attrs[key];
+  };
+  Object.defineProperty(node, "title", {
+    set(value) {
+      node.attrs.title = value;
+    },
+  });
+  const entries = [{ id: "view.fit", labelKey: "cmd.view.fit", raw: ["F8"] }];
+  const document = {
+    querySelectorAll: (selector) =>
+      ["[data-cmd]", "[data-i18n-title]"].includes(selector) ? [node] : [],
+  };
+  const t = (key) => en[key] ?? key;
+  applyCommandShortcuts(document, entries, "mac", { t });
+  runInNewContext(`${code}\ntranslate();`, {
+    document,
+    t,
+    applyTabs() {},
+    tabKeyEntries: entries,
+    applyCommandShortcuts,
+    detectPlatform: () => "mac",
+  });
+  assert.equal(node.hasAttribute("title"), false);
+  assert.match(node.dataset.tip, /F8/);
+});
