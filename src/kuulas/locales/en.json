@@ -3406,7 +3406,7 @@
   "ui.media.missing_hover": "The audio file of this clip is missing. Double-click to locate it.",
   "ui.silence.legend_title": "How the timeline shows silence",
   "ui.silence.legend.filled": "Filled waveform: it sounds.",
-  "ui.silence.legend.outline": "Outline only: silent (muted, or closed by Auto-Silence).",
+  "ui.silence.legend.ghost": "Dimmed waveform on a much darker clip: silent (muted, or closed by Auto-Silence).",
   "ui.silence.legend.muted": "Crossed-out speaker: you muted this clip.",
   "ui.silence.legend.lock": "Padlock: closed by Auto-Silence. A muted clip has the speaker instead.",
   "ui.silence.legend.open": "Open padlock: the clip keeps the mic open.",

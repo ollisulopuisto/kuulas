@@ -74,8 +74,10 @@
 
   --p-black-a45: rgb(0 0 0 / 0.45);
   --p-black-a60: rgb(0 0 0 / 0.6);
+  --p-black-a75: rgb(0 0 0 / 0.75);
   --p-gray-22-a14: rgb(16 24 28 / 0.14);
   --p-gray-22-a22: rgb(16 24 28 / 0.22);
+  --p-gray-22-a35: rgb(16 24 28 / 0.35);
   --p-gray-22-a8: rgb(16 24 28 / 0.08);
 
   --p-gray-0-a50: rgb(0 0 0 / 0.5);
@@ -482,9 +484,9 @@
   --signal-preview: var(--p-teal-49); /* a preview is playing or shown (not committed) */
   --signal-preview-fill: var(--p-teal-49-a22); /* the Auto-Silence preview's veil */
   --signal-gate: var(--p-gray-89); /* the veil over a closed gate (lane colour) */
-  /* Silent states (docs/design/SILENCE-VISUALS.md): the body under an outline-only wave is
-     toned down a little; the padlocks say "closed by Auto-Silence" / "mic kept open". */
-  --signal-silent-body: var(--p-gray-22-a22); /* clearly darker: owner, 2026-10-21 */
+  /* Silent states (docs/design/SILENCE-VISUALS.md): the body under the dimmed ghost wave is
+     much darker; the padlocks say "closed by Auto-Silence" / "mic kept open". */
+  --signal-silent-body: var(--p-gray-22-a35); /* much darker: owner, 2026-11-20 */
   --signal-silent-hatch: var(
     --p-gray-18-a38
   ); /* stripes over a silent body (paint.js): colour-independent */
@@ -638,7 +640,7 @@
     --signal-preview: var(--p-teal-76);
     --signal-preview-fill: var(--p-teal-76-a16);
     --signal-gate: var(--p-gray-20);
-    --signal-silent-body: var(--p-black-a60);
+    --signal-silent-body: var(--p-black-a75); /* much darker: owner, 2026-11-20 */
     --signal-silent-hatch: var(--p-gray-94-a22);
     --signal-gate-lock: var(--p-amber-84);
     --signal-gate-open: var(--p-green-76);
@@ -790,7 +792,7 @@
   --signal-preview: var(--p-teal-76);
   --signal-preview-fill: var(--p-teal-76-a16);
   --signal-gate: var(--p-gray-20);
-  --signal-silent-body: var(--p-black-a60);
+  --signal-silent-body: var(--p-black-a75); /* much darker: owner, 2026-11-20 */
   --signal-silent-hatch: var(--p-gray-94-a22);
   --signal-gate-lock: var(--p-amber-84);
   --signal-gate-open: var(--p-green-76);

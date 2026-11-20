@@ -1,8 +1,9 @@
 // The silent-state visual language (docs/design/SILENCE-VISUALS.md), as pure helpers.
 // Independent channels, each with one meaning, so they combine without confusion:
-//   fill      FILLED waveform = it sounds; OUTLINE only (no fill) = it is silent
-//             (a muted clip, a stretch closed by Auto-Silence, or both). The clip body
-//             under a silent stretch is toned down a little (--signal-silent-body).
+//   fill      FILLED waveform = it sounds; a MUCH DARKER body with the same filled half-shape
+//             heavily dimmed (the ghost, SILENT_WAVE_ALPHA) = it is silent (a muted clip, a
+//             stretch closed by Auto-Silence, or both). A muted clip also drops the clip's
+//             upper border. Nothing is striped (owner, 2026-11-20).
 //   lock      a padlock = closed by Auto-Silence (Track.gate); an OPEN padlock = this clip
 //             keeps the mic open (Clip.ungated). A muted clip and a gated stretch differ
 //             only by the lock.
@@ -101,15 +102,12 @@ export function lockSpots(runs, { iconPx, pad, blocked = [] }) {
 }
 
 /**
- * The strength of the outline-only waveform of a silent stretch: full for a muted clip (your
- * decision), dimmed for a stretch Auto-Silence closed (the machine's, owner 2026-10-23), so
- * the two read apart and a closed stretch does not shout. Contrast at this strength is not
- * measured (silence-tokens.test.js checks the full outline).
+ * The dimmed filled waveform of a silent stretch (owner, 2026-11-20): the ghost of the audio
+ * stays, heavily dimmed on the much darker body, so the shape is still judgeable but never
+ * shouts. One strength for every silent cause; the darker body is the signal, the ghost is
+ * decoration, so its contrast is not WCAG-bound.
  */
-export function silentOutlineAlpha({ muted }) {
-  return muted ? 1 : GATED_OUTLINE_ALPHA;
-}
-const GATED_OUTLINE_ALPHA = 0.6;
+export const SILENT_WAVE_ALPHA = 0.35;
 
 /**
  * How far below the lane's top the closed-stretch padlock sits. A lane with a name strip
@@ -181,7 +179,7 @@ export const TRACK_LAYERS = [
 export const SILENCE_LEGEND_TITLE = "ui.silence.legend_title";
 export const SILENCE_LEGEND = [
   { state: "filled", key: "ui.silence.legend.filled" },
-  { state: "outline", key: "ui.silence.legend.outline" },
+  { state: "ghost", key: "ui.silence.legend.ghost" },
   { state: "muted", key: "ui.silence.legend.muted", icon: "mute" },
   { state: "lock", key: "ui.silence.legend.lock", icon: "lock" },
   { state: "edges", key: "ui.silence.legend.edges" },

@@ -3406,7 +3406,7 @@
   "ui.media.missing_hover": "Tämän leikkeen äänitiedosto puuttuu. Kaksoisnapsauta etsiäksesi sen.",
   "ui.silence.legend_title": "Näin aikajana näyttää hiljaisuuden",
   "ui.silence.legend.filled": "Täytetty aaltomuoto: kuuluu.",
-  "ui.silence.legend.outline": "Pelkkä ääriviiva: hiljaa (mykistetty tai Auto-Silencen sulkema).",
+  "ui.silence.legend.ghost": "Himmennetty aaltomuoto selvästi tummemmalla leikkeellä: hiljaa (mykistetty tai Auto-Silencen sulkema).",
   "ui.silence.legend.muted": "Yliviivattu kaiutin: olet mykistänyt tämän leikkeen.",
   "ui.silence.legend.lock": "Lukko: Auto-Silencen sulkema. Mykistetyssä leikkeessä on lukon sijaan kaiutin.",
   "ui.silence.legend.open": "Avoin lukko: leike pitää mikin auki.",

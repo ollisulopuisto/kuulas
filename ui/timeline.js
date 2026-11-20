@@ -942,7 +942,18 @@ export function createTimeline({
       const missing = state.missingMedia?.has(clip.media);
       overlay.strokeStyle = theme.clipEdge;
       overlay.lineWidth = 1;
-      overlay.strokeRect(left + 0.5, y + 0.5, w - 1, h - 1);
+      if (clip.muted) {
+        // A silenced clip carries no upper border (owner, 2026-11-20): the much darker body
+        // and the dimmed waveform say "silent"; the sides and bottom keep the edge findable.
+        overlay.beginPath();
+        overlay.moveTo(left + 0.5, y + 0.5);
+        overlay.lineTo(left + 0.5, y + h - 0.5);
+        overlay.lineTo(left + w - 0.5, y + h - 0.5);
+        overlay.lineTo(left + w - 0.5, y + 0.5);
+        overlay.stroke();
+      } else {
+        overlay.strokeRect(left + 0.5, y + 0.5, w - 1, h - 1);
+      }
       if (missing) drawMissingMedia(left, y, w, h);
       if (clip.xfade_in) drawCrossfade(left, y, h, clip.xfade_in / state.zoom, colours.ink);
       if (clip.xfade_out) drawCrossfade(right, y, h, clip.xfade_out / state.zoom, colours.ink);

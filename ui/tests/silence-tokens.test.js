@@ -1,6 +1,7 @@
 // The tokens of the silent-state language (docs/design/SILENCE-VISUALS.md), in both themes:
-//   --signal-silent-body  the light darkening of a silent clip's body (alpha): the outline-only
-//                         wave stays >= 3:1 on it, and it is a visible step from the body;
+//   --signal-silent-body  the strong darkening of a silent clip's body (alpha): a clearly
+//                         visible step from the sounding body; the dimmed ghost wave on it is
+//                         decoration, so it is not ratio-bound;
 //   --signal-gate-lock    the closed padlock (Auto-Silence closed this stretch);
 //   --signal-gate-open    the open padlock (the clip keeps the mic open).
 // The icons sit on a --surface-panel chip; they must read >= 3:1 there (WCAG 1.4.11), on
@@ -53,9 +54,11 @@ function ratio(a, b) {
 const TRACKS = ["0", "1", "2", "3", "4", "5", "music"];
 const BODIES = TRACKS.flatMap((n) => [`--track-${n}-body`, `--track-${n}-body-alt`]);
 const NEW = ["--signal-silent-body", "--signal-gate-lock", "--signal-gate-open", "--signal-group"];
-// Owner, 2026-10-21 (after v26.10.20.35): the toned body was too close to the open body. The
-// step must be clearly visible; WCAG's ratio compresses dark colours, so dark asks less.
+// Owner, 2026-11-20: the body goes MUCH darker and carries the meaning alone (the wave over
+// it is a dimmed ghost, decorative). The step must be clearly visible; WCAG's ratio compresses
+// dark colours, so dark asks less.
 const MIN_STEP = { light: 1.5, dark: 1.2 };
+const MAX_STEP = 3.5;
 
 test("the new tokens are registered and defined in both themes", () => {
   for (const name of NEW) {
@@ -70,17 +73,15 @@ test("the new tokens are registered and defined in both themes", () => {
 });
 
 for (const theme of Object.keys(THEMES)) {
-  test(`${theme}: the silent outline (label colour) reads on the toned body; the step is clear`, () => {
+  test(`${theme}: the silent body's darkening step is clear, never crushing`, () => {
     const failures = [];
     for (const n of TRACKS) {
       for (const part of ["body", "body-alt"]) {
         const body = rgb(theme, `--track-${n}-${part}`);
         const toned = over(theme, "--signal-silent-body", body);
-        const line = ratio(rgb(theme, `--track-${n}-label`), toned);
-        if (line < 3) failures.push(`outline ${n} on toned ${part}: ${line.toFixed(2)}`);
         const step = ratio(body, toned);
         if (step < MIN_STEP[theme]) failures.push(`tone step on ${n} ${part}: ${step.toFixed(3)}`);
-        if (step > 2) failures.push(`tone too strong on ${n} ${part}: ${step.toFixed(3)}`);
+        if (step > MAX_STEP) failures.push(`tone too strong on ${n} ${part}: ${step.toFixed(3)}`);
       }
     }
     assert.deepEqual(failures, []);

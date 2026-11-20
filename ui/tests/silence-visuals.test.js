@@ -20,8 +20,8 @@ import {
   SILENCE_LEGEND,
   SILENCE_LEGEND_TITLE,
   SILENT_OVERLAY_LAYERS,
+  SILENT_WAVE_ALPHA,
   silentColumns,
-  silentOutlineAlpha,
   stretchEdges,
   TRACK_LAYERS,
 } from "../silence-visuals.js";
@@ -216,7 +216,7 @@ describe("the legend (Auto-Silence panel)", () => {
     const [en, fi] = [read("en"), read("fi")];
     assert.deepEqual(
       SILENCE_LEGEND.map((line) => line.state),
-      ["filled", "outline", "muted", "lock", "edges", "open", "preview", "inactive", "group"],
+      ["filled", "ghost", "muted", "lock", "edges", "open", "preview", "inactive", "group"],
     );
     for (const key of [SILENCE_LEGEND_TITLE, ...SILENCE_LEGEND.map((line) => line.key)]) {
       assert.ok(en[key], `en ${key}`);
@@ -264,14 +264,9 @@ describe("lockTop: the padlock sits below the clip's name, never under it", () =
   });
 });
 
-describe("silentOutlineAlpha: a closed stretch is quieter than a muted clip", () => {
-  test("a muted clip keeps the full outline", () => {
-    assert.equal(silentOutlineAlpha({ muted: true }), 1);
-  });
-
-  test("an Auto-Silence stretch is dimmed", () => {
-    const alpha = silentOutlineAlpha({ muted: false });
-    assert.ok(alpha > 0.3 && alpha < 1);
+describe("SILENT_WAVE_ALPHA: the ghost of a silent stretch is heavily dimmed", () => {
+  test("one dim for every silent cause, well under full strength but visible", () => {
+    assert.ok(SILENT_WAVE_ALPHA >= 0.25 && SILENT_WAVE_ALPHA <= 0.5);
   });
 });
 
