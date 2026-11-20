@@ -303,3 +303,14 @@ for (const density of ["comfortable", "compact"]) {
     );
   });
 }
+
+for (const lane of [40, 80, 120]) {
+  test(`${lane}px: track strips stay within their own lanes`, async () => {
+    const { names } = await measure(`lane=${lane}`);
+    for (const item of Object.values(names))
+      assert.ok(
+        item.strip.top + item.strip.height <= item.header.top + item.header.height,
+        `strip ends ${item.strip.top + item.strip.height}, lane ends ${item.header.top + item.header.height}`,
+      );
+  });
+}

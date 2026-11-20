@@ -7387,3 +7387,19 @@ legend.form-heading {
 .track-header.bus-header .th-card > .th-controls .control-pan input[type="range"] {
   grid-area: 1 / 1;
 }
+/* Short lanes cannot hold the read-only gain/pan stack below M/S.
+   Those values remain in the expanded controls and summary. */
+.track-header.short-header .th-state {
+  display: none;
+}
+.track-header:not(.bus-header, .compact):is(.hover-open, :focus-within, .controls-open) .th-strip {
+  align-self: flex-start;
+}
+.track-header .th-strip .ms .ms-button {
+  height: 18px;
+}
+
+.track-header.short-header:not(.bus-header) .th-strip {
+  gap: 2px;
+  padding-block: 2px;
+}
