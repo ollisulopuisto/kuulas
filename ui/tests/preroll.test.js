@@ -79,3 +79,7 @@ describe("what the view says about listening", () => {
     assert.equal(armedNotice(null, 30, t), "ui.record.armed_starting{}");
   });
 });
+
+test("failed device discovery never claims that the input is opening", () => {
+  assert.equal(armedNotice({ armed: false }, 30, t, false), "");
+});

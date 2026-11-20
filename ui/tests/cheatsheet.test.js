@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import { cheatSheetData } from "../cheatsheet.js";
 import { createRegistry } from "../commands.js";
@@ -114,4 +115,10 @@ describe("modifier layers in the sheet", () => {
       { modifier: "alt", id: "lift", label: "cmd.lift", keys: ["<Alt+X>"] },
     ]);
   });
+});
+
+test("modifier rows cannot inherit the timeline canvas layer positioning", () => {
+  const source = readFileSync(new URL("../cheatsheet.js", import.meta.url), "utf8");
+  assert.ok(source.includes('sub.className = "cheatsheet-layer"'));
+  assert.ok(!source.includes('sub.className = "layer"'));
 });

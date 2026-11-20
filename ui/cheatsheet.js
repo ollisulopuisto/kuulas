@@ -138,7 +138,7 @@ export function createCheatSheet({ getData, t, actions, getHeld }) {
     wrap.append(tr);
     for (const layer of row.layers) {
       const sub = document.createElement("tr");
-      sub.className = "layer";
+      sub.className = "cheatsheet-layer";
       if (held[layer.modifier.split("+")[0]]) sub.dataset.held = "";
       const n = document.createElement("td");
       n.textContent = [t(`ui.keys.layer.${layer.modifier}`), layer.label].join(" ");
