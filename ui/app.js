@@ -150,7 +150,7 @@ import { createMusicReportDialog } from "./music-report-dialog.js";
 import { reportQuery } from "./music-report-model.js";
 import { createNameDialog } from "./name-dialog.js";
 import { createNhsxDialog } from "./nhsx-dialog.js";
-import { nhsxResult } from "./nhsx-import.js";
+import { nhsxMarks, nhsxResult } from "./nhsx-import.js";
 import { chipText, createNoticeHold, toastStaysOpen } from "./notice-hold.js";
 import { createOrukeetDialog } from "./orukeet-dialog.js";
 import { createOverview } from "./overview.js";
@@ -3459,6 +3459,10 @@ async function runNhsxImport(path) {
   try {
     const response = await api.command("import_nhsx", { path });
     apply(response);
+    // The Hindenburg session's in/out points (its markers Id 1/2, BUGS.md #38) land
+    // as the in/out marks; the dragged range's lanes stay empty like a painted range.
+    const importedMarks = nhsxMarks(response.marks);
+    if (importedMarks) setState({ ...importedMarks, rangeTracks: new Set() });
     const result = nhsxResult(summariseImport(response.report));
     showNotice(t(result.key, result.values), result.kind, { undo: result.kind !== "error" });
   } catch (error) {

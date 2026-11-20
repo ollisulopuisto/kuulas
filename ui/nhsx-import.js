@@ -23,3 +23,18 @@ export function nhsxResult(summary) {
   if (missing > 0) return { key: "ui.nhsx.partial", values: { count, missing }, kind: "warn" };
   return { key: "ui.nhsx.done", values: { count }, kind: "ok" };
 }
+
+/** The state patch for the in/out points an import read from the Hindenburg session's
+ * markers (Id 1/2), or null when the answer carries none. A reversed pair keeps only the
+ * in point: the marks order rule (marks.js) can never be broken by a file. */
+export function nhsxMarks(marks) {
+  if (!marks || typeof marks !== "object") return null;
+  const hasIn = Number.isFinite(marks.in);
+  const hasOut = Number.isFinite(marks.out);
+  if (!hasIn && !hasOut) return null;
+  if (hasIn && hasOut && marks.out <= marks.in) return { inPoint: marks.in };
+  const patch = {};
+  if (hasIn) patch.inPoint = marks.in;
+  if (hasOut) patch.outPoint = marks.out;
+  return patch;
+}

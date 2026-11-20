@@ -404,6 +404,10 @@ class Session:
         #: How many Hindenburg clipboard clips the last ``import_nhsx`` turned
         #: into clipboard entries.
         self.last_import_clipboard = 0
+        #: The in/out points the last ``import_nhsx`` read from the Hindenburg
+        #: session's markers (Id 1/2), in frames, for the UI to place; None
+        #: when the session had neither.
+        self.last_import_marks: dict[str, int] | None = None
         #: The interview the latest import made (WP41), or None.
         self.last_import_interview: str | None = None
         #: New stereo speech tracks of the latest import, ``[{id, name}]``: the
@@ -2896,6 +2900,19 @@ class Session:
                     " values (?,?,?,?,?)",
                     (media.id, None, digest, '{"tool":"nhsx"}', dbm.utc_now()))
                 root["transcripts"][media.id] = int(cur.lastrowid)
+
+        # The session's <Markers> become project markers (BUGS.md #38);
+        # Hindenburg's latest in/out points are its markers Id 1 and Id 2.
+        # ``getattr``: an older nhsx package has no ``markers``.
+        marks: dict[str, int] = {}
+        for marker in getattr(nhsx_session, "markers", []):
+            start = round(marker.time * self.history.rate)
+            p = ops.add_marker(p, None, marker.name, start)
+            if marker.id == "1":
+                marks["in"] = start
+            elif marker.id == "2":
+                marks["out"] = start
+        self.last_import_marks = marks or None
 
         self.last_import_clipboard = self._import_nhsx_clipboard(
             nhsx_session, media_by_file)

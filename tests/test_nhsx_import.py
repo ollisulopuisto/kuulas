@@ -268,3 +268,44 @@ def test_a_clipboard_clip_may_use_a_recording_that_no_track_uses(tmp_path):
     assert count == 1
     assert len(clipboard_entries(project)) == 1
     assert "intro.wav" in names
+
+
+def test_import_nhsx_brings_markers_and_sets_in_out(tmp_path):
+    """BUGS.md #38: the Hindenburg <Markers> come in as markers; Id 1 "Sisään"
+    and Id 2 "Ulos" are the session's latest in/out points."""
+    nhsx_path = tmp_path / "h-test A.nhsx"
+    shutil.copy(FIXTURE, nhsx_path)
+    audio = tmp_path / "h-test Files"
+    audio.mkdir()
+    parsed = read_nhsx(nhsx_path)
+    for item in parsed.files:
+        write_audio(audio / item.name)
+    session = Session(tmp_path / "Imported.kuulas")
+    try:
+        session.command("import_nhsx", {"path": str(nhsx_path)})
+        state = session.state
+        names = {m.name: m for m in state.markers}
+        assert len(state.markers) == 4
+        assert names["Sisään"].start == round(62.5 * RATE)
+        assert names["Ulos"].start == round(72.5 * RATE)
+        assert session.last_import_marks == {
+            "in": round(62.5 * RATE), "out": round(72.5 * RATE)}
+    finally:
+        session.close()
+
+
+def test_import_nhsx_without_markers_keeps_marks_empty(tmp_path):
+    write_audio(tmp_path / "speech.wav")
+    path = tmp_path / "plain.nhsx"
+    path.write_text(
+        '<Session><AudioPool><File Id="1" Name="speech.wav" Path="speech.wav"/>'
+        '</AudioPool><Tracks><Track Name="Voice"><Region Ref="1" Start="1.000" '
+        'Length="0.500" Offset="0.200"/></Track></Tracks></Session>',
+        encoding="utf-8")
+    session = Session(tmp_path / "plain.kuulas")
+    try:
+        session.command("import_nhsx", {"path": str(path)})
+        assert session.state.markers == ()
+        assert session.last_import_marks is None
+    finally:
+        session.close()

@@ -5,7 +5,7 @@ import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_KEYMAP } from "../keymap-default.js";
 import { MENU, menuTargets } from "../menu-model.js";
-import { nhsxRequest, nhsxResult } from "../nhsx-import.js";
+import { nhsxMarks, nhsxRequest, nhsxResult } from "../nhsx-import.js";
 
 const catalog = (lang) =>
   JSON.parse(
@@ -92,5 +92,26 @@ describe("the command", () => {
       ])
         assert.ok(messages[key], `${lang} ${key}`);
     }
+  });
+});
+
+describe("nhsxMarks: the imported in/out points (BUGS.md #38)", () => {
+  test("no marks in the answer leaves the current marks alone", () => {
+    assert.equal(nhsxMarks(undefined), null);
+    assert.equal(nhsxMarks(null), null);
+    assert.equal(nhsxMarks({}), null);
+  });
+
+  test("both points become inPoint and outPoint", () => {
+    assert.deepEqual(nhsxMarks({ in: 100, out: 200 }), { inPoint: 100, outPoint: 200 });
+  });
+
+  test("one point alone still applies", () => {
+    assert.deepEqual(nhsxMarks({ in: 100 }), { inPoint: 100 });
+    assert.deepEqual(nhsxMarks({ out: 200 }), { outPoint: 200 });
+  });
+
+  test("a reversed pair never reaches the state (the marks order rule)", () => {
+    assert.deepEqual(nhsxMarks({ in: 200, out: 100 }), { inPoint: 200 });
   });
 });

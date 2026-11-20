@@ -739,7 +739,8 @@ def create_app(session, engine, *, language: str | None = None,
                 return answer(error, 400)
             raise
         if body.name == "import_nhsx":
-            return state_response({"report": report_of(session.last_import_report)})
+            return state_response({"report": report_of(session.last_import_report),
+                                   "marks": session.last_import_marks})
         if body.name == "save_checkpoint":
             return state_response({"saved": session.last_saved})
         if body.name == "save_backup":
