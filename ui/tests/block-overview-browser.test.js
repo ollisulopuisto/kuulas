@@ -104,3 +104,65 @@ test("filtered apply sends every unselected block as skip", async () => {
   const kept = all.filter((id) => !result.applied.skip.includes(id));
   assert.deepEqual(kept, ["0:2", "1:1", "1:2", "2:1", "2:2"]);
 });
+
+test("a speaker without changes gets the no-change card and a link to the others", async () => {
+  const { stdout } = await run(chrome, [
+    "--headless",
+    "--no-sandbox",
+    "--disable-gpu",
+    "--window-size=1000,1000",
+    "--virtual-time-budget=2000",
+    "--dump-dom",
+    `http://127.0.0.1:${port}/tests/browser/block-overview.html?nochange=a`,
+  ]);
+  const result = JSON.parse(
+    stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/)[1].replaceAll("&amp;", "&"),
+  );
+  assert.equal(result.cardVisible, true);
+  assert.equal(result.cardTitle, "Ei muutoksia: Olli");
+  assert.match(result.cardSpan, /^Taso pysyy välillä /);
+  assert.equal(result.beforeHidden, true);
+  assert.equal(result.afterHidden, true);
+  assert.equal(result.countHidden, true);
+  assert.equal(result.leftHidden, false);
+  assert.equal(result.graphHidden, true);
+  assert.equal(result.legendHidden, false);
+  assert.equal(result.footer, "Kaikki puhujat: 1 lohko (2026-11-19-t03-04-25pm-guest232006--panu)");
+  assert.equal(result.applyText, "Tasaa 1 lohko");
+  assert.equal(result.applyDisabled, false);
+  assert.equal(result.applyPrimary, true);
+  assert.equal(result.againPrimary, false);
+  assert.equal(result.otherLink, "2026-11-19-t03-04-25pm-guest232006--panu · 1 lohko muuttuu →");
+  assert.match(result.linkActivated, /guest232006/);
+  assert.equal(result.linkTargetCardHidden, true);
+  assert.match(result.linkTargetCount, /1 lohkoa muuttuu/);
+});
+
+test("nothing to level anywhere: one statement, disabled apply, primary re-measure", async () => {
+  const { stdout } = await run(chrome, [
+    "--headless",
+    "--no-sandbox",
+    "--disable-gpu",
+    "--window-size=1000,1000",
+    "--virtual-time-budget=2000",
+    "--dump-dom",
+    `http://127.0.0.1:${port}/tests/browser/block-overview.html?nochange=b`,
+  ]);
+  const result = JSON.parse(
+    stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/)[1].replaceAll("&amp;", "&"),
+  );
+  assert.equal(result.cardVisible, true);
+  assert.equal(result.cardTitle, "✓ Ei tasattavaa");
+  assert.match(result.cardSpan, /^Kaikki 24 lohkoa ovat jo vaihteluvälillä /);
+  assert.equal(result.beforeHidden, true);
+  assert.equal(result.countHidden, true);
+  assert.equal(result.leftHidden, true);
+  assert.equal(result.graphHidden, true);
+  assert.equal(result.legendHidden, true);
+  assert.equal(result.footer, "Kaikki puhujat: 0 lohkoa");
+  assert.equal(result.applyText, "Ei tasattavaa");
+  assert.equal(result.applyDisabled, true);
+  assert.equal(result.applyPrimary, false);
+  assert.equal(result.againPrimary, true);
+  assert.equal(result.otherLink, null);
+});

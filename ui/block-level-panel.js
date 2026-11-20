@@ -127,9 +127,25 @@ export function createBlockLevelPanel({
     const updateImpact = () => {
       status.hidden = phase !== "stale";
       const impact = impactSummary(measured, ticked);
-      apply.disabled = !canApply(phase) || impact.blocks === 0;
-      apply.textContent = t("ui.block_level.apply_count", { count: impact.blocks });
-      total.textContent = t("ui.block_level.all_count", impact);
+      const nothing = impact.blocks === 0;
+      // Nothing to level anywhere: Apply turns into a disabled "Ei tasattavaa" and
+      // "Mittaa uudelleen" takes the primary role (owner, 2026-11-20).
+      apply.disabled = !canApply(phase) || nothing;
+      apply.textContent = nothing
+        ? t("ui.block_level.nothing_to_level")
+        : impact.blocks === 1
+          ? t("ui.block_level.apply_count_one")
+          : t("ui.block_level.apply_count", { count: impact.blocks });
+      apply.classList.toggle("primary", !nothing);
+      again.classList.toggle("primary", nothing && phase === "ready");
+      total.textContent = nothing
+        ? t("ui.block_level.all_count_zero")
+        : impact.blocks === 1
+          ? t("ui.block_level.all_count_one", { names: impact.names.join(", ") })
+          : t("ui.block_level.all_count", {
+              blocks: impact.blocks,
+              names: impact.names.join(", "),
+            });
     };
     updateImpact();
     createBlockOverview({
@@ -173,6 +189,7 @@ export function createBlockLevelPanel({
     }
     markersRow.hidden = loud.length === 0;
     setPhase("ready");
+    updateImpact(); // the primary swap needs the ready phase
   }
 
   function paintProgress(job) {
@@ -232,6 +249,8 @@ export function createBlockLevelPanel({
     stop();
     total.textContent = "";
     apply.textContent = t("ui.block_level.apply");
+    apply.classList.add("primary");
+    again.classList.remove("primary");
     const mine = watching;
     measured = null;
     error.hidden = true;

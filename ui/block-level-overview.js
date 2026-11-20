@@ -60,3 +60,35 @@ export function speakerSummary(speaker, ticked, limits) {
   }
   return { before, after, blocks, lift, cut, limited, leftOut: rows.length - blocks };
 }
+
+// The "Muualle muutoksia:" links: the other speakers that still have ticked changes.
+export function othersChanging(speakers, active, ticked, limits) {
+  return speakers
+    .filter((speaker) => speaker !== active)
+    .map((speaker) => ({ speaker, blocks: speakerSummary(speaker, ticked, limits).blocks }))
+    .filter((entry) => entry.blocks > 0);
+}
+
+// Every measured block, changed or not (the "Kaikki N lohkoa" count).
+export function totalBlocks(measured) {
+  return (measured.speakers ?? []).reduce(
+    (total, speaker) => total + (speaker.blocks ?? []).length,
+    0,
+  );
+}
+
+// The measured level spread across every speaker, for "all blocks are already within".
+export function overallSpan(measured) {
+  let span = null;
+  for (const speaker of measured.speakers ?? [])
+    for (const row of speaker.blocks ?? [])
+      if (Number.isFinite(row.deviation_db))
+        span = span
+          ? [Math.min(span[0], row.deviation_db), Math.max(span[1], row.deviation_db)]
+          : [row.deviation_db, row.deviation_db];
+  return span;
+}
+
+export function spansEqual(a, b) {
+  return a !== null && b !== null && a[0] === b[0] && a[1] === b[1];
+}
