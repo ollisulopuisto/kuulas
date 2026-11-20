@@ -25,9 +25,12 @@ editing workflow or resampling correction.
 
 ## Remaining work
 
-1. Convert clear measurements to a conservative proposal. Require independent
-   supporting windows, robustly fit drift, and separate discontinuities from
-   clock drift. Never move an unmatched or ambiguous clip.
+1. A bounded pair-consensus fitter now proposes offset/drift only when at least
+   three independent windows agree across >=80% of clear windows and time span.
+   It rejects tested discontinuities and competing matches. Excluded windows
+   remain explicit; any excluded region needs validation before a whole-clip
+   edit can be accepted. Segment proposals and boundary refinement are still
+   missing. Never move an unmatched or ambiguous clip.
 2. Refine each discontinuity before picking a quiet split. Merely picking the
    quietest point between sparse windows could misalign seconds of speech.
 3. Read selected source audio in bounded chunks in the existing analysis worker.
