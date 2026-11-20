@@ -47,13 +47,13 @@ describe("fitHeight", () => {
     assert.equal(fitHeight({ ...base, project: grouped, available: 400 }), 118);
   });
 
-  test("a one-track bus is merged: no row of its own", () => {
+  test("a one-track bus has a separate fixed row", () => {
     const merged = {
       rate: 48_000,
       buses: [{ id: "b1", name: "Voices" }],
       tracks: [{ id: "t1", bus: "b1", clips: [] }],
     };
-    assert.equal(fitHeight({ ...base, project: merged, available: 100 }), 100);
+    assert.equal(fitHeight({ ...base, project: merged, available: 100 }), 68);
   });
 
   test("a lane with its own height keeps it; the rest share what is left", () => {

@@ -160,13 +160,13 @@ export function layoutRows(project, laneHeight, options = {}) {
   return { rows, height: top };
 }
 
-/** The layout for the client state: its lane, bus and gap sizes (density), one-track buses merged. */
+/** The layout for the client state: its lane, bus and gap sizes (density), each bus separate from its members. */
 export function layoutFor(state) {
   return layoutRows(state.project, state.laneHeight, {
     busHeight: state.busHeight,
     groupGap: state.groupGap,
-    // A bus with one track merges into the track header (owner, 2026-10-18).
-    mergeSingle: true,
+    // A bus is separate from its member track, including a single member.
+    mergeSingle: false,
     laneHeights: state.laneHeights,
     // Focus mode (WP28): the focused lanes grown, the others strips; a view layer only.
     viewHeights: state.focusHeights ?? undefined,

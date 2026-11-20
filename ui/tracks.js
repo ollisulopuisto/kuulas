@@ -6,6 +6,7 @@
 
 import { bindToggle } from "./ab-value.js";
 import { busRoleStatus, roleDiffers } from "./bus-role.js";
+import { busSoloEdits } from "./bus-solo.js";
 import { bindDialRange } from "./dial-range.js";
 import { inactiveTracks } from "./focus-layout.js";
 import { busHues, busLetter } from "./grammar.js";
@@ -310,6 +311,11 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     flyoutState = trackFlyoutReducer(flyoutState, { type: "escape" });
     syncFlyout();
   };
+  doc.addEventListener("pointerdown", (event) => {
+    for (const parts of rows.values())
+      if (parts.kind === "bus" && !parts.node.contains(event.target))
+        parts.node.classList.remove("controls-open");
+  });
   root.addEventListener("keydown", dismissFlyoutOnEscape);
   flyoutLayer.addEventListener("keydown", dismissFlyoutOnEscape);
   // A pinned header (name click, owner 2026-11-19) closes on a click anywhere
@@ -903,7 +909,8 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     // badge, name and M on top, the bus level and pan below, always shown.
     const mute = toggle(t("ui.bus.mute"), t("ui.track.mute.short"), "mute");
     const buttons = el("span", "ms");
-    buttons.append(mute);
+    const solo = toggle(t("ui.track.solo"), t("ui.track.solo.short"), "solo");
+    buttons.append(mute, solo);
     const controls = el("div", "th-controls");
     const gain = slider(t("ui.bus.gain"), GAIN);
     const pan = slider(t("ui.bus.pan"), PAN);
@@ -932,6 +939,32 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     row1.append(strip, name, roleLabel, reapply, compactSummary);
     card.append(row1, controls);
     node.append(card);
+    let intent = null;
+    let grace = null;
+    let pin = null;
+    card.addEventListener("pointerenter", () => {
+      window.clearTimeout(grace);
+      intent = window.setTimeout(() => node.classList.add("hover-open"), HEADER_OPEN_INTENT_MS);
+    });
+    card.addEventListener("pointerleave", () => {
+      window.clearTimeout(intent);
+      grace = window.setTimeout(() => node.classList.remove("hover-open"), HEADER_CLOSE_GRACE_MS);
+    });
+    name.addEventListener("click", () => {
+      window.clearTimeout(pin);
+      pin = window.setTimeout(() => node.classList.toggle("controls-open"), 200);
+    });
+    name.addEventListener("dblclick", () => window.clearTimeout(pin));
+    node.addEventListener("keydown", (event) => {
+      if (
+        event.key === "Escape" &&
+        !event.target.matches("input") &&
+        (node.classList.contains("controls-open") || node.classList.contains("hover-open"))
+      ) {
+        event.stopPropagation();
+        node.classList.remove("controls-open", "hover-open");
+      }
+    });
     const id = bus.id;
     node.addEventListener("pointerdown", () => actions.currentBus(id));
     node.addEventListener("focusin", () => actions.currentBus(id));
@@ -954,6 +987,11 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         provisional: (p) => patchBus(p, id, { [field]: value }),
       });
     mute.addEventListener("click", () => send("mute", !currentBus(id).mute, null));
+    solo.addEventListener("click", (event) => {
+      for (const edit of busSoloEdits(latest, id, event.shiftKey)) {
+        editor.change({ ...edit, provisional: (p) => patchSolo(p, edit.args.track_id, false) });
+      }
+    });
     gain.input.addEventListener("input", () => {
       const value = Number(gain.input.value);
       gain.output.textContent = formatDb(value);
@@ -1001,6 +1039,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       roleLabel,
       reapply,
       mute,
+      solo,
       gain,
       pan,
       chevron,
@@ -1248,9 +1287,8 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.node.title = t("ui.bus.name", { name: bus.name });
         parts.node.classList.toggle("no-members", row.members === 0);
         parts.node.classList.toggle("collapsed", Boolean(row.collapsed));
-        // A bus with fewer than two tracks has nothing to fold (a single track merges
-        // into its own header).
-        parts.chevron.hidden = row.members < 2;
+        // Even a single member has its own bus row and can be folded.
+        parts.chevron.hidden = row.members === 0;
         parts.chevron.setAttribute("aria-expanded", String(!row.collapsed));
         const verb = t(row.collapsed ? "cmd.bus.expand" : "cmd.bus.collapse");
         parts.chevron.setAttribute("aria-label", verb);
@@ -1268,6 +1306,12 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
               : t("ui.bus.role", { role: kindLabel(status.role) });
         }
         parts.mute.setAttribute("aria-pressed", String(bus.mute));
+        const members = state.project.tracks.filter((track) => track.bus === bus.id);
+        parts.solo.disabled = members.length === 0;
+        parts.solo.setAttribute(
+          "aria-pressed",
+          String(members.length > 0 && members.every((track) => track.solo)),
+        );
         parts.compactSummary.textContent = `${formatDb(bus.gain_db)} · ${panText(bus.pan)}`;
         setSlider(parts.gain, bus.gain_db, formatDb(bus.gain_db));
         setSlider(parts.pan, Math.round(bus.pan * 100), panText(bus.pan));

@@ -809,3 +809,26 @@ test("copy in a focused sidebar keeps its visible tab and digit context together
   assert.equal(shown.sidebarTab, "clipboard");
   assert.equal(shown.panel, "timeline");
 });
+
+test("bus solo commands and the existing S shortcuts send the same group edits", () => {
+  const state = base({
+    focusBus: "bus",
+    project: {
+      ...project,
+      buses: [{ id: "bus" }],
+      tracks: project.tracks.map((t) => ({ ...t, bus: "bus", solo: false })),
+    },
+  });
+  for (const id of ["bus.solo", "bus.solo_add", "track.solo", "track.solo_add"]) {
+    const { registry, sent } = setup(state);
+    assert.equal(registry.can(id, state), true);
+    registry.run(id, null, state);
+    assert.deepEqual(
+      sent.map((x) => ({ op: x.op, args: x.args })),
+      [
+        { op: "solo", args: { track_id: "A", exclusive: false } },
+        { op: "solo", args: { track_id: "V", exclusive: false } },
+      ],
+    );
+  }
+});

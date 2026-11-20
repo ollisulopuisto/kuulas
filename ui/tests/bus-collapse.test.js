@@ -38,8 +38,8 @@ describe("which bus a command acts on", () => {
 });
 
 describe("collapsible buses", () => {
-  test("only buses with two or more tracks have a row to collapse", () => {
-    assert.deepEqual(collapsibleBuses(project), ["v", "w"]);
+  test("every nonempty bus has a row to collapse", () => {
+    assert.deepEqual(collapsibleBuses(project), ["v", "m", "w"]);
     assert.deepEqual(collapsibleBuses(null), []);
   });
 });
@@ -50,15 +50,15 @@ describe("collapse and expand commands", () => {
     const shut = state({ focusBus: "v", collapsedBuses: new Set(["v"]) });
     assert.equal(collapseChange(shut, true), null);
     assert.equal(collapseChange(state({ focusTrack: "x" }), true), null);
-    assert.equal(collapseChange(state({ focusBus: "m" }), true), null, "merged: no row");
+    assert.deepEqual(list(collapseChange(state({ focusBus: "m" }), true)), ["m"]);
     assert.equal(collapseChange(state(), true), null);
   });
   test("expand removes it; null when already expanded", () => {
     const open = collapseChange(
-      state({ focusBus: "v", collapsedBuses: new Set(["v", "w"]) }),
+      state({ focusBus: "v", collapsedBuses: new Set(["v", "m", "w"]) }),
       false,
     );
-    assert.deepEqual(list(open), ["w"]);
+    assert.deepEqual(list(open), ["m", "w"]);
     assert.equal(collapseChange(state({ focusBus: "v" }), false), null);
   });
   test("a new set every time: the old one is never mutated", () => {
@@ -68,10 +68,14 @@ describe("collapse and expand commands", () => {
     assert.equal(before.size, 0);
   });
   test("collapse all and expand all", () => {
-    assert.deepEqual(list(collapseAllChange(state(), true)), ["v", "w"]);
-    assert.equal(collapseAllChange(state({ collapsedBuses: new Set(["v", "w"]) }), true), null);
+    assert.deepEqual(list(collapseAllChange(state(), true)), ["v", "m", "w"]);
+    assert.equal(
+      collapseAllChange(state({ collapsedBuses: new Set(["v", "m", "w"]) }), true),
+      null,
+    );
     assert.deepEqual(list(collapseAllChange(state({ collapsedBuses: new Set(["v"]) }), true)), [
       "v",
+      "m",
       "w",
     ]);
     assert.equal(collapseAllChange(state(), false), null);
