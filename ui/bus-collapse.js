@@ -13,14 +13,13 @@ export function busOfFocus(state) {
 }
 
 /**
- * Buses that have a row to fold: two or more tracks. A one-track bus is merged into
- * its track's header (GUI-DESIGN section 6) and an empty one has nothing to hide.
+ * Every nonempty bus has a separate row to fold; an empty bus has nothing to hide.
  */
 export function collapsibleBuses(project) {
   const count = new Map();
   for (const track of tracksOf(project)) count.set(track.bus, (count.get(track.bus) ?? 0) + 1);
   return busesOf(project)
-    .filter((bus) => (count.get(bus.id) ?? 0) >= 2)
+    .filter((bus) => (count.get(bus.id) ?? 0) >= 1)
     .map((bus) => bus.id);
 }
 

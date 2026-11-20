@@ -102,12 +102,16 @@ for (const density of ["comfortable", "compact"]) {
     for (const item of items)
       assert.equal(item.stored, item.pillRight, `inset ${item.stored} != pill ${item.pillRight}`);
   });
-  test(`${density} density: a bus header is a card with its badge in the strip`, async () => {
-    const { bus } = await measure(`density=${density}`);
-    assert.ok(bus.badge, "bus badge is not in the strip");
-    // Collapsed, only the strip and the name pill show.
-    assert.equal(bus.controlsDisplay, "none");
-    assert.equal(bus.summaryDisplay, "none");
+  test(`${density}: the bus is one full-width strip with persistent M/S and gain`, async () => {
+    const { bus } = await measure(`density=${density}&busopen=1`);
+    assert.ok(bus.card.width >= bus.header.width - 20);
+    assert.equal(bus.controlsDisplay, "flex");
+    assert.equal(bus.solo, true);
+    assert.equal(bus.gainVisible, true);
+    assert.ok(bus.gainBox.width >= 30);
+    assert.equal(bus.panDisplay, "none");
+    assert.equal(bus.stripDisplay, "contents");
+    assert.ok(bus.card.height <= bus.header.height);
   });
   test(`${density} density: double-clicking a grouped and an ungrouped name renames it`, async () => {
     for (const open of ["Bob", "Last"]) {
@@ -284,10 +288,6 @@ for (const density of ["comfortable", "compact"]) {
     const { bus, names } = await measure(`density=${density}`);
     const first = names.Alice;
     assert.ok(
-      bus.strip.top + bus.strip.height <= first.header.top,
-      `bus strip ends ${bus.strip.top + bus.strip.height}, member begins ${first.header.top}`,
-    );
-    assert.ok(
       bus.card.top + bus.card.height <= first.header.top,
       "bus card overlaps the first member",
     );
@@ -314,3 +314,42 @@ for (const lane of [40, 80, 120]) {
       );
   });
 }
+
+test("bus strip controls dispatch solo members, mute, fold and gain edits", async () => {
+  const result = await measure("busactions=1");
+  assert.deepEqual(result.calls, [
+    ["change", "solo", false],
+    ["change", "solo", false],
+    ["change", "set_bus"],
+    ["toggleBus", "b1"],
+    ["change", "set_bus"],
+  ]);
+});
+
+test("a single-track bus keeps its separate strip and fold control", async () => {
+  const result = await measure("single=1");
+  assert.ok(result.bus.card.width >= result.bus.header.width - 20);
+  assert.ok(result.bus.card.top + result.bus.card.height <= result.names.Alice.header.top);
+  const chevron = result.bus.boxes.find((box) => box.class === "bus-chevron");
+  assert.notEqual(chevron.display, "none");
+});
+
+test("bus gain stays hidden in the resting basic strip", async () => {
+  const { bus } = await measure("single=1");
+  assert.equal(bus.controlsDisplay, "none");
+  assert.equal(bus.solo, true);
+});
+
+test("bus controls use track header intent and leave grace", async () => {
+  const result = await measure("bushover=1");
+  assert.equal(result.busResting, false);
+  assert.equal(result.busEarly, false);
+  assert.equal(result.busAfterIntent, true);
+  assert.equal(result.busAfterLeave, false);
+});
+
+test("Escape dismisses explicit bus controls once, then reaches timeline marks", async () => {
+  const result = await measure("busescape=1");
+  assert.equal(result.busFirstEscKeptMarks, true);
+  assert.equal(result.busSecondEscClearedMarks, true);
+});

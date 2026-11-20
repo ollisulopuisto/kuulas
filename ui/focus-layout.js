@@ -145,7 +145,7 @@ export function focusHeights({
   const layout = layoutRows(project, MIN_LANE, {
     busHeight,
     groupGap,
-    mergeSingle: true,
+    mergeSingle: false,
     collapsed,
   });
   const lanes = layout.rows.filter((row) => row.kind === "track");

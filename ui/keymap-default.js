@@ -1124,6 +1124,18 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.bus.expand",
   },
   {
+    id: "bus.solo",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.bus.solo",
+  },
+  {
+    id: "bus.solo_add",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.bus.solo_add",
+  },
+  {
     id: "bus.mute",
     keys: { mac: null, other: null },
     context: "timeline",

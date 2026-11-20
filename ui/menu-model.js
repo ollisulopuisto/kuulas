@@ -406,6 +406,8 @@ export const MENU = [
         item("bus.collapse"),
         item("bus.expand"),
         item("bus.mute"),
+        item("bus.solo"),
+        item("bus.solo_add"),
         item("bus.ungroup"),
         SEP,
         item("bus.role_speech"),

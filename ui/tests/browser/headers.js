@@ -27,9 +27,13 @@ const project = {
   ],
   buses: [{ id: "b1", name: "Hosts", kind: "speech", gain_db: 0, pan: 0, mute: false }],
 };
+if (query.get("single")) project.tracks = project.tracks.filter((track) => track.id !== "t2");
 const calls = [];
 const actions = new Proxy(
-  { setLaneHeight: (id, height) => calls.push(["setLaneHeight", id, height]) },
+  {
+    setLaneHeight: (id, height) => calls.push(["setLaneHeight", id, height]),
+    toggleBus: (id) => calls.push(["toggleBus", id]),
+  },
   { get: (target, key) => target[key] ?? (() => {}) },
 );
 const root = document.getElementById("track-headers");
@@ -104,6 +108,14 @@ for (const sheet of document.styleSheets) {
   }
 }
 if (bus) {
+  if (query.get("busactions")) {
+    bus.querySelector(".solo").click();
+    bus.querySelector(".mute").click();
+    bus.querySelector(".bus-chevron").click();
+    const gain = bus.querySelector(".control-gain input");
+    gain.value = -3.1;
+    gain.dispatchEvent(new Event("input", { bubbles: true }));
+  }
   if (query.get("busopen")) bus.classList.add("hover-open");
   out.bus = {
     header: rect(bus),
@@ -116,6 +128,12 @@ if (bus) {
     strip: rect(bus.querySelector(".th-strip")),
     name: rect(bus.querySelector(".bus-name")),
     badge: Boolean(bus.querySelector(".th-strip .bus-badge")),
+    solo: Boolean(bus.querySelector(".solo")),
+    gainVisible:
+      getComputedStyle(bus.querySelector(".control-gain input")).visibility === "visible",
+    gainBox: rect(bus.querySelector(".control-gain input")),
+    panDisplay: getComputedStyle(bus.querySelector(".slider-control.pan")).display,
+    stripDisplay: getComputedStyle(bus.querySelector(".th-strip")).display,
     controlsDisplay: getComputedStyle(bus.querySelector(".th-controls")).display,
     summaryDisplay: getComputedStyle(bus.querySelector(".bus-compact-summary")).display,
   };
@@ -129,7 +147,36 @@ addEventListener("error", (event) => {
   });
 });
 const intent = query.get("intent");
-if (intent) {
+if (query.get("busescape")) {
+  const button = bus.querySelector(".bus-chevron");
+  let marks = true;
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") marks = false;
+  });
+  button.focus();
+  bus.classList.add("controls-open");
+  button.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  out.busFirstEscKeptMarks = marks;
+  button.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  out.busSecondEscClearedMarks = !marks;
+  finish();
+} else if (query.get("bushover")) {
+  const card = bus.querySelector(".th-card");
+  const visible = () => getComputedStyle(bus.querySelector(".th-controls")).display !== "none";
+  out.busResting = visible();
+  card.dispatchEvent(new PointerEvent("pointerenter"));
+  setTimeout(() => {
+    out.busEarly = visible();
+  }, 60);
+  setTimeout(() => {
+    out.busAfterIntent = visible();
+    card.dispatchEvent(new PointerEvent("pointerleave"));
+    setTimeout(() => {
+      out.busAfterLeave = visible();
+      finish();
+    }, 400);
+  }, 200);
+} else if (intent) {
   // Devin (#233): enter directly over the collapsed Solo and press its
   // original centre at once. The card opens the moment the pointer enters
   // (header redesign, 2026-11-18), so the in-flight press lands on the

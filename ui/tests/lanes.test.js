@@ -88,7 +88,7 @@ describe("lane layout", () => {
     assert.equal(layout.rows[1].last, false);
   });
 
-  test("the editor merges one-track buses (owner decision, 2026-10-18)", () => {
+  test("the editor keeps a separate bus strip above a single member", () => {
     const state = {
       project: {
         buses: [{ id: "music", name: "Music" }],
@@ -101,7 +101,10 @@ describe("lane layout", () => {
     const rows = layoutFor(state).rows;
     assert.deepEqual(
       rows.map((r) => [r.kind, r.id, r.merged ?? false]),
-      [["track", "m", true]],
+      [
+        ["bus", "music", false],
+        ["track", "m", false],
+      ],
     );
   });
 

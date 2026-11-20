@@ -26,7 +26,7 @@ export function fitHeight({
   const layout = layoutRows(project, MIN_LANE, {
     busHeight,
     groupGap,
-    mergeSingle: true,
+    mergeSingle: false,
     laneHeights,
     collapsed,
   });

@@ -2,7 +2,9 @@
 // Each one is a plan (edit-plans.js) sent through the editor; `can()` asks the same
 // plan whether there is anything to do. Keys live in keymap-default.js, never here.
 
+import { busOfFocus } from "./bus-collapse.js";
 import { busRolePlan, matchRolePlan, reapplyRolePlan, trackRolePlan } from "./bus-role.js";
+import { busSoloEdits } from "./bus-solo.js";
 import { assignTarget, CART_SLOTS, cartEntry } from "./cart-model.js";
 import { expandGroups, groupClipsPlan, mergeClipsPlan, ungroupClipsPlan } from "./clip-groups.js";
 import { CLIPBOARD_VIEWS, keepCount, pasteChoice } from "./clipboard.js";
@@ -46,6 +48,7 @@ import {
 import { idleReason } from "./edit-reasons.js";
 import { frameToTime } from "./format.js";
 import { rememberCut } from "./ghost-marker.js";
+import { patchSolo } from "./provisional.js";
 import { toggleScopeMode } from "./range-scope.js";
 import { selectAllIds } from "./selection.js";
 import { clipboardReveal } from "./sidebar-model.js";
@@ -392,8 +395,34 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("track.mute", trackMutePlan);
   planned("track.move_up", (s) => trackMovePlan(s, -1));
   planned("track.move_down", (s) => trackMovePlan(s, 1));
-  planned("track.solo", (s) => soloPlan(s, true));
-  planned("track.solo_add", (s) => soloPlan(s, false));
+  for (const additive of [false, true]) {
+    const suffix = additive ? "solo_add" : "solo";
+    for (const kind of ["track", "bus"]) {
+      const id = `${kind}.${suffix}`;
+      const busId = (s) => (kind === "bus" ? busOfFocus(s) : s.focusBus);
+      def(
+        id,
+        () => {
+          const state = app.getState();
+          const bus = busId(state);
+          if (bus) {
+            for (const edit of busSoloEdits(state, bus, additive))
+              app.edit({ ...edit, provisional: (p) => patchSolo(p, edit.args.track_id, false) });
+          } else {
+            const plan = soloPlan(state, !additive);
+            if (plan) send(plan);
+          }
+        },
+        (s) => {
+          const bus = busId(s);
+          return bus
+            ? (s.project?.tracks ?? []).some((track) => track.bus === bus)
+            : kind === "track" && soloPlan(s, !additive) !== null;
+        },
+        explain(id),
+      );
+    }
+  }
   planned("track.cycle_kind", cycleKindPlan);
   planned("bus.mute", busMutePlan);
   planned("bus.ungroup", ungroupPlan);

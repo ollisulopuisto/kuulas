@@ -3801,5 +3801,9 @@
   "error.sync.audio": "Tahdistus vaatii kelvolliset ääninäytteet ja tuetun projektin näytteenottotaajuuden.",
   "error.sync.envelope": "Tahdistuksen tasotiedot eivät kelpaa. Laske ehdotus uudelleen.",
   "error.sync.accept_selection": "Valitse nykyisestä tahdistustuloksesta kelvolliset leikkeet ilman vertailuleikettä tai kaksoiskappaleita.",
-  "error.sync.clip_selection": "Valitse 2–32 leikettä eri raidoilta ilman kaksoiskappaleita."
+  "error.sync.clip_selection": "Valitse 2–32 leikettä eri raidoilta ilman kaksoiskappaleita.",
+  "cmd.bus.solo": "Soolaa väylä",
+  "cmd.bus.solo_add": "Lisää väylä sooloihin",
+  "cmd.bus.solo.hint": "Soita vain tämä väylä. Myös {key:track.solo} toimii valitussa väylässä.",
+  "cmd.bus.solo_add.hint": "Lisää tai poista väylän raidat sooloista. Myös {key:track.solo_add} toimii valitussa väylässä."
 }
