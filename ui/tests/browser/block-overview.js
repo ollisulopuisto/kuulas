@@ -125,11 +125,15 @@ if (nochange) {
   result.graphHidden = active.querySelector(".block-overview-strip").hidden;
   result.legendHidden = root.querySelector(".block-overview-legend").hidden;
   result.footer = root.querySelector(".block-level-total").textContent;
-  const applyButton = [...root.querySelectorAll(".actionbar .button")].pop();
+  const applyButton = root.querySelector(".actionbar [data-icon=check]");
+  const againButton = root.querySelector(".actionbar [data-icon=reset]");
   result.applyText = applyButton.textContent;
   result.applyDisabled = applyButton.disabled;
   result.applyPrimary = applyButton.classList.contains("primary");
-  result.againPrimary = root.querySelector(".actionbar .button").classList.contains("primary");
+  result.againPrimary = againButton.classList.contains("primary");
+  result.primaryLast = [...root.querySelectorAll(".actionbar .button")]
+    .at(-1)
+    .classList.contains("primary");
   const otherLink = active.querySelector(".block-speaker-other");
   result.otherLink = otherLink?.textContent ?? null;
   if (otherLink) {

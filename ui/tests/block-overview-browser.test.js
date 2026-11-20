@@ -132,6 +132,7 @@ test("a speaker without changes gets the no-change card and a link to the others
   assert.equal(result.applyDisabled, false);
   assert.equal(result.applyPrimary, true);
   assert.equal(result.againPrimary, false);
+  assert.equal(result.primaryLast, true);
   assert.equal(result.otherLink, "2026-11-19-t03-04-25pm-guest232006--panu · 1 lohko muuttuu →");
   assert.match(result.linkActivated, /guest232006/);
   assert.equal(result.linkTargetCardHidden, true);
@@ -164,5 +165,6 @@ test("nothing to level anywhere: one statement, disabled apply, primary re-measu
   assert.equal(result.applyDisabled, true);
   assert.equal(result.applyPrimary, false);
   assert.equal(result.againPrimary, true);
+  assert.equal(result.primaryLast, true);
   assert.equal(result.otherLink, null);
 });

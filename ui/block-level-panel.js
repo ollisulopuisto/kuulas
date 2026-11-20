@@ -138,6 +138,8 @@ export function createBlockLevelPanel({
           : t("ui.block_level.apply_count", { count: impact.blocks });
       apply.classList.toggle("primary", !nothing);
       again.classList.toggle("primary", nothing && phase === "ready");
+      // The primary stays last (BUTTONS.md), so the buttons swap places with the role.
+      buttons.replaceChildren(...(nothing ? [apply, again] : [again, apply]));
       total.textContent = nothing
         ? t("ui.block_level.all_count_zero")
         : impact.blocks === 1
@@ -251,6 +253,7 @@ export function createBlockLevelPanel({
     apply.textContent = t("ui.block_level.apply");
     apply.classList.add("primary");
     again.classList.remove("primary");
+    buttons.replaceChildren(again, apply);
     const mine = watching;
     measured = null;
     error.hidden = true;
