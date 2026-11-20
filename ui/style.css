@@ -7110,3 +7110,15 @@ legend.form-heading {
   min-height: var(--control-h);
   white-space: normal;
 }
+
+/* Rename in the same pill, without shifting the header under the pointer. */
+.th-main > .track-rename,
+.th-row1 > .track-rename {
+  flex: none;
+  box-sizing: border-box;
+  max-width: 240px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: var(--weight-strong);
+}
