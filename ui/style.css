@@ -2782,11 +2782,11 @@ input[type="text"] {
 .cheatsheet tr.planned td:first-child {
   color: var(--text-tertiary);
 }
-.cheatsheet tr.layer td:first-child {
+.cheatsheet tr.cheatsheet-layer td:first-child {
   padding-left: var(--space-7);
   color: var(--text-secondary);
 }
-.cheatsheet tr.layer[data-held] {
+.cheatsheet tr.cheatsheet-layer[data-held] {
   background: var(--accent-subtle);
 }
 

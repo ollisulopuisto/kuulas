@@ -488,7 +488,13 @@ export function createRecordView({
       ...PREROLL_CHOICES.map((s) => new Option(prerollLabel(s, t), String(s))),
     );
     setup.preroll.value = String(preroll);
-    setup.armed.textContent = armedNotice(status, preroll, t);
+    setup.armed.textContent = armedNotice(
+      status,
+      preroll,
+      t,
+      !deviceError && (devices === null || list.length > 0),
+    );
+    setup.armed.hidden = !setup.armed.textContent;
     setup.armed.dataset.armed = preroll > 0 && status?.armed ? "on" : "off";
     setup.at.textContent = t("ui.record.at", {
       time: formatElapsed(state.playhead ?? 0, rate()),

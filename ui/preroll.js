@@ -41,7 +41,8 @@ export function armRequest({ device, channel, channels, seconds }) {
 }
 
 /** The line that says whether the microphone is being listened to. `status`: the server's view. */
-export function armedNotice(status, seconds, t) {
+export function armedNotice(status, seconds, t, available = true) {
+  if (!available) return "";
   if (seconds === 0) return t("ui.record.armed_off");
   if (status?.armed) return t("ui.record.armed", { seconds: status.preroll_s ?? seconds });
   return t("ui.record.armed_starting");
