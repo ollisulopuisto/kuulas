@@ -174,6 +174,63 @@ if (intent) {
   panWrap.querySelector("input").focus();
   out.panOutputDisplay = getComputedStyle(panWrap.querySelector("output")).display;
   finish();
+} else if (query.get("treatment")) {
+  // Approved flyout treatment (owner, 2026-11-20, sketch 2): the expanded
+  // card is opaque with a 4 px track-colour outline, a tinted name band with
+  // the colour dot, a notch aimed at the tab, labelled sections and 48 px
+  // buttons.
+  const node = [...root.querySelectorAll(".track-header[data-track]")].find(
+    (header) => header.querySelector(".track-name").textContent === query.get("treatment"),
+  );
+  node.classList.add("hover-open");
+  const card = node.querySelector(".th-card");
+  const name = node.querySelector(".track-name");
+  const main = node.querySelector(".th-main");
+  const probe = document.createElement("div");
+  probe.style.background = "var(--track-colour)";
+  node.append(probe);
+  const colour = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  const cardStyle = getComputedStyle(card);
+  const big = [...node.querySelectorAll(".th-ms-big .ms-button")];
+  const collapsed = root.querySelector(".track-header:not(.hover-open) .track-name");
+  out.treatment = {
+    colour,
+    cardBg: cardStyle.backgroundColor,
+    cardBorderWidth: cardStyle.borderTopWidth,
+    cardBorderColour: cardStyle.borderTopColor,
+    cardShadow: cardStyle.boxShadow,
+    nameBg: getComputedStyle(name).backgroundColor,
+    nameDot: getComputedStyle(name, "::before").backgroundColor,
+    nameFont: parseFloat(getComputedStyle(name).fontSize),
+    collapsedNameFont: parseFloat(getComputedStyle(collapsed).fontSize),
+    notch: getComputedStyle(main, "::before").borderRightColor,
+    bigDisplay: getComputedStyle(node.querySelector(".th-ms-big")).display,
+    bigCount: big.length,
+    bigSizes: big.map((button) => rect(button)),
+  };
+  // The big buttons run the same actions as the strip: press the big mute,
+  // then sync a muted project and check the pressed flags mirror it.
+  node.querySelector(".th-ms-big .ms-button.mute").click();
+  out.bigMuteCall = calls.at(-1);
+  project.tracks.find((item) => item.id === node.dataset.track).mute = true;
+  headers.update({
+    project,
+    laneHeight,
+    laneHeights: {},
+    collapsedBuses: new Set(),
+    focusTrack: null,
+  });
+  out.bigPressedAfter = [...node.querySelectorAll(".th-ms-big .ms-button")].map((button) =>
+    button.getAttribute("aria-pressed"),
+  );
+  out.gainCaptionTransform = getComputedStyle(
+    node.querySelector(".control-gain .slider-caption"),
+  ).textTransform;
+  out.panCaptionTransform = getComputedStyle(
+    node.querySelector(".control-pan .slider-caption"),
+  ).textTransform;
+  finish();
 } else if (query.get("hover")) {
   // The approved hover rule (owner, 2026-11-19): the card opens only from the
   // collapsed strip or the name pill, after ~120 ms of intent; leaving starts
