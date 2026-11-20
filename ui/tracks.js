@@ -1004,6 +1004,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       "aria-label": t(forBus ? "ui.bus.name_field" : "ui.track.name"),
     });
     input.value = current();
+    const box = anchor.getBoundingClientRect();
+    input.style.width = `${box.width}px`;
+    input.style.height = `${box.height}px`;
     anchor.replaceWith(input);
     input.focus();
     input.select();

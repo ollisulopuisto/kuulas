@@ -38,7 +38,15 @@ const headers = createTrackHeaders({
     apply() {},
     current: () => project,
     change: (edit) =>
-      calls.push(["change", edit.op, ...(edit.op === "solo" ? [edit.args.exclusive] : [])]),
+      calls.push([
+        "change",
+        edit.op,
+        ...(edit.op === "solo"
+          ? [edit.args.exclusive]
+          : edit.op === "set_track"
+            ? [edit.args]
+            : []),
+      ]),
   },
   actions,
 });
@@ -320,7 +328,25 @@ if (intent) {
   }, 1200);
 } else {
   const open = query.get("open");
-  if (!open) finish();
+  if (query.get("rename")) {
+    const anchor = root.querySelector(".track-name");
+    const before = rect(anchor);
+    anchor.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    const input = root.querySelector(".track-rename");
+    out.renameBefore = before;
+    out.renameBox = rect(input);
+    out.renameSelected = input.selectionStart === 0 && input.selectionEnd === input.value.length;
+    input.value = query.get("value") ?? "New name";
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: query.get("key") ?? "Enter",
+        bubbles: true,
+      }),
+    );
+    out.renameClosed = !root.querySelector(".track-rename");
+    out.renameCalls = calls;
+    finish();
+  } else if (!open) finish();
   else {
     // Pin the track's ".." popover (collapsed, the disclosure is hover-only, so
     // click it programmatically), then look at what sits over the grip.

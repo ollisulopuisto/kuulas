@@ -205,3 +205,20 @@ test("a compact lane hides the read-only state column but keeps the hover rule",
   const result = await measure(`density=compact&lane=32&hover=Bob`);
   assert.equal(result.openAt200, true, "the compact card never opens");
 });
+
+test("inline rename keeps the name pill's position and size", async () => {
+  const result = await measure("rename=1");
+  assert.deepEqual(result.renameBox, result.renameBefore);
+  assert.equal(result.renameSelected, true);
+  assert.equal(result.renameClosed, true);
+  assert.deepEqual(result.renameCalls, [
+    ["change", "set_track", { track_id: "t1", name: "New name" }],
+  ]);
+});
+for (const query of ["key=Escape", "value=%20%20", "value=Alice"]) {
+  test(`inline rename makes no edit for ${query}`, async () => {
+    const result = await measure(`rename=1&${query}`);
+    assert.equal(result.renameClosed, true);
+    assert.deepEqual(result.renameCalls, []);
+  });
+}
