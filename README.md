@@ -1,16 +1,6 @@
 # kuulas
 
-Pronounced "cool-ass".
-
-**Release v26.10.30.2:** choose Whisper large-v3-turbo or Parakeet Ultra for Colab transcription; fast shuttle uses pitch-preserving grains above 2× and ruler dragging scrubs at pointer velocity; first high-pass playback plumbing is included. Local Orukeet is unchanged. Mac listening and high-pass real-time profiling remain open.
-
-**Release v26.10.27.4:** live recording progress on new tracks, consistent waveform display, compact recording setup and per-input three-second LUFS; packaged Orukeet certificate trust fix; visible toolbar add picker, drag-away removal and Undo; ordinary menu right-click behavior.
-
-**Release v26.10.27.2:** GUI Orukeet install/select/reinstall with verified downloads, progress and cancellation; aligned transcription actions; persistent fast-listening button.
-
-**Release v26.10.27.1:** local Orukeet, NHSX import from the start page, a three-second LUFS meter, compact track headers and transcript search, clearer toolbar buttons, and corrected Auto-Silence boundary trims.
-
-kuulas is a local multitrack audio editor for spoken word (podcasts, interviews, radio). It is modelled on Hindenburg PRO: keyboard-first, speech-aware, with the transcript and the audio treated as one thing. The engine runs locally on Python 3.13 and serves a browser UI over local HTTP/WebSocket; audio analysis and signal processing come from the podcast repo's `speechmix` and `nhsx` packages.
+kuulas (pronounced "cool-ass") is a local multitrack audio editor for spoken word (podcasts, interviews, radio). It is modelled on Hindenburg PRO: keyboard-first, speech-aware, with the transcript and the audio treated as one thing. The engine runs locally on Python 3.13 and serves a browser UI over local HTTP/WebSocket; audio analysis and signal processing come from the podcast repo's `speechmix` and `nhsx` packages.
 
 **Kuulas is a free, open-source podcast editor. It can mix your episode for you, and it keeps every edit you ever made, so you can go back to any moment and never lose a thing.**
 
