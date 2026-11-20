@@ -1,5 +1,6 @@
 // Browser harness for the track headers: the real tracks.js and style.css, driven by the query
 // string (density, lane, open), reporting measurements into #result for header-browser.test.js.
+import { laneInset } from "../../lane-insets.js";
 import { createTrackHeaders } from "../../tracks.js";
 
 const query = new URLSearchParams(location.search);
@@ -62,7 +63,7 @@ const rect = (node) => {
   const box = node.getBoundingClientRect();
   return { left: box.left, top: box.top, width: box.width, height: box.height };
 };
-const out = { names: {}, calls, error: null };
+const out = { names: {}, insets: {}, calls, error: null };
 for (const node of root.querySelectorAll(".track-header[data-track]")) {
   const name = node.querySelector(".track-name");
   out.names[name.textContent] = {
@@ -72,6 +73,24 @@ for (const node of root.querySelectorAll(".track-header[data-track]")) {
     strip: rect(node.querySelector(".th-strip")),
     ...rect(name),
     header: rect(node),
+  };
+  // Devin (#261): the stored lane inset must reach the name pill's true right
+  // edge even when a positioned ancestor (.th-main) changes offsetLeft chains.
+  const card = node.querySelector(".th-card");
+  const gutter =
+    parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--track-gutter-w")) ||
+    0;
+  out.insets[name.textContent] = {
+    grouped: node.hasAttribute("data-bus"),
+    stored: laneInset(node.dataset.track),
+    pillRight: Math.max(
+      0,
+      Math.round(
+        card.offsetLeft +
+          (name.getBoundingClientRect().right - card.getBoundingClientRect().left) +
+          8,
+      ) - gutter,
+    ),
   };
 }
 const bus = root.querySelector(".bus-header");
@@ -173,6 +192,63 @@ if (intent) {
   const panWrap = node.querySelector(".th-controls .slider-control.pan");
   panWrap.querySelector("input").focus();
   out.panOutputDisplay = getComputedStyle(panWrap.querySelector("output")).display;
+  finish();
+} else if (query.get("treatment")) {
+  // Approved flyout treatment (owner, 2026-11-20, sketch 2): the expanded
+  // card is opaque with a 4 px track-colour outline, a tinted name band with
+  // the colour dot, a notch aimed at the tab, labelled sections and 48 px
+  // buttons.
+  const node = [...root.querySelectorAll(".track-header[data-track]")].find(
+    (header) => header.querySelector(".track-name").textContent === query.get("treatment"),
+  );
+  node.classList.add("hover-open");
+  const card = node.querySelector(".th-card");
+  const name = node.querySelector(".track-name");
+  const main = node.querySelector(".th-main");
+  const probe = document.createElement("div");
+  probe.style.background = "var(--track-colour)";
+  node.append(probe);
+  const colour = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  const cardStyle = getComputedStyle(card);
+  const big = [...node.querySelectorAll(".th-ms-big .ms-button")];
+  const collapsed = root.querySelector(".track-header:not(.hover-open) .track-name");
+  out.treatment = {
+    colour,
+    cardBg: cardStyle.backgroundColor,
+    cardBorderWidth: cardStyle.borderTopWidth,
+    cardBorderColour: cardStyle.borderTopColor,
+    cardShadow: cardStyle.boxShadow,
+    nameBg: getComputedStyle(name).backgroundColor,
+    nameDot: getComputedStyle(name, "::before").backgroundColor,
+    nameFont: parseFloat(getComputedStyle(name).fontSize),
+    collapsedNameFont: parseFloat(getComputedStyle(collapsed).fontSize),
+    notch: getComputedStyle(main, "::before").borderRightColor,
+    bigDisplay: getComputedStyle(node.querySelector(".th-ms-big")).display,
+    bigCount: big.length,
+    bigSizes: big.map((button) => rect(button)),
+  };
+  // The big buttons run the same actions as the strip: press the big mute,
+  // then sync a muted project and check the pressed flags mirror it.
+  node.querySelector(".th-ms-big .ms-button.mute").click();
+  out.bigMuteCall = calls.at(-1);
+  project.tracks.find((item) => item.id === node.dataset.track).mute = true;
+  headers.update({
+    project,
+    laneHeight,
+    laneHeights: {},
+    collapsedBuses: new Set(),
+    focusTrack: null,
+  });
+  out.bigPressedAfter = [...node.querySelectorAll(".th-ms-big .ms-button")].map((button) =>
+    button.getAttribute("aria-pressed"),
+  );
+  out.gainCaptionTransform = getComputedStyle(
+    node.querySelector(".control-gain .slider-caption"),
+  ).textTransform;
+  out.panCaptionTransform = getComputedStyle(
+    node.querySelector(".control-pan .slider-caption"),
+  ).textTransform;
   finish();
 } else if (query.get("hover")) {
   // The approved hover rule (owner, 2026-11-19): the card opens only from the

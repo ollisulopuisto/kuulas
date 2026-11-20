@@ -88,6 +88,20 @@ for (const density of ["comfortable", "compact"]) {
     // Bus members sit further right than ungrouped tracks.
     assert.ok(grouped[0].left > plain[0].left, "grouped names are not indented");
   });
+  test(`${density} density: the stored lane inset reaches the name pill's right edge`, async () => {
+    const { insets } = await measure(`density=${density}`);
+    const items = Object.values(insets);
+    assert.ok(
+      items.some((item) => item.grouped),
+      "a grouped track is measured",
+    );
+    assert.ok(
+      items.some((item) => !item.grouped),
+      "an ungrouped track is measured",
+    );
+    for (const item of items)
+      assert.equal(item.stored, item.pillRight, `inset ${item.stored} != pill ${item.pillRight}`);
+  });
   test(`${density} density: a bus header is a card with its badge in the strip`, async () => {
     const { bus } = await measure(`density=${density}`);
     assert.ok(bus.badge, "bus badge is not in the strip");
@@ -117,6 +131,35 @@ test("the lane grip's hover shows the teal edge and the grip pill", async () => 
   assert.match(pill.css, /repeating-linear-gradient/, "the pill carries grip bars");
 });
 
+test("the expanded card carries the approved flyout treatment (owner, 2026-11-20)", async () => {
+  const result = await measure("density=comfortable&treatment=Bob");
+  assert.equal(result.harnessError, undefined);
+  const t = result.treatment;
+  // Opaque, colour-keyed, shadowed.
+  assert.ok(t.cardBg.startsWith("rgb("), `card fill not opaque: ${t.cardBg}`);
+  assert.equal(t.cardBorderWidth, "4px");
+  assert.equal(t.cardBorderColour, t.colour, "outline is not the track colour");
+  assert.notEqual(t.cardShadow, "none", "no drop shadow");
+  // Header band with the colour dot, text one size larger than a resting pill.
+  assert.notEqual(t.nameBg, "rgba(0, 0, 0, 0)", "the name band is see-through");
+  assert.equal(t.nameDot, t.colour, "the band dot is not the track colour");
+  assert.ok(t.nameFont > t.collapsedNameFont, "the open name is not larger");
+  // Pointer notch aimed at the tab.
+  assert.equal(t.notch, t.colour, "no track-colour notch at the tab");
+  // 48 px buttons: M, S and the wide mute, same actions as the strip.
+  assert.equal(t.bigDisplay, "flex");
+  assert.equal(t.bigCount, 3, "M, S and the wide mute");
+  for (const size of t.bigSizes) assert.ok(size.height >= 48, `button ${size.height}px tall`);
+  assert.ok(t.bigSizes[0].width >= 48 && t.bigSizes[1].width >= 48, "M/S under 48 px wide");
+  // TASO / PANO labels in caps.
+  assert.equal(result.gainCaptionTransform, "uppercase");
+  assert.equal(result.panCaptionTransform, "uppercase");
+  // Same actions, mirrored state: the big mute fires the track mute edit and
+  // the pressed flags follow the project (M and the wide mute together).
+  assert.deepEqual(result.bigMuteCall.slice(0, 2), ["change", "set_track"]);
+  assert.deepEqual(result.bigPressedAfter, ["true", "false", "true"]);
+});
+
 test("a fast press at Solo's original centre runs only Solo (Devin, #233)", async () => {
   const result = await measure(`density=comfortable&intent=Bob`);
   assert.equal(result.intentImmediate, "none", "hover opens the card at once, without intent");
@@ -144,7 +187,7 @@ test("a fast press at Solo's original centre runs only Solo (Devin, #233)", asyn
     [["change", "solo", false]],
     "the Shift press lost its modifier or ran something else",
   );
-  assert.equal(result.intentAfter, "flex", "the card closes while the pointer rests");
+  assert.notEqual(result.intentAfter, "none", "the card closes while the pointer rests");
 });
 
 test("the card's pan dial never reveals the stray fixed readout (Devin, #233)", async () => {

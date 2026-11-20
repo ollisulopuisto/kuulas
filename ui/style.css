@@ -6660,11 +6660,14 @@ legend.form-heading {
   gap: 6px;
   max-width: calc(100% - 16px);
   pointer-events: auto;
-  border: 1px solid transparent;
+  /* The border is the expanded card's 4 px track-colour outline even while
+     collapsed (transparent), so opening never shifts the layout: 4 + 4 = the
+     old 1 + 7 vertically, 4 + 9 = the old 1 + 12 horizontally. */
+  border: 4px solid transparent;
   border-radius: 16px;
   /* Constant padding, open or collapsed: the card opening must never shift
      what the pointer rests on (owner, 2026-11-19). */
-  padding: 7px 12px;
+  padding: 4px 9px;
 }
 /* A track card (design C, owner 2026-11-19): the persistent strip at the left,
    the right column stacking name / ".." + summary / level + pan. */
@@ -6886,6 +6889,164 @@ legend.form-heading {
   /* Short and fixed: the card stays content-sized, the slider never sprawls. */
   flex: none;
   width: 180px;
+}
+
+/* -- Approved flyout treatment (owner, 2026-11-20, sketch 2) -----------------
+   The expanded track card reads as a popover of its own: opaque fill, a 4 px
+   outline and a header band in the track colour, a soft dialog shadow, a
+   pointer notch aimed at the tab, labelled TASO/PANO sections and 48 px
+   buttons. Actions unchanged; the strip keeps its collapsed size. */
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open) .th-card {
+  background: var(--panel-bg);
+  border-color: var(--track-colour);
+  box-shadow: var(--shadow-dialog);
+}
+/* Header band: the name on a track-colour tint with the colour dot. */
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open) .th-main
+  > .track-name {
+  position: relative;
+  align-self: stretch;
+  padding: 4px 10px 4px 27px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--track-colour) 32%, var(--panel-bg));
+  font-size: var(--text-lg);
+  line-height: 1.3;
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open)
+  .th-main
+  > .track-name::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  translate: 0 -50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--track-colour);
+}
+/* The tab keeps its resting size: a taller flyout must not stretch it. */
+.track-header:not(.bus-header, .compact):is(.hover-open, :focus-within, .controls-open) .th-strip {
+  align-self: flex-start;
+}
+/* Pointer notch: a small track-colour arrow in the gap, aimed at the tab. */
+.track-header:not(.bus-header) .th-main {
+  position: relative;
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open) .th-main::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 22px;
+  border: 7px solid transparent;
+  border-right-color: var(--track-colour);
+  border-left: 0;
+  pointer-events: none;
+}
+/* Meta row one size larger. */
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open) .th-main
+  > .th-row2
+  > .track-compact-summary {
+  font-size: var(--text-xs);
+}
+/* The controls become the sketch's grid: big buttons top left, the labelled
+   level row below, the pan dial tall at the right. */
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open) .th-main
+  > .th-controls {
+  display: grid;
+  grid-template-columns: minmax(0, auto) auto;
+  grid-template-areas:
+    "big dial"
+    "gain dial";
+  gap: 10px 14px;
+  align-items: center;
+}
+.th-ms-big {
+  display: none;
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open) .th-ms-big {
+  grid-area: big;
+  display: flex;
+  gap: 8px;
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open)
+  .th-ms-big
+  .ms-button {
+  min-width: 48px;
+  height: 48px;
+  padding: 0 14px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  border-radius: var(--radius-md);
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open)
+  .th-ms-big
+  .ms-button.wide {
+  padding: 0 20px;
+}
+/* TASO: caption, rail and readout on one labelled row. */
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open) .th-controls
+  .slider-control.control-gain {
+  grid-area: gain;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto;
+  gap: 0 10px;
+  align-items: center;
+  width: min(320px, 100%);
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open)
+  .th-controls
+  .slider-control.control-gain
+  .slider-caption {
+  grid-area: 1 / 1;
+  font-size: var(--text-xs);
+  line-height: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open)
+  .th-controls
+  .slider-control.control-gain
+  input[type="range"] {
+  grid-area: 1 / 2;
+  width: 100%;
+  height: 28px;
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open)
+  .th-controls
+  .slider-control.control-gain
+  output {
+  grid-area: 1 / 3;
+  width: auto;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  line-height: normal;
+}
+/* PANO: the dial stands taller beside the two rows, its label above it. */
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open) .th-controls
+  .slider-control.pan {
+  grid-area: dial;
+  width: 56px;
+  grid-template-rows: auto 56px;
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open)
+  .th-controls
+  .slider-control.pan
+  .slider-caption {
+  display: block;
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.track-header:not(.bus-header):is(.hover-open, :focus-within, .controls-open)
+  .th-controls
+  .slider-control.pan
+  input[type="range"] {
+  grid-area: 2 / 1;
+  width: 56px;
+  height: 56px;
 }
 
 /* Level blocks overview: gain proposals around a shared zero, not a quality score

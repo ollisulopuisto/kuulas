@@ -497,7 +497,16 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const gain = slider(t("ui.track.gain"), GAIN);
     const pan = slider(t("ui.track.pan"), PAN);
     pan.wrap.classList.add("pan");
-    controls.append(gain.wrap, pan.wrap);
+    // The expanded card (approved flyout treatment, owner 2026-11-20) carries
+    // the same actions as the strip at a comfortable size: M, S and the
+    // full-label mute. They mirror the strip's toggles, never new actions.
+    const bigMute = toggle(t("ui.track.mute"), t("ui.track.mute.short"), "mute");
+    const bigSolo = toggle(t("ui.track.solo"), t("ui.track.solo.short"), "solo");
+    const bigMuteWide = toggle(t("ui.track.mute"), t("ui.track.mute.wide"), "mute");
+    bigMuteWide.classList.add("wide");
+    const bigButtons = el("div", "th-ms-big");
+    bigButtons.append(bigMute, bigSolo, bigMuteWide);
+    controls.append(bigButtons, gain.wrap, pan.wrap);
     // A thin grab zone on the bottom edge: drag to size this lane, double-click to reset it.
     const grip = el("div", "lane-grip", { title: t("ui.track.resize"), "aria-hidden": "true" });
     // Design C (owner, 2026-11-19): the strip is a persistent left column, so
@@ -778,18 +787,23 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     name.addEventListener("dblclick", () => rename(name, id, "track"));
     tag.addEventListener("click", () => actions.cycleKind(id));
     roleBadge.addEventListener("click", () => actions.matchRole(id));
-    mute.addEventListener("click", () => {
+    const sendMute = () => {
       const now = !lookup(id).mute;
       send("mute", now);
-    });
-    solo.addEventListener("click", (event) => {
+    };
+    const sendSolo = (event) => {
       const exclusive = !event.shiftKey;
       editor.change({
         op: "solo",
         args: { track_id: id, exclusive },
         provisional: (p) => patchSolo(p, id, exclusive),
       });
-    });
+    };
+    mute.addEventListener("click", sendMute);
+    solo.addEventListener("click", sendSolo);
+    bigMute.addEventListener("click", sendMute);
+    bigMuteWide.addEventListener("click", sendMute);
+    bigSolo.addEventListener("click", sendSolo);
     bus.addEventListener("change", () => {
       if (bus.value !== NEW_BUS) return send("bus", bus.value || null);
       // Create the bus and put this track on it in one step.
@@ -846,6 +860,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       loudness,
       mute,
       solo,
+      bigMute,
+      bigSolo,
+      bigMuteWide,
       bus,
       controls,
       metadata,
@@ -1167,13 +1184,14 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
           parseFloat(
             getComputedStyle(document.documentElement).getPropertyValue("--track-gutter-w"),
           ) || 0;
+        // Measured with bounding rectangles in one coordinate system: the
+        // flyout's positioned .th-main became the name pill's offsetParent, so
+        // offsetLeft no longer reaches from the card (Devin review on #261).
+        const nameReach =
+          parts.name.getBoundingClientRect().right - parts.card.getBoundingClientRect().left;
         setLaneInset(
           track.id,
-          Math.max(
-            0,
-            Math.round(parts.card.offsetLeft + parts.name.offsetLeft + parts.name.offsetWidth + 8) -
-              gutter,
-          ),
+          Math.max(0, Math.round(parts.card.offsetLeft + nameReach + 8) - gutter),
         );
         if (!parts.tag.classList.contains(`kind-${track.kind}`)) paintTag(parts.tag, track.kind);
         const differs = roleDiffers(state.project, track);
@@ -1202,6 +1220,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.loudness.title = t("ui.loudness.integrated_hint");
         parts.mute.setAttribute("aria-pressed", String(track.mute));
         parts.solo.setAttribute("aria-pressed", String(track.solo));
+        parts.bigMute.setAttribute("aria-pressed", String(track.mute));
+        parts.bigMuteWide.setAttribute("aria-pressed", String(track.mute));
+        parts.bigSolo.setAttribute("aria-pressed", String(track.solo));
         if (document.activeElement !== parts.bus) parts.bus.value = track.bus ?? "";
         parts.pan.wrap.classList.add("dial");
         setSlider(parts.gain, track.gain_db, formatDb(track.gain_db));

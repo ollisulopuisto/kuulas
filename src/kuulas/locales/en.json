@@ -499,6 +499,7 @@
   "ui.track.name": "Track name",
   "ui.track.mute": "Mute track",
   "ui.track.mute.short": "M",
+  "ui.track.mute.wide": "Mute",
   "ui.inspector.state.on": "On",
   "ui.inspector.state.off": "Off",
   "ui.track.solo": "Solo track",
