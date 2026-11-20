@@ -1,8 +1,11 @@
 # Silent states on the timeline
 
 Owner decisions, 2026-10-21. Supersedes the "Look" row of GUI-DESIGN.md 5.4 (mute, gate
-and soft cut). Code: `ui/silence-visuals.js` (pure), `ui/paint.js` (waveform layer),
-`ui/timeline.js` (overlay). Mock: [`silence-visuals-mock.html`](silence-visuals-mock.html).
+and soft cut). Amended 2026-11-20: the outline-only wave and the stripes are gone; a silent
+stretch is now a much darker clip body carrying the same filled half-shape heavily dimmed
+(the "ghost"), and a fully silenced (muted) clip drops the clip's upper border. Code:
+`ui/silence-visuals.js` (pure), `ui/paint.js` (waveform layer), `ui/timeline.js` (overlay).
+Mock: [`silence-visuals-mock.html`](silence-visuals-mock.html).
 
 ## The problem
 
@@ -19,9 +22,9 @@ Independent channels, each with one meaning, so they combine without confusion:
  state                         | waveform        | body          | icon              | lane
 -------------------------------+-----------------+---------------+-------------------+------------------
  sounds                        | FILLED          | normal        | -                 | normal
- muted clip (you)              | OUTLINE only    | toned down    | -                 | normal
- closed by Auto-Silence        | OUTLINE only    | toned down    | LOCK (amber)      | dashed amber ends
- muted AND gated               | OUTLINE only    | toned down    | LOCK              | dashed amber ends
+ muted clip (you)              | DIMMED FILL     | much darker   | -                 | no upper border
+ closed by Auto-Silence        | DIMMED FILL     | much darker   | LOCK (amber)      | dashed amber ends
+ muted AND gated               | DIMMED FILL     | much darker   | LOCK              | dashed amber ends
  keeps the mic open (ungated)  | FILLED          | normal        | OPEN LOCK (green) | normal
  Auto-Silence preview          | OUTLINE in teal | normal        | "preview" label   | dashed teal edges
  not part of the operation     | (as above)      | (as above)    | (as above)        | GREY and/or DIM
@@ -31,9 +34,10 @@ Independent channels, each with one meaning, so they combine without confusion:
 
 Legend:
 
-- **Filled** waveform = it sounds. **Outline only** (the min/max envelope stroked in the
-  track's label colour, no fill) on a clearly darker body = silent. The ghost of the audio
-  stays, so you can still judge what is cut.
+- **Filled** waveform = it sounds. **Dimmed fill** (the same filled half-shape at 35 %
+  strength, `SILENT_WAVE_ALPHA`) on a much darker body = silent (owner, 2026-11-20). The
+  ghost of the audio stays, so you can still judge what is cut, and the strong darkening
+  reads as silent at any zoom. Nothing is striped or outlined.
 - **Lock** = closed by Auto-Silence; **dashed amber lines** mark where the closed stretch
   starts and ends, so it reads as its own piece. They are not clip edges: thinner, dashed,
   amber, no handles, not draggable. **Open lock** = released from it: the clip keeps the
@@ -46,13 +50,16 @@ Legend:
 - **Nothing is hatched.** The owner found the hatch "almost too aggressive". The diagonal
   hatch stays only for cut candidates, collateral and edge-drag regions.
 
-A clip half inside a gate is filled where it sounds and outlined where it is silenced, with
-the lock at the left of the visible part of the closed stretch.
+A clip half inside a gate is filled where it sounds and a dimmed ghost on the darker body
+where it is silenced, with the lock at the left of the visible part of the closed stretch.
 
 ## Rules
 
-- **Gated outline is dimmer** (owner, 2026-10-23): a muted clip's outline is full strength, a
-  gate-closed stretch's is 60 % (`silentOutlineAlpha`). Contrast at 60 % is not measured.
+- **One ghost strength** (owner, 2026-11-20): muted clips and gate-closed stretches share the
+  same dimmed fill (`SILENT_WAVE_ALPHA`, 35 %). The much darker body is the silence signal;
+  the ghost is decoration, so its contrast is not WCAG-bound. A muted clip also drops the
+  clip's upper border: the sides and bottom keep the edge findable, the open top is one more
+  "this is silenced" cue.
 
 - **Borders on top.** Clip borders, handles, the selection outline, fade and gain handles are
   drawn after every silent-state overlay (`TRACK_LAYERS`, tested). The outline and the body
@@ -75,11 +82,11 @@ the lock at the left of the visible part of the closed stretch.
 - **The open lock** follows the clip name, before the right edge zone and badges
   (`openLockSpot`). Hover: "This clip keeps the mic open: Auto-Silence never closes it."
 - **Toned body**: `--signal-silent-body`. First a light darkening (6 % light, 20 % dark);
-  the owner found it too close to the open body (v26.10.20.35), so it is now 22 % (light) and
-  60 % (dark), a step of at least 1.5:1 (light) and 1.2:1 (dark; WCAG ratios compress dark
-  colours, the change is plainly visible). The silent outline moved from the wave colour to the
-  track's label colour, which keeps over 4.4:1 on the darker body. It keeps "no fill" reading
-  as silent when zoomed out, where the outline thins to a line.
+  the owner found it too close to the open body (v26.10.20.35), then 22 % (light) and 60 %
+  (dark). On 2026-11-20 the owner asked for real contrast: now 35 % (light) and 75 % (dark),
+  a step of at least 1.5:1 (light) and 1.2:1 (dark; WCAG ratios compress dark colours, the
+  change is plainly visible) and never crushing past 3.5:1. The body carries the silence
+  signal alone; the dimmed ghost wave on it is decorative.
 - **Stretch ends** (`stretchEdges`, tested): a 1 px line dashed 3/3 in `--signal-gate-lock` on
   the first and last pixel of each closed stretch, drawn under the clip chrome. An end the view
   cuts off is not drawn (the stretch goes on); an end within 2 px of a real clip edge is left to
@@ -116,8 +123,8 @@ outline.
 
 ## Accessibility
 
-Never colour alone: outline vs fill, lock vs open lock vs none, dashed vs solid and the
-"preview" word are shapes. Reduced motion: nothing here moves. Contrast (WCAG 1.4.11, 3:1
+Never colour alone: the much darker body vs the plain one, lock vs open lock vs none, dashed
+vs solid and the "preview" word are shapes. Reduced motion: nothing here moves. Contrast (WCAG 1.4.11, 3:1
 for graphics; `ui/tests/silence-tokens.test.js` checks the silent-state pairs and
 `ui/tests/tokens.test.js` checks border separation in both themes):
 
@@ -125,7 +132,6 @@ for graphics; `ui/tests/silence-tokens.test.js` checks the silent-state pairs an
 |---|---|---|
 | clip border / filled waveform (worst hue) | >= 1.75 | >= 2.00 |
 | clip border / body, including alternate file tone (worst hue) | >= 12.13 | >= 1.97 |
-| silent outline (label colour) on toned body (worst hue) | 4.46 | 12.09 |
 | body vs toned body (the step) | >= 1.58 | >= 1.21 |
 | lock / stretch ends on its chip (`--surface-panel`) | 6.26 | 10.42 |
 | lock / stretch ends on any body / toned body (worst) | 7.16 / 4.54 | 7.65 / 11.06 |
@@ -137,9 +143,9 @@ for graphics; `ui/tests/silence-tokens.test.js` checks the silent-state pairs an
 
 On a *filled* waveform the icons would fall to about 1:1 against some hues (amber lock on
 amber wave), which is why they always sit on the panel chip. Tokens: light lock
-`--p-amber-40`, open `--p-green-34`, group `--p-gray-30-b`, silent body `--p-gray-22-a22`;
+`--p-amber-40`, open `--p-green-34`, group `--p-gray-30-b`, silent body `--p-gray-22-a35`;
 dark lock `--p-amber-84`, open `--p-green-76`, group `--p-gray-76`, silent body
-`--p-black-a60`. The lock is
+`--p-black-a75`. The lock is
 warm ("the machine did something here"), the open lock green ("you released it"), the
 preview teal; three different colours, tested, and three different shapes.
 

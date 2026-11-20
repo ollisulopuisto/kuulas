@@ -741,7 +741,7 @@ Three ways audio is not heard, three different looks:
 | | Mute | Gate (Auto-Silence) | Soft cut |
 |---|---|---|---|
 | What it is | the user muted a clip | one merged gate per track closes the mic | a stretch cut without closing the gap |
-| Look (since 2026-10-21, [SILENCE-VISUALS.md](SILENCE-VISUALS.md)) | waveform outline only (no fill), body toned down (`--signal-silent-body`), no hatch, no icon | waveform outline only under the stretch, body toned down, a padlock (`--signal-gate-lock`) at the left of its visible part; no hatch, so clip borders stay visible | hatch in the cut colour, `--signal-soft-cut-fill`, solid 2 px cut-colour edges, "cut" when wide |
+| Look (since 2026-10-21, amended 2026-11-20, [SILENCE-VISUALS.md](SILENCE-VISUALS.md)) | waveform filled but heavily dimmed, body much darker (`--signal-silent-body`), no upper border, no hatch, no icon | waveform dimmed under the stretch, body much darker, a padlock (`--signal-gate-lock`) at the left of its visible part; no hatch, so clip borders stay visible | hatch in the cut colour, `--signal-soft-cut-fill`, solid 2 px cut-colour edges, "cut" when wide |
 | Wording | "Mute clip" / "Unmute" (N) | hover "Mic closed by Auto-Silence" · click "Open this stretch" | "Delete" (Backspace; keeps the gap, owner 18.10.2026) · "Restore" (ripple cuts made with X: "Put back" on the notch) |
 | Visibility | always | per-lane show/hide toggle (lane context menu and palette) | "Show cuts" toggle, on by default |
 

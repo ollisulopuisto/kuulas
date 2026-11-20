@@ -182,52 +182,45 @@ describe("painting waveforms (what the worker runs)", () => {
     assert.equal("laneCurrent" in made, false);
   });
 
-  // The silent-state language (docs/design/SILENCE-VISUALS.md): filled = sounds, outline only
-  // (no fill) = silent. The body under a silent stretch is toned down a little, and it is hatched
-  // when a hatch colour is set (the next test).
-  test("a silent run is hatched, clipped to its own box, when a hatch colour is set", () => {
+  // The silent-state language (docs/design/SILENCE-VISUALS.md): a silent stretch is a much
+  // darker body carrying the same filled half-shape heavily dimmed; nothing is striped or
+  // outlined (owner, 2026-11-20).
+  test("nothing is striped or outlined over a silent run", () => {
     const { ctx, calls, sets } = fakeContext();
     const gated = job({ silentBody: "rgb(0 0 0 / 0.08)", silentHatch: "rgb(9 9 9 / 0.3)" });
     gated.rows[0].gate = [20, 60];
     paintWaveforms(ctx, gated, () => loud());
-    assert.ok(sets.some((s) => s[0] === "strokeStyle" && s[1] === "rgb(9 9 9 / 0.3)"));
-    const clips = calls.filter((c) => c[0] === "rect" && c[1] === 20);
-    assert.ok(clips.length >= 1, "the hatch is clipped to the silent run's box");
-    assert.ok(calls.some((c) => c[0] === "clip"));
-    assert.ok(count(calls, "stroke") >= 2, "the stripes are stroked");
+    assert.equal(count(calls, "stroke"), 0, "no stripes, no outline");
+    assert.ok(!sets.some((s) => s[0] === "strokeStyle"), "the hatch colour is never set");
   });
 
-  test("columns under a gate lose their fill: an outline of the wave instead", () => {
+  test("columns under a gate keep their shape as a dimmed filled ghost", () => {
     const { ctx, calls, sets } = fakeContext();
     const gated = job({ silentBody: "rgb(0 0 0 / 0.08)" });
     gated.rows[0].gate = [20, 60];
     paintWaveforms(ctx, gated, () => loud());
     const columns = calls.filter((c) => c[0] === "rect" && c[3] === 1).map((c) => c[1]);
-    assert.equal(columns.length, 60, "only the 60 sounding columns are filled");
-    assert.ok(columns.includes(19) && columns.includes(60));
-    assert.ok(!columns.some((x) => x >= 20 && x < 60), "no filled bar under the gate");
-    assert.equal(count(calls, "stroke"), 1, "one stroked outline for the one silent run");
-    // The outline is drawn in the label colour: it reads on the toned-down body.
-    assert.ok(sets.some((s) => s[0] === "strokeStyle" && s[1] === "#abc"));
-    const moves = calls.filter((c) => c[0] === "moveTo");
-    assert.equal(moves[0][1], 20, "the outline starts at the run's left edge");
+    assert.equal(columns.length, 100, "every column is filled, sounding or ghost");
+    const alphas = sets.filter((s) => s[0] === "globalAlpha").map((s) => s[1]);
+    assert.ok(alphas.includes(0.35), `the ghost is dimmed: alphas ${alphas}`);
     // The body tone over the silent run only, in the silent-body colour.
     assert.ok(calls.some((c) => c[0] === "fillRect" && c[1] === 20 && c[3] === 40));
     assert.ok(sets.some((s) => s[0] === "fillStyle" && s[1] === "rgb(0 0 0 / 0.08)"));
   });
 
-  test("a muted clip is outline only, at full opacity (dimming is not a silence signal)", () => {
+  test("a muted clip is the dimmed ghost everywhere (dimming is not a silence signal)", () => {
     const { ctx, calls, sets } = fakeContext();
     const muted = job();
     muted.rows[0].clips[0].muted = true;
     paintWaveforms(ctx, muted, () => loud());
-    assert.equal(bars(calls), 0, "no filled bar");
-    assert.equal(count(calls, "stroke"), 1);
+    assert.equal(bars(calls), 100, "the ghost keeps every column's shape");
+    assert.equal(count(calls, "stroke"), 0);
     const alphas = sets.filter((s) => s[0] === "globalAlpha").map((s) => s[1]);
     assert.ok(
-      alphas.every((a) => a === 1),
+      alphas.every((a) => a === 1 || a === 0.35),
       `alphas ${alphas}`,
     );
+    assert.ok(alphas.includes(0.35), "the ghost is dimmed");
   });
 
   test("a clip that keeps the mic open is filled under the gate", () => {

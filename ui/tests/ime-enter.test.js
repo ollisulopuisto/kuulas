@@ -132,7 +132,7 @@ const GUARDED = {
   "inspector.js": [224],
   "markers-panel.js": [42],
   "marks-corner.js": [160],
-  "timeline.js": [1992],
+  "timeline.js": [2003],
   "tracks.js": [122, 163, 1028],
   "transcript.js": [1142, 1407],
 };
@@ -159,7 +159,7 @@ const CONTAINED = {
   "history-panel.js": [316],
   "markers-panel.js": [42],
   "marks-corner.js": [160],
-  "timeline.js": [1992],
+  "timeline.js": [2003],
   "tracks.js": [163],
 };
 

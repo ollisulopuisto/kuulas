@@ -12,16 +12,14 @@ import { layoutFor, RULER_HEIGHT, visibleRows } from "./lanes.js";
 import {
   columnRuns,
   envelopeOutline,
-  hatchSegments,
+  SILENT_WAVE_ALPHA,
   silentColumns,
-  silentOutlineAlpha,
 } from "./silence-visuals.js";
 import { columnsFromTiles, pickLevel, waveformColumns } from "./waveform.js";
 
 /** Below this a gain is silence: JSON cannot carry -Infinity, so the job clamps to it. */
 const SILENCE_DB = -200;
 const CAP_PX = 3;
-const HATCH_GAP = 6; // px between the silent stripes (silence-visuals.js hatchSegments)
 /** Bars are opaque: --track-N-wave on --track-N-body is checked at >= 3:1 (tokens.test.js). */
 const WAVE_ALPHA = 1;
 /** Pixels between the lines of a diagonal hatch (cut candidates, collateral, edge drags). */
@@ -244,10 +242,10 @@ export function paintWaveforms(ctx, job, lookup) {
 }
 
 /**
- * One clip's waveform: filled where it sounds, the outline of its min/max envelope where it is
- * silent (muted, or under the gate unless the clip keeps the mic open), with the body toned
- * down there (job.silentBody); the Auto-Silence preview's would-close columns outlined in the
- * preview colour. Silent columns never clip (they do not play).
+ * One clip's waveform: filled where it sounds, and where it is silent (muted, or under the
+ * gate unless the clip keeps the mic open) the same filled half-shape heavily dimmed over a
+ * much darker body (owner, 2026-11-20, job.silentBody); the Auto-Silence preview's would-close
+ * columns outlined in the preview colour. Silent columns never clip (they do not play).
  */
 function paintClipWave(ctx, job, row, clip, view) {
   const { from, to, y, h, colours, level, lookup, missing, overs } = view;
@@ -276,32 +274,12 @@ function paintClipWave(ctx, job, row, clip, view) {
   const silentRuns = columnRuns(silent);
   if (preview)
     for (let column = 0; column < count; column += 1) if (silent[column]) preview[column] = 0;
-  // The body tone of a silent stretch: a light darkening, well under the inactive veil.
+  // The body tone of a silent stretch: a strong darkening, well over the old light veil
+  // (owner, 2026-11-20): the much darker body is the signal, so nothing is striped.
   if (silentRuns.length && job.silentBody) {
     ctx.fillStyle = job.silentBody;
     for (let i = 0; i < silentRuns.length; i += 2)
       ctx.fillRect(from + silentRuns[i], y, silentRuns[i + 1] - silentRuns[i], h);
-  }
-  // Stripes over the same stretch, so a silent clip reads as silent whatever its body colour
-  // (owner, 2026-10-26). Each run is clipped to its own box, so no stripe leaks past an edge.
-  if (silentRuns.length && job.silentHatch) {
-    ctx.strokeStyle = job.silentHatch;
-    ctx.lineWidth = 1;
-    for (let i = 0; i < silentRuns.length; i += 2) {
-      const x = from + silentRuns[i];
-      const width = silentRuns[i + 1] - silentRuns[i];
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x, y, width, h);
-      ctx.clip();
-      ctx.beginPath();
-      for (const [x1, y1, x2, y2] of hatchSegments(x, y, width, h, HATCH_GAP)) {
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-      }
-      ctx.stroke();
-      ctx.restore();
-    }
   }
   // Clipping is judged per drawn column (a peak bucket at this zoom), on the true gain, not
   // the capped display scale, and only where the clip sounds.
@@ -325,9 +303,17 @@ function paintClipWave(ctx, job, row, clip, view) {
     if (barBottom > barTop) ctx.rect(from + column, y + barTop, 1, barBottom - barTop);
   }
   ctx.fill();
-  // In the label colour: the wave colour is too close to the toned-down body to read on it.
-  ctx.globalAlpha = WAVE_ALPHA * silentOutlineAlpha({ muted: Boolean(clip.muted) });
-  strokeOutlines(ctx, bars, silentRuns, { from, y, h, colour: colours.label || colours.wave });
+  // The ghost of the audio stays where the clip is silent: the same filled half-shape,
+  // heavily dimmed on the much darker body (owner, 2026-11-20); nothing is striped.
+  ctx.globalAlpha = WAVE_ALPHA * SILENT_WAVE_ALPHA;
+  ctx.beginPath();
+  for (let column = 0; column < count; column += 1) {
+    if (!silent[column] || preview?.[column] || flagged?.[column]) continue;
+    const barTop = bars[2 * column];
+    const barBottom = bars[2 * column + 1];
+    if (barBottom > barTop) ctx.rect(from + column, y + barTop, 1, barBottom - barTop);
+  }
+  ctx.fill();
   ctx.globalAlpha = WAVE_ALPHA;
   if (preview) {
     strokeOutlines(ctx, bars, columnRuns(preview), {
@@ -373,8 +359,8 @@ function strokeOutlines(ctx, bars, runs, { from, y, h, colour }) {
 
 /**
  * A diagonal hatch over a box: cut candidates, collateral and edge-drag regions. Silence is
- * never hatched (docs/design/SILENCE-VISUALS.md): a muted clip or a closed stretch is an
- * outline-only waveform instead.
+ * never hatched (docs/design/SILENCE-VISUALS.md): a muted clip or a closed stretch is a
+ * much darker body with a dimmed ghost waveform instead.
  */
 export function drawDiagonalHatch(ctx, x, y, w, h, colour) {
   ctx.save();
