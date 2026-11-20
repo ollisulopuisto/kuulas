@@ -33,9 +33,13 @@ editing workflow or resampling correction.
    missing. Never move an unmatched or ambiguous clip.
 2. Refine each discontinuity before picking a quiet split. Merely picking the
    quietest point between sparse windows could misalign seconds of speech.
-3. Read selected source audio in bounded chunks in the existing analysis worker.
-   Keep heavy work out of the editor process. Include offline-media, read-only,
-   cancellation and memory limits.
+3. Read-only snapshot analysis is now registered in the existing worker, with
+   bounded ten-second channel-first reads, source-span/duration checks,
+   offline/partial-media statuses and cancellation checkpoints. A real worker
+   reopen test matches inline results and leaves project state unchanged.
+   This is not yet called by a UI/background job. Production memory limits,
+   project read-only execution gating and actual-session behavior still need
+   end-to-end checks.
 4. Make drift-corrected variants without altering originals. The existing
    ops.use_variant deliberately requires equal source/variant lengths, so do
    not reuse it for a different-length resample. Preserve source offsets,

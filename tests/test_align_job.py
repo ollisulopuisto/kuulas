@@ -3,9 +3,12 @@ from dataclasses import replace
 
 import numpy as np
 import pytest
+import soundfile as sf
 
+from kuulas import offload
 from kuulas.align_job import analyze, snapshot_key
 from kuulas.model import Clip, Media, Project, Track
+from kuulas.session import Session
 
 
 class Store:
@@ -69,3 +72,26 @@ def test_job_rejects_invalid_or_same_track_selection_before_reading(tmp_path):
 def test_snapshot_changes_for_an_unrelated_edit_too(tmp_path):
     project,_=setup(tmp_path)
     assert snapshot_key(project)!=snapshot_key(replace(project,master_gain_db=-3))
+
+
+def test_real_worker_matches_inline(tmp_path, monkeypatch):
+    rng = np.random.default_rng(15)
+    level = np.repeat(rng.uniform(.05, .8, 60 * 1000), 48)
+    audio = (level * rng.standard_normal(level.size)).astype(np.float32)
+    sf.write(tmp_path / "reference.wav", audio, 48000, subtype="FLOAT")
+    sf.write(tmp_path / "candidate.wav", audio[2*48000:], 48000, subtype="FLOAT")
+    session = Session(tmp_path / "Worker.kuulas")
+    try:
+        session.import_media([str(tmp_path / "reference.wav"),
+                              str(tmp_path / "candidate.wav")])
+        project = session.state
+        ids = [track.clips[0].id for track in project.tracks]
+        expected = analyze(project, session.store, ids)
+        monkeypatch.setattr(offload, "MODE", "process")
+        actual = offload.call("automatic_sync", project, session.store, ids)
+        assert actual == expected
+        offset = actual["candidates"][0]["proposal"]["offset"]
+        assert offset == pytest.approx(2., abs=.001)
+        assert session.state == project
+    finally:
+        session.close()
