@@ -3,6 +3,7 @@
 // drag is one undo step; the keyboard (+/-, Mod+F) and the inspector set the same fields.
 
 import { clipGainOverlayAllowed } from "./clip-silence.js";
+import { PILL_HEIGHT, PILL_WIDTH } from "./drag-handle.js";
 import { lineValueAt, movePoint, togglePoint } from "./envelope-edit.js";
 import { dbToY, yToDb } from "./lanes.js";
 
@@ -10,8 +11,7 @@ import { dbToY, yToDb } from "./lanes.js";
 export const GAIN_HIT_PX = 5;
 /** The line and the handles are drawn only in lanes at least this tall (timeline.js). */
 export const MIN_LANE_FOR_HANDLES = 40;
-/** Handle radius (px) for hit testing, and how far in from the corner a handle sits at rest. */
-export const FADE_HIT_PX = 6;
+/** How far in from the corner a handle sits at rest. */
 export const FADE_INSET_PX = 10;
 /** Handle height in the lane (px from the lane's top): just under the clip's top edge. */
 export const FADE_HANDLE_Y = 7;
@@ -147,7 +147,12 @@ export function fadeHandleAt(clip, frame, x, rowY, rowHeight) {
   if (frame.right - frame.left < 4 * FADE_INSET_PX) return null;
   const handles = fadeHandles(clip, frame);
   for (const side of ["in", "out"]) {
-    if (Math.hypot(x - handles[side].x, rowY - handles[side].y) <= FADE_HIT_PX) return side;
+    // The painted grip pill is the hit target: a press anywhere on it must drag the fade.
+    if (
+      Math.abs(x - handles[side].x) <= PILL_WIDTH / 2 &&
+      Math.abs(rowY - handles[side].y) <= PILL_HEIGHT / 2
+    )
+      return side;
   }
   return null;
 }

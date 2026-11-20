@@ -2462,8 +2462,8 @@ export function createTimeline({
       overlayCanvas.setPointerCapture?.(event.pointerId);
     }
     if (!zone && !moving && intent === "range") beginRangeDrag(event, hit);
-    if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
-    else if (zone) startTweak(hit, event, zone);
+    if (zone) startTweak(hit, event, zone);
+    else if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
     else if (moving) {
       const clickIntent = pointerIntent(hit, {
         shift: event.shiftKey,
@@ -2483,9 +2483,7 @@ export function createTimeline({
   // Dragging a clip's gain line, envelope point or fade handle (WP6): live edits (coalesced by
   // the app, so one undo step); Esc puts the value back. A short press is a click.
   function tweakZone(hit, event, selection) {
-    if (!hit.clip || hit.row?.kind !== "track" || hit.edge) return null;
-    const pointZone = envelopePointZone(hit);
-    if (pointZone) return pointZone;
+    if (!hit.clip || hit.row?.kind !== "track") return null;
     const state = getState();
     const x = locate(event).x;
     const rowY = rowYOf(event, hit);
@@ -2494,8 +2492,12 @@ export function createTimeline({
       right: frameToX(clipEnd(hit.clip), state.scroll, state.zoom),
       zoom: state.zoom,
     };
+    // A fade pill beats the trim edge it overlaps: what is painted as the handle is the target.
     const side = fadeHandleAt(hit.clip, frame, x, rowY, hit.row.height);
     if (side) return { kind: "fade", side };
+    if (hit.edge) return null;
+    const pointZone = envelopePointZone(hit);
+    if (pointZone) return pointZone;
     if (hit.point == null && gainLineVisible(hit.clip, selection?.has(hit.clip.id))) {
       if (gainLineHit(hit.clip, hit.row.height, rowY)) return { kind: "gain" };
     }
