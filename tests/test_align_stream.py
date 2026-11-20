@@ -53,5 +53,5 @@ def test_truncated_and_invalid_channel_data_fail_closed():
     for read in [lambda first,count:np.zeros((1,count-1)),
                  lambda first,count:np.zeros((count,)),
                  lambda first,count:np.full((1,count),np.nan)]:
-        with pytest.raises(ValueError, match="channel-first|finite project"):
+        with pytest.raises(ValueError, match=r"channel-first|finite project"):
             read_envelope(read,rate=8000,start=0,frames=8000)
