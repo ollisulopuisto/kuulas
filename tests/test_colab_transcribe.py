@@ -259,8 +259,21 @@ def test_default_command_uses_the_public_tool_without_a_sibling_checkout(tmp_pat
     assert ct.default_command(tmp_path) == [
         "uvx", "--python", "3.13",
         "--from",
-        "git+https://github.com/ollisulopuisto/podcast@c3e1e8a06f8784ec3de30ef6c04a38f70c04472b#subdirectory=colab-transcribe",
+        ct._REMOTE_SOURCE,
         "colab-transcribe"]
+
+
+def test_stored_default_command_upgrades_the_previous_pin(tmp_path):
+    """A stored command naming the c3e1e8a pin is upgraded to the current
+    _REMOTE_SOURCE when read back (the pin moved for the quiet/probe fixes)."""
+    old = [
+        "uvx", "--python", "3.13",
+        "--from",
+        "git+https://github.com/ollisulopuisto/podcast@c3e1e8a06f8784ec3de30ef6c04a38f70c04472b#subdirectory=colab-transcribe",
+        "colab-transcribe",
+    ]
+    got = ct.resolve_settings({"command": old})["command"]
+    assert got == ct.default_command(tmp_path)
 
 
 def test_stored_default_command_upgrades_the_large_upload_revision(tmp_path):
@@ -282,7 +295,7 @@ def test_stored_default_command_upgrades_the_large_upload_revision(tmp_path):
 
 def test_stored_command_drops_the_retired_overrides_file(tmp_path):
     """The bundled transcription-overrides.txt is gone (the pinned tool
-    resolves on its own from c3e1e8a): a stored command naming the old pin
+    resolves on its own now): a stored command naming the old pin
     and the old file is upgraded and cleaned, or uvx would fail on a
     missing file."""
     old = [
