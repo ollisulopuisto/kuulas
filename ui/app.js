@@ -4644,7 +4644,18 @@ function render(state, patch, previous = null) {
   ) {
     timeline.redrawWaveforms();
   }
-  if (touched("project", "scroll", "zoom", "playhead", "selection", "silencePreview")) {
+  if (
+    touched(
+      "project",
+      "scroll",
+      "zoom",
+      "playhead",
+      "selection",
+      "silencePreview",
+      "inPoint",
+      "outPoint",
+    )
+  ) {
     overview.redraw();
   }
   if (touched("playhead", "project")) {
@@ -5136,6 +5147,7 @@ async function restoreView(pending = api.getViewMemory()) {
       project: getState().project,
       width: width(),
       totalFrames: viewEnd(),
+      audioFrames: totalFrames(),
     });
     // Marks can be beyond surviving audio after a partial NHSX import. Restore
     // them before fitting the view, without changing playable/export duration.

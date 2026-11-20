@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { overviewEnd } from "../overview.js";
 import {
   backView,
   clampScroll,
@@ -332,4 +333,20 @@ test("transport marks extend only the view, never the playable project", () => {
   assert.equal(viewEnd(project, 0, { inPoint: 62, outPoint: 72 }), 84);
   assert.equal(viewEnd({ tracks: [] }, 0, { inPoint: 62, outPoint: 72 }), 72);
   assert.equal(viewEnd({ tracks: [] }, 0, { outPoint: Infinity }), 0);
+});
+
+test("overview navigation reaches transport marks beyond audio", () => {
+  for (const tracks of [[], [{ clips: [{ start: 0, length: 30 * RATE }] }]]) {
+    const state = { project: { tracks }, outPoint: 72.5 * RATE };
+    assert.equal(
+      overviewScroll({
+        total: overviewEnd(state),
+        zoom: RATE / 100,
+        width: 1000,
+        strip: 1000,
+        x: 1000,
+      }),
+      67.5 * RATE,
+    );
+  }
 });

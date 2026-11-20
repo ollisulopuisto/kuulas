@@ -313,3 +313,23 @@ test("launcher marker-only and missing-tail imports retain their transport range
     assert.equal(patch.outPoint, record.outPoint);
   }
 });
+
+test("a non-whole viewport beyond missing audio round-trips with its marks", () => {
+  const view = {
+    zoom: 480,
+    scroll: 60 * 48000,
+    whole: false,
+    playhead: 65 * 48000,
+    inPoint: 62.5 * 48000,
+    outPoint: 72.5 * 48000,
+  };
+  const { patch, whole } = restoreFrom(view, {
+    ...context,
+    totalFrames: 30 * 48000,
+    audioFrames: 30 * 48000,
+  });
+  assert.equal(patch.scroll, view.scroll);
+  assert.equal(patch.zoom, view.zoom);
+  assert.equal(patch.playhead, 30 * 48000);
+  assert.equal(whole, false);
+});
