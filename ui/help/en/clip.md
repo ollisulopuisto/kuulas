@@ -2,7 +2,7 @@
 id: clip
 title: A clip
 applies-to: [clip]
-commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, clip.relink_media, edit.undo, help.open]
+commands: [sync.automatic, edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, clip.relink_media, edit.undo, help.open]
 related: [timeline, track, transcript]
 ---
 A clip is a stretch of one recording placed on a track. Several clips can come from the same recording; selecting one marks its siblings with a bracket.
@@ -37,3 +37,13 @@ The inspector shows the clip's level, sync and source. {show:inspector} Show me 
 A clip that keeps the mic open shows a "Mic kept open" row under Level; its button lets Auto-Silence gate the clip again (the same as Keep the mic open under the selected clips, in the Clip menu).
 
 See also [[track]] and [[transcript]].
+
+## Automatic recording sync
+
+Use Clip > Sync > Automatic sync… ({key:sync.automatic}) after arranging each participant's files in order on one track. Selected tracks or clips choose the participant tracks; otherwise nonempty tracks are included. The topmost track is the fixed reference.
+
+Sync mode takes over the window. Other edits are locked until Accept or Cancel. Auto first searches shared sound, then turn gaps. With remote voices that do not bleed into each other's recordings, use Turn gaps and check the alternatives by ear. Gap suggestions are not proof of exact alignment.
+
+Drag a piece to shift its whole track, preserving file order and gaps. Choose Only this piece for an intentional piece-specific move. Type an offset in seconds or use 10 ms nudges. Click the timeline to set the listening point, zoom, then compare the proposal and the original around that point. Beginning, middle and end checks help reveal drift. Reset restores the computed suggestion.
+
+Accept applies the timing changes in one undo step; Cancel changes nothing. Missing or partial sources and inconsistent pieces stay without an automatic suggestion. A start move cannot correct continuous clock drift; no media is resampled. Existing sync-group declarations are not redefined automatically. Use Mark in sync deliberately after reviewing the timing if you want to redefine that relationship.

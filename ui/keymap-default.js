@@ -51,6 +51,12 @@ export const CONTEXTS = [
 
 export const DEFAULT_KEYMAP = [
   {
+    id: "sync.automatic",
+    keys: { mac: "Alt+Mod+Shift+F7", other: "Alt+Mod+Shift+F7" },
+    context: "global",
+    labelKey: "cmd.sync.automatic",
+  },
+  {
     id: "history.part_versions",
     keys: { mac: "Alt+Mod+H", other: "Alt+Mod+H" },
     context: "global",

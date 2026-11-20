@@ -33,7 +33,11 @@ def _slide_correlation(region: np.ndarray, win: np.ndarray) -> np.ndarray:
     sq_sums = c2[w:] - c2[:-w]
     means = sums / w
     var = np.maximum(sq_sums / w - means**2, 0.0)
-    conv = np.convolve(region, win[::-1], mode="valid")
+    # Direct convolution becomes quadratic when searching an hour-long call.
+    # Zero-pad the FFT so this is linear, not circular, convolution.
+    size = 1 << (region.size + w - 2).bit_length()
+    conv = np.fft.irfft(np.fft.rfft(region, size)
+                        * np.fft.rfft(win[::-1], size), size)[w - 1:region.size]
     numerator = conv - sums * win.mean()
     # numerator holds dot products of the centred signals; divide by the two
     # norms (the window's sqrt(w) factor turns its variance into the norm).

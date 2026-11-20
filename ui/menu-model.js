@@ -186,6 +186,7 @@ const LEVEL_PAN = submenu("menu.level_pan", [
 // The per-clip sync commands. The ones that put things back (re-sync, free, send home) are under
 // Edit > Sync back, next to Undo and Redo (owner, 2026-10-19).
 const SYNC = submenu("menu.sync", [
+  item("sync.automatic"),
   item("sync.mark"),
   item("sync.set_anchor"),
   item("sync.point1"),

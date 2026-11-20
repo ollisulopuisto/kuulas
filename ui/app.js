@@ -201,6 +201,7 @@ import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
 import { anchorPatch, getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import { createSyncConfirm } from "./sync-confirm.js";
+import { createSyncReview } from "./sync-review.js";
 import { driftingAmong } from "./sync-state.js";
 import {
   cycleScope,
@@ -439,6 +440,7 @@ const bounds = () => ({ width: width(), totalFrames: viewEnd() });
 
 function apply(response) {
   const patch = serverPatch(response, getState());
+  patch.automaticSync = response.automatic_sync ?? [];
   // What the server's mute/solo state is, for the transcript's struck-through words; the
   // project on screen may hold a provisional toggle the server has not answered yet.
   if (response.project) patch.serverMutedKey = mutedInputsKey(response.project);
@@ -988,7 +990,15 @@ function setSlowSpeed(speed) {
   showNotice(t("ui.slow.now", { speed: t(`cmd.transport.slow_speed_${id}`) }), "ok");
 }
 
+const syncReview = createSyncReview({
+  t,
+  getState,
+  refresh,
+  notice: (message, options) => showNotice(message, "ok", options),
+});
+
 const actions = {
+  automaticSync: () => void syncReview.open(),
   slowListen,
   slowRelease: (code) => slowHold.release(code),
   slowCancel: () => slowHold.cancel(),
@@ -4797,6 +4807,7 @@ function render(state, patch, previous = null) {
   ) {
     trackHeaders.update(state);
     trackHeaders.setRecording(recordView.isRecording());
+    syncReview.update(state.automaticSync ?? []);
   }
   focusChanged(state, touched);
   if (touched("project", "autoFitTracks", "laneHeights", "collapsedBuses", "busHeight", "groupGap"))
