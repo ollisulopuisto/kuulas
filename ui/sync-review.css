@@ -120,3 +120,9 @@
   font-size: var(--text-xs);
   padding: var(--space-1) var(--space-2);
 }
+.sync-review .sync-review-error {
+  color: var(--danger-text);
+  background: var(--danger-subtle);
+  padding: var(--space-3);
+  border: 1px solid var(--danger);
+}

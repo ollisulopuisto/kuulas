@@ -6,6 +6,7 @@ import pytest
 from test_align_job import Store, setup
 
 from kuulas.align_tracks import analyze_tracks, gap_options
+from kuulas.memory import MemoryBudget
 from kuulas.model import Clip, Media, Project, Track
 
 
@@ -92,3 +93,58 @@ def test_offline_reference_is_identified_as_the_reference(tmp_path):
     assert result['anchor_status']=='offline'
     assert result['tracks'][0]['status']=='reference_offline'
     assert store.reads==[]
+
+
+def test_source_envelopes_cached_across_reference_pieces_and_calculations(tmp_path):
+    p,store=setup(tmp_path)
+    store.cache_root=tmp_path/'cache'
+    store.budget=MemoryBudget(limit_bytes=1024*1024)
+    store.cache_identity=lambda mid:mid
+    clip=p.tracks[0].clips[0]
+    p=replace(p,tracks=(replace(p.tracks[0],clips=(replace(clip,length=25*p.rate),
+        replace(clip,id='a2',start=30*p.rate,offset=30*p.rate,length=25*p.rate))),
+        p.tracks[1]))
+    analyze_tracks(p,store,['top','below'],'auto')
+    reads=len(store.reads)
+    assert sum(n for key,_,n in store.reads if key=='candidate')<=58*p.rate
+    analyze_tracks(p,store,['top','below'],'auto')
+    assert len(store.reads)==reads
+
+
+
+def test_sync_envelope_disk_cache_reopens_and_checks_source_identity(tmp_path):
+    p,store=setup(tmp_path)
+    store.cache_root=tmp_path/'cache'
+    store.budget=MemoryBudget(limit_bytes=1024*1024)
+    version=['first']
+    store.cache_identity=lambda mid:mid+version[0]
+    original=analyze_tracks(p,store,['top','below'],'sound')
+    reads=len(store.reads)
+    store.budget=MemoryBudget(limit_bytes=1024*1024)
+    assert analyze_tracks(p,store,['top','below'],'sound')==original
+    assert len(store.reads)==reads
+    assert store.budget.stats()['sync-envelope']['disk_hits']>0
+    version[0]='changed'
+    analyze_tracks(p,store,['top','below'],'sound')
+    assert len(store.reads)>reads
+    reads=len(store.reads)
+    (tmp_path/'candidate').unlink()
+    result=analyze_tracks(p,store,['top','below'],'sound')
+    assert result['tracks'][0]['status']=='offline'
+    assert len(store.reads)==reads
+
+
+def test_sync_corrupt_envelope_cache_recomputes(tmp_path):
+    p,store=setup(tmp_path)
+    store.cache_root=tmp_path/'cache'
+    store.budget=MemoryBudget(limit_bytes=1024*1024)
+    store.cache_identity=lambda mid:mid
+    analyze_tracks(p,store,['top','below'],'sound')
+    for path in store.cache_root.rglob('*.npy'):
+        path.write_bytes(b'broken cache')
+    store.budget=MemoryBudget(limit_bytes=1024*1024)
+    reads=len(store.reads)
+    result=analyze_tracks(p,store,['top','below'],'sound')
+    assert result['tracks'][0]['status']=='proposal'
+    assert len(store.reads)>reads
+    assert store.budget.used<=store.budget.limit

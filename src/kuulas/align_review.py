@@ -6,6 +6,7 @@ import math
 import uuid
 from dataclasses import replace
 
+from . import ops
 from .align_job import snapshot_key
 from .messages import KuulasError
 
@@ -65,7 +66,10 @@ class Review:
     def preview(self, offsets=None):
         offsets = self.offsets if offsets is None else offsets
         tracks = []
-        for track in self.project.tracks:
+        moved = {t.id for t in self.project.tracks
+                 if any(offsets.get(c.id, 0) for c in t.clips)}
+        prepared = ops._materialize_legacy_gates(self.project, moved)
+        for track in prepared.tracks:
             clips = tuple(replace(c, start=c.start + offsets.get(c.id, 0))
                           for c in track.clips)
             if any(c.start < 0 for c in clips):

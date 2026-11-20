@@ -22,6 +22,9 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
   let activeDrag = false;
   let playbackTimer = null;
   let playing = false;
+  let listening = { original: false, continuous: false };
+  let errorText = "";
+  let controls = null;
   const tiles = createTileStore({
     fetchTile: api.peakTile,
     onChange: () => {
@@ -62,6 +65,20 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
     node.addEventListener("click", () => void perform(action));
     return node;
   }
+  function reportError(message) {
+    if (!root) {
+      notice(message);
+      return;
+    }
+    errorText = String(message);
+    let alert = root.querySelector("[role=alert]");
+    if (!alert) {
+      alert = element("p", "", root);
+      alert.setAttribute("role", "alert");
+    }
+    alert.textContent = errorText;
+    alert.className = "sync-review-error";
+  }
   async function perform(action) {
     if (busy) return;
     busy = true;
@@ -69,7 +86,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
     try {
       await action();
     } catch (error) {
-      notice(error.message);
+      reportError(error.message);
     } finally {
       busy = false;
       if (review) draw();
@@ -102,6 +119,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
       ? { at: frame, seconds: (length() - frame) / review.project.rate }
       : auditionRange(frame, length(), review.project.rate);
     await request("/listen", { id: review.id, original, loop, ...range });
+    listening = { original, continuous };
     playing = true;
     clearTimeout(playbackTimer);
     playbackTimer = setTimeout(playbackPosition, 150);
@@ -124,13 +142,22 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
       if (clock) clock.textContent = frameToTime(frame, review.project.rate);
       if (playing) playbackTimer = setTimeout(playbackPosition, 150);
     } catch (error) {
-      notice(error.message);
+      reportError(error.message);
     }
   }
   async function stop() {
     clearTimeout(playbackTimer);
     playing = false;
     await api.transport("stop");
+  }
+  async function seek(at) {
+    frame = at;
+    if (playing) {
+      clearTimeout(playbackTimer);
+      // A seek can leave a six-second audition or its loop. Rebuild the
+      // listening range at the new position, keeping original/proposal mode.
+      await listen(listening.original, listening.continuous);
+    }
   }
   function svgNode(tag, attrs, parent) {
     const node = doc.createElementNS(ns, tag);
@@ -195,8 +222,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
     }
     svg.addEventListener("pointerdown", (event) => {
       if (event.target !== svg && event.target.tagName !== "line") return;
-      frame = valueAt(event);
-      draw();
+      void perform(() => seek(valueAt(event)));
     });
     let index = 0;
     for (const track of review.project.tracks.filter((tr) => review.tracks.includes(tr.id))) {
@@ -236,12 +262,14 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
         wave(group, clip, x, w, y + 4, 67, scale, color);
         rect.addEventListener("focus", () => {
           selected = clip.id;
+          for (const piece of svg.querySelectorAll("[data-clip]"))
+            piece.classList.toggle("selected", piece === rect);
+          drawControls();
         });
         rect.addEventListener("pointerdown", (event) => {
           if (busy) return;
           if (track.id === review.anchor) {
-            frame = valueAt(event);
-            draw();
+            void perform(() => seek(valueAt(event)));
             return;
           }
           event.preventDefault();
@@ -273,7 +301,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
             frame = valueAt(e);
             const delta = Math.round((e.clientX - startX) * scale);
             if (Math.abs(e.clientX - startX) < 3) {
-              draw();
+              void perform(() => seek(frame));
               return;
             }
             void perform(() => move(delta));
@@ -297,6 +325,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
   }
   function draw() {
     if (!review || !root) return;
+    const focusedClip = root.contains(doc.activeElement) ? doc.activeElement?.dataset?.clip : null;
     root.replaceChildren();
     root.setAttribute("aria-busy", String(busy));
     const banner = element("header");
@@ -345,52 +374,17 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
       tools,
     ).setAttribute("aria-pressed", String(loop));
     element("span", frameToTime(frame, review.project.rate), tools).className = "sync-review-clock";
+    if (errorText) reportError(errorText);
     const status = element("p", job ? text("analyzing") : text("pieces"));
     status.setAttribute("role", "status");
     drawTimeline(root);
-    const controls = element("footer");
+    controls = element("footer");
     controls.className = "sync-review-controls";
-    const pick = chosen();
-    if (pick && pick.track.id !== review.anchor) {
-      element("strong", pick.track.name, controls);
-      const select = element("select", "", controls);
-      select.setAttribute("aria-label", text("scope"));
-      for (const value of ["track", "clip"]) {
-        const option = element("option", text(value), select);
-        option.value = value;
-      }
-      select.value = scope;
-      select.addEventListener("change", () => {
-        scope = select.value;
-      });
-      element("span", text("offset"), controls);
-      const input = element("input", "", controls);
-      input.type = "number";
-      input.step = ".001";
-      input.value = ((review.offsets[pick.clip.id] ?? 0) / review.project.rate).toFixed(3);
-      input.setAttribute("aria-label", text("offset"));
-      input.addEventListener(
-        "change",
-        () =>
-          void perform(() =>
-            move(
-              Math.round(Number(input.value) * review.project.rate) -
-                (review.offsets[pick.clip.id] ?? 0),
-            ),
-          ),
-      );
-      button("left", () => move(-Math.round(review.project.rate / 100)), controls);
-      button("right", () => move(Math.round(review.project.rate / 100)), controls);
-    }
-    button("audition", () => listen(false), controls);
-    button("original", () => listen(true), controls);
-    button(
-      "reset",
-      async () => {
-        review = await request("/reset", { id: review.id });
-      },
-      controls,
-    );
+    drawControls();
+    if (focusedClip)
+      [...root.querySelectorAll("[data-clip]")]
+        .find((node) => node.dataset.clip === focusedClip)
+        ?.focus();
     const results = element("div");
     results.className = "sync-review-results";
     for (const row of review.result?.tracks ?? []) {
@@ -441,6 +435,50 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
       }
     }
   }
+  function drawControls() {
+    controls.replaceChildren();
+    const pick = chosen();
+    if (pick && pick.track.id !== review.anchor) {
+      element("strong", pick.track.name, controls);
+      const select = element("select", "", controls);
+      select.setAttribute("aria-label", text("scope"));
+      for (const value of ["track", "clip"]) {
+        const option = element("option", text(value), select);
+        option.value = value;
+      }
+      select.value = scope;
+      select.addEventListener("change", () => {
+        scope = select.value;
+      });
+      element("span", text("offset"), controls);
+      const input = element("input", "", controls);
+      input.type = "number";
+      input.step = ".001";
+      input.value = ((review.offsets[pick.clip.id] ?? 0) / review.project.rate).toFixed(3);
+      input.setAttribute("aria-label", text("offset"));
+      input.addEventListener(
+        "change",
+        () =>
+          void perform(() =>
+            move(
+              Math.round(Number(input.value) * review.project.rate) -
+                (review.offsets[pick.clip.id] ?? 0),
+            ),
+          ),
+      );
+      button("left", () => move(-Math.round(review.project.rate / 100)), controls);
+      button("right", () => move(Math.round(review.project.rate / 100)), controls);
+    }
+    button("audition", () => listen(false), controls);
+    button("original", () => listen(true), controls);
+    button(
+      "reset",
+      async () => {
+        review = await request("/reset", { id: review.id });
+      },
+      controls,
+    );
+  }
   async function measure() {
     const result = await request("/measure", { id: review.id, method });
     job = result.jobs[0];
@@ -452,7 +490,8 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
       const response = await api.getJobs();
       const item = response.jobs.find((value) => value.id === job);
       if (item && ["completed", "failed", "cancelled"].includes(item.state)) {
-        if (item.state === "failed") notice(item.error?.text ?? item.message ?? text("failed"));
+        if (item.state === "failed")
+          reportError(item.error?.text ?? item.message ?? text("failed"));
         review = await request("");
         job = null;
         draw();
@@ -461,7 +500,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
       }
     } catch (error) {
       job = null;
-      notice(error.message);
+      reportError(error.message);
       draw();
     }
   }
@@ -473,6 +512,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
     if (accept) notice(text("applied"), { undo: true });
   }
   function cleanup() {
+    errorText = "";
     clearTimeout(timer);
     clearTimeout(playbackTimer);
     playing = false;
@@ -531,7 +571,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
         draw();
         root.focus();
       } catch (error) {
-        notice(error.message);
+        reportError(error.message);
       }
     },
   };

@@ -62,7 +62,10 @@ def test_session_lock_preview_and_apply_one_undo(tmp_path):
     s=Session(tmp_path/'s.kuulas')
     try:
         register(s.history, 'm', 480000)
-        s.history.commit('fixture',project())
+        original = project()
+        original = replace(original, tracks=(original.tracks[0],
+            replace(original.tracks[1], gate=((48000,72000),))))
+        s.history.commit('fixture',original)
         before=s.state
         r=s.sync_begin(['a','b'])
         s.sync_move(r['id'],'b',4800)
@@ -116,3 +119,37 @@ def test_after_apply_status_expires_on_next_edit(tmp_path):
         assert s.sync_applied_status()==[]
     finally:
         s.close()
+
+
+def test_legacy_gate_silences_the_same_source_after_move():
+    p=project()
+    guest=replace(p.tracks[1],gate=((48000,72000),))
+    p=replace(p,tracks=(p.tracks[0],guest))
+    r=Review(p,['a','b'])
+    r.move('b',4800)
+    preview=r.preview()
+    assert preview.tracks[1].gate==()
+    assert preview.tracks[1].clips[0].auto_silence==((0,24000),)
+    assert r.project.tracks[1].gate==((48000,72000),)
+
+
+
+def test_legacy_gate_preview_pcm_follows_moved_source(monkeypatch):
+    install_rig(monkeypatch)
+    p=project()
+    p=replace(p,tracks=(p.tracks[0],replace(p.tracks[1],gate=((48000,72000),))))
+    store=MemoryStore({'m':np.full((1,480000),.1,dtype=np.float32)})
+    r=Review(p,['a','b'])
+    r.move('b',4800)
+    preview=r.preview()
+    old=mixer.mix(p,store,48000,48000)
+    new=mixer.mix(preview,store,52800,48000)
+    np.testing.assert_allclose(new,old,atol=1e-6)
+    assert np.max(np.abs(new[:,5000:15000]))==0
+    engine=Engine(FakeSession(p,store),background=False,clock=Clock())
+    try:
+        engine.set_listen_source(preview,{})
+        engine.play(52800+5000)
+        np.testing.assert_allclose(engine._render(1024),new[:,5000:6024].T,atol=1e-6)
+    finally:
+        engine.close()

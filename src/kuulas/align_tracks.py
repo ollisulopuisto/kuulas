@@ -12,13 +12,14 @@ from dataclasses import asdict
 import numpy as np
 from speechmix import grid
 
-from . import priority
+from . import caches, priority
 from .align_job import snapshot_key
 from .align_proposal import propose
 from .align_review import fail
 from .align_sound import measure
 from .align_stream import read_envelope
 from .media import streaming
+from .memory import BUDGET
 from .messages import KuulasError
 
 
@@ -104,9 +105,22 @@ def analyze_tracks(project, store, track_ids, method='auto'):
         media=project.media_item(clip.media)
         if clip.offset<0 or clip.length<=0 or clip.offset+clip.length>media.frames:
             fail('range')
-        with streaming():
-            return read_envelope(lambda a,n:store.read(clip.media,a,n),rate=project.rate,
-                                 start=clip.offset,frames=clip.length)
+        def compute():
+            with streaming():
+                return read_envelope(lambda a,n:store.read(clip.media,a,n),
+                                     rate=project.rate, start=clip.offset,
+                                     frames=clip.length)
+
+        identity = (store.cache_identity(clip.media)
+                    if hasattr(store, 'cache_identity') else media.sha256)
+        if not identity:
+            return compute()
+        key = caches.key([identity], {'rate':project.rate,'start':clip.offset,
+                                      'frames':clip.length}, 'sync-rms-envelope@1')
+        root = getattr(store, 'cache_root', None)
+        spill = caches.path(root, 'analysis', key, 'npy') if root is not None else None
+        budget = getattr(store, 'budget', BUDGET)
+        return budget.fetch('sync-envelope', key, compute, spill=spill)
 
     def activity(track):
         origin=min(c.start for c in track.clips)
