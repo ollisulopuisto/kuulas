@@ -15,6 +15,8 @@ button.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 9
 await new Promise((resolve) => setTimeout(resolve, REST_MS + 10));
 const box = document.querySelector('[role="tooltip"]');
 const result = {
+  nativeTitle: button.hasAttribute("title"),
+  accessibleName: button.getAttribute("aria-label"),
   text: box.textContent,
   visible: !box.hidden,
   correct: box.textContent === button.dataset.tip,

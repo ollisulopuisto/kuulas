@@ -54,6 +54,8 @@ test("command control displays translated hint with the remapped key in the real
     `http://127.0.0.1:${port}/tests/browser/command-hints.html`,
   ]);
   const result = JSON.parse(stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/)[1]);
+  assert.equal(result.nativeTitle, false);
+  assert.equal(result.accessibleName, "Fit the edit");
   assert.equal(result.visible, true);
   assert.equal(result.correct, true);
   assert.match(result.text, /F8/);

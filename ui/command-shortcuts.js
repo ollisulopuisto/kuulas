@@ -27,6 +27,14 @@ export function applyCommandShortcuts(document, entries, platform, { t } = {}) {
         .join(" · ");
       node.dataset.cmdTip = node.dataset.tip;
     }
+    // One tooltip owner: a native title must not compete with the custom tip.
+    // Keep its accessible name when the view did not provide one explicitly.
+    const title = node.getAttribute?.("title");
+    if (node.dataset.tip && title !== null && title !== undefined) {
+      if (!node.hasAttribute?.("aria-label") && !node.hasAttribute?.("aria-labelledby"))
+        node.setAttribute("aria-label", title);
+      node.removeAttribute?.("title");
+    }
     if (
       t &&
       entry?.labelKey &&
