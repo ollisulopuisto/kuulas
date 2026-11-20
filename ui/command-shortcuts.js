@@ -12,6 +12,21 @@ export function applyCommandShortcuts(document, entries, platform, { t } = {}) {
         .map((combo) => combo.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control"))
         .join(" "),
     );
+    // Preserve state-specific tips owned by another view. Only generated command
+    // tips are refreshed when the keymap or language changes.
+    if (t && entry?.labelKey && (!node.dataset.tip || node.dataset.cmdTip === node.dataset.tip)) {
+      const name = t(entry.labelKey);
+      const hintKey = `cmd.${node.dataset.cmd}.hint`;
+      const hint = t(hintKey);
+      node.dataset.tip = [
+        name,
+        hint !== hintKey && hint !== name ? hint : "",
+        ...combos.map((combo) => formatShortcut(combo, platform)),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      node.dataset.cmdTip = node.dataset.tip;
+    }
     if (
       t &&
       entry?.labelKey &&
