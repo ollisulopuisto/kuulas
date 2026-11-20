@@ -3781,5 +3781,13 @@
   "ui.sync_review.status.reference_offline": "Reference source is offline",
   "ui.sync_review.status.reference_partial": "Reference source is incomplete",
   "ui.sync_review.status.reference_range": "Reference source range is invalid",
-  "ui.sync_review.status.reference_limit": "Reference exceeds analysis limit"
+  "ui.sync_review.status.reference_limit": "Reference exceeds analysis limit",
+  "error.sync.proposal": "This sync result has no valid timing proposal. Calculate it again.",
+  "error.sync.fit": "This sync result has an invalid timing fit. Calculate it again.",
+  "error.sync.excluded": "Some sync windows disagree. Review the recording boundaries before accepting.",
+  "error.sync.source": "A source audio read is incomplete or has an invalid channel layout.",
+  "error.sync.audio": "Sync needs finite audio samples at a supported project sample rate.",
+  "error.sync.envelope": "The sync level data is invalid. Calculate the suggestion again.",
+  "error.sync.accept_selection": "Choose valid non-reference clips from the current sync result, without duplicates.",
+  "error.sync.clip_selection": "Choose 2 to 32 clips on separate tracks, without duplicates."
 }

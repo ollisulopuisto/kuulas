@@ -11,6 +11,7 @@ from __future__ import annotations
 import numpy as np
 
 from . import priority
+from .align_errors import SyncError
 from .align_measure import _slide_correlation
 
 ENVELOPE_RATE = 1000
@@ -28,7 +29,7 @@ def envelope(audio: np.ndarray, rate: int) -> np.ndarray:
     if (not isinstance(rate, int) or rate < ENVELOPE_RATE
             or rate % ENVELOPE_RATE or data.ndim not in (1, 2)
             or not np.isfinite(data).all()):
-        raise ValueError("expected finite project audio at an integer kHz rate")
+        raise SyncError("error.sync.audio")
     if data.ndim == 2:
         if data.shape[1] == 0:
             return np.empty(0)
@@ -73,7 +74,7 @@ def measure(reference: np.ndarray, candidate: np.ndarray
     cand = np.asarray(candidate, dtype=np.float64)
     if (ref.ndim != 1 or cand.ndim != 1 or not np.isfinite(ref).all()
             or not np.isfinite(cand).all()):
-        raise ValueError("expected finite one-dimensional envelopes")
+        raise SyncError("error.sync.envelope")
     window = min(10_000, min(ref.size, cand.size) // 3)
     window -= window % 10
     if window < 3000:

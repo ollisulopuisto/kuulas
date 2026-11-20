@@ -3781,5 +3781,13 @@
   "ui.sync_review.status.reference_offline": "Ankkurin lähde puuttuu",
   "ui.sync_review.status.reference_partial": "Ankkurin lähde on keskeneräinen",
   "ui.sync_review.status.reference_range": "Ankkurin lähdealue on virheellinen",
-  "ui.sync_review.status.reference_limit": "Ankkuri ylittää analyysirajan"
+  "ui.sync_review.status.reference_limit": "Ankkuri ylittää analyysirajan",
+  "error.sync.proposal": "Tahdistustuloksessa ei ole kelvollista ajoitusehdotusta. Laske se uudelleen.",
+  "error.sync.fit": "Tahdistustuloksen ajoitusmalli ei kelpaa. Laske tulos uudelleen.",
+  "error.sync.excluded": "Osa tahdistusjaksoista on ristiriidassa. Tarkista tallenteen rajat ennen hyväksymistä.",
+  "error.sync.source": "Lähdeäänen luku jäi kesken tai sen kanava-asettelu ei kelpaa.",
+  "error.sync.audio": "Tahdistus vaatii kelvolliset ääninäytteet ja tuetun projektin näytteenottotaajuuden.",
+  "error.sync.envelope": "Tahdistuksen tasotiedot eivät kelpaa. Laske ehdotus uudelleen.",
+  "error.sync.accept_selection": "Valitse nykyisestä tahdistustuloksesta kelvolliset leikkeet ilman vertailuleikettä tai kaksoiskappaleita.",
+  "error.sync.clip_selection": "Valitse 2–32 leikettä eri raidoilta ilman kaksoiskappaleita."
 }

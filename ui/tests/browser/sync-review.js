@@ -69,6 +69,22 @@ const pause = () => new Promise((r) => setTimeout(r, 30));
 try {
   await ui.open();
   await pause();
+  document.querySelector('[data-clip="b1"]').focus();
+  const candidate = document.querySelector('[data-clip="c1"]');
+  candidate.setPointerCapture = () => {};
+  candidate.dispatchEvent(
+    new PointerEvent("pointerdown", { bubbles: true, clientX: 220, pointerId: 1 }),
+  );
+  candidate.dispatchEvent(
+    new PointerEvent("pointerup", { bubbles: true, clientX: 220, pointerId: 1 }),
+  );
+  await pause();
+  [...document.querySelectorAll(".sync-review button")]
+    .find((x) => x.textContent === "right")
+    .click();
+  await pause();
+  const pointerTarget = calls.filter((x) => x.path === "/api/sync-review/move").at(-1)?.body.track;
+  calls.length = 0;
   document.querySelector('[data-clip="c1"]').focus();
   const focused = document.activeElement;
   const label = document.querySelector(".sync-review-controls strong").textContent;
@@ -138,6 +154,7 @@ try {
     .textContent.includes("Playback device unavailable");
   document.querySelector("#result").textContent = JSON.stringify({
     keyboard,
+    pointerTarget,
     boundedOriginalSeek,
     playbackErrorVisible,
     errorVisible,

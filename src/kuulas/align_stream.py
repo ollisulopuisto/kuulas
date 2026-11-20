@@ -7,6 +7,7 @@ from collections.abc import Callable
 import numpy as np
 
 from . import priority
+from .align_errors import SyncError
 from .align_sound import ENVELOPE_RATE, envelope
 
 
@@ -26,7 +27,7 @@ def read_envelope(read: Callable[[int, int], np.ndarray], *, rate: int,
             or rate % ENVELOPE_RATE or start < 0 or frames < 0
             or not 1 <= chunk_seconds <= 60 or max_seconds <= 0
             or frames > max_seconds * rate):
-        raise ValueError("invalid or over-limit source envelope request")
+        raise SyncError("error.sync.range")
     block = rate // ENVELOPE_RATE
     usable = frames // block * block
     result = np.empty(usable // block, dtype=np.float64)
@@ -37,7 +38,7 @@ def read_envelope(read: Callable[[int, int], np.ndarray], *, rate: int,
         data = read(start + first, count)
         if (data.ndim != 2 or data.shape[1] != count
                 or not 1 <= data.shape[0] <= 64):
-            raise ValueError("expected complete channel-first source audio")
+            raise SyncError("error.sync.source")
         values = envelope(data.T, rate)
         at = first // block
         result[at:at + values.size] = values

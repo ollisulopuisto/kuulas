@@ -55,9 +55,10 @@ test("sync keyboard targets, visible errors and playback seek stay coordinated",
   ]);
   const result = JSON.parse(stdout.match(/<pre id="result">([\s\S]*?)<\/pre>/)[1]);
   assert.equal(result.error, undefined);
+  assert.equal(result.pointerTarget, "c");
   assert.deepEqual(result.keyboard, {
     label: "Guest C",
-    fieldBefore: "0.200",
+    fieldBefore: "0.210",
     focusKept: true,
     movedTrack: "c",
     frames: 24000,

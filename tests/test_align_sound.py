@@ -5,6 +5,7 @@ import pytest
 
 from kuulas.align_math import fit_drift
 from kuulas.align_sound import envelope, measure
+from kuulas.messages import t
 
 RATE = 8000
 
@@ -22,7 +23,7 @@ def test_envelope_keeps_antiphase_stereo_and_rejects_nonfinite():
     audio = speech(2)
     stereo = np.column_stack([audio, -audio])
     assert np.allclose(envelope(stereo, RATE), envelope(audio, RATE))
-    with pytest.raises(ValueError, match="finite project audio"):
+    with pytest.raises(ValueError, match=t("error.sync.audio")):
         envelope(np.array([np.nan]), RATE)
 
 
@@ -88,5 +89,5 @@ def test_repetitive_audio_does_not_create_a_unique_match():
 
 def test_short_and_invalid_envelopes_cannot_make_a_plan():
     assert measure(np.zeros(1000), np.zeros(1000)) == []
-    with pytest.raises(ValueError, match="one-dimensional"):
+    with pytest.raises(ValueError, match=t("error.sync.envelope")):
         measure(np.array([np.inf]), np.zeros(1000))

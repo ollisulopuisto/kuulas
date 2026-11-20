@@ -381,7 +381,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
     controls = element("footer");
     controls.className = "sync-review-controls";
     drawControls();
-    if (focusedClip)
+    if (focusedClip && focusedClip === selected)
       [...root.querySelectorAll("[data-clip]")]
         .find((node) => node.dataset.clip === focusedClip)
         ?.focus();

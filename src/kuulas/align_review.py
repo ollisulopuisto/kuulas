@@ -7,16 +7,8 @@ import uuid
 from dataclasses import replace
 
 from . import ops
+from .align_errors import SyncError, fail
 from .align_job import snapshot_key
-from .messages import KuulasError
-
-
-class SyncError(KuulasError, ValueError):
-    pass
-
-
-def fail(reason):
-    raise SyncError("error.sync." + reason)
 
 
 class Review:

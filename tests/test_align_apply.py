@@ -6,6 +6,7 @@ import pytest
 
 from kuulas.align_apply import validate_acceptance
 from kuulas.align_job import snapshot_key
+from kuulas.messages import t
 from kuulas.model import Clip, Media, Project, Track
 
 
@@ -23,9 +24,9 @@ def setup():
 def test_accepted_selection_and_snapshot_are_both_required():
     project,result=setup()
     assert validate_acceptance(project,result,["cb"]) == ("cb",)
-    with pytest.raises(ValueError,match="stale"):
+    with pytest.raises(ValueError,match=t("error.sync.stale")):
         validate_acceptance(replace(project,master_gain_db=-1),result,["cb"])
-    with pytest.raises(ValueError,match="selection"):
+    with pytest.raises(ValueError,match=t("error.sync.accept_selection")):
         validate_acceptance(project,result,["missing"])
 
 
@@ -41,12 +42,12 @@ def test_invalid_candidate_cannot_be_accepted(field,value):
 def test_excluded_windows_must_be_explained_before_whole_clip_apply():
     project,result=setup()
     result["candidates"][0]["proposal"]["excluded"]=[2]
-    with pytest.raises(ValueError,match="excluded"):
+    with pytest.raises(ValueError,match=t("error.sync.excluded")):
         validate_acceptance(project,result,["cb"])
 
 
 def test_duplicate_acceptance_or_reference_as_candidate_is_rejected():
     project,result=setup()
     for selected in [[],["cb","cb"],["ca"]]:
-        with pytest.raises(ValueError,match="selection"):
+        with pytest.raises(ValueError,match=t("error.sync.accept_selection")):
             validate_acceptance(project,result,selected)

@@ -5,6 +5,7 @@ import pytest
 
 from kuulas.align_sound import envelope
 from kuulas.align_stream import read_envelope
+from kuulas.messages import t
 
 
 def test_chunked_channel_first_reader_matches_whole_source_at_nonzero_offset():
@@ -31,7 +32,7 @@ def test_limit_and_invalid_rate_fail_before_any_audio_read():
     for args in [{"rate": 44100, "start": 0, "frames": 100},
                  {"rate": 8000, "start": -1, "frames": 100},
                  {"rate": 8000, "start": 0, "frames": 8000*61, "max_seconds": 60}]:
-        with pytest.raises(ValueError, match="invalid or over-limit"):
+        with pytest.raises(ValueError, match=t("error.sync.range")):
             read_envelope(read, **args)
 
 
@@ -53,5 +54,6 @@ def test_truncated_and_invalid_channel_data_fail_closed():
     for read in [lambda first,count:np.zeros((1,count-1)),
                  lambda first,count:np.zeros((count,)),
                  lambda first,count:np.full((1,count),np.nan)]:
-        with pytest.raises(ValueError, match=r"channel-first|finite project"):
+        messages = t("error.sync.source")+"|"+t("error.sync.audio")
+        with pytest.raises(ValueError, match=messages):
             read_envelope(read,rate=8000,start=0,frames=8000)

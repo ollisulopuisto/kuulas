@@ -7,6 +7,7 @@ import soundfile as sf
 
 from kuulas import offload
 from kuulas.align_job import analyze, snapshot_key
+from kuulas.messages import t
 from kuulas.model import Clip, Media, Project, Track
 from kuulas.session import Session
 
@@ -64,7 +65,7 @@ def test_job_does_not_read_an_offline_source_as_silence(tmp_path):
 def test_job_rejects_invalid_or_same_track_selection_before_reading(tmp_path):
     project,store=setup(tmp_path)
     for ids in [["a"],["a","missing"],["a","a"]]:
-        with pytest.raises(ValueError,match="selection"):
+        with pytest.raises(ValueError,match=t("error.sync.clip_selection")):
             analyze(project,store,ids)
     assert store.reads==[]
 

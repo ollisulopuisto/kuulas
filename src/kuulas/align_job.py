@@ -10,6 +10,7 @@ import json
 from dataclasses import asdict
 
 from . import priority
+from .align_errors import SyncError
 from .align_proposal import propose
 from .align_sound import measure
 from .align_stream import read_envelope
@@ -37,7 +38,7 @@ def analyze(project: Project, store, clip_ids: list[str]) -> dict:
     if (len(clip_ids) != len(wanted) or len(selected) != len(wanted)
             or len(selected) < 2 or len(selected) > 32
             or len({track.id for track, _ in selected}) != len(selected)):
-        raise ValueError("invalid automatic-sync clip selection")
+        raise SyncError("error.sync.clip_selection")
 
     def source(clip):
         priority.checkpoint()
