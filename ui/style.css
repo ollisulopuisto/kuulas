@@ -7111,6 +7111,31 @@ legend.form-heading {
   background: var(--surface-raised);
   font-weight: var(--weight-strong);
 }
+.block-speaker-nochange {
+  border: 1px solid var(--ok);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  background: var(--surface-raised);
+}
+.block-speaker-nochange-title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
+  color: var(--ok);
+}
+.block-speaker-others-label {
+  color: var(--text-secondary);
+}
+.block-speaker-others-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.block-speaker-other {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: start;
+  height: auto;
+}
 .block-level-footer {
   flex-shrink: 0;
   border-top: 1px solid var(--border-strong);

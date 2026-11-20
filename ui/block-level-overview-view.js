@@ -3,9 +3,13 @@
 import { blockText } from "./block-level-model.js";
 import {
   eligibleBlockIds,
+  othersChanging,
+  overallSpan,
   overviewScale,
   overviewSpeakers,
+  spansEqual,
   speakerSummary,
+  totalBlocks,
 } from "./block-level-overview.js";
 
 const el = (tag, className = "", text) => {
@@ -97,6 +101,13 @@ export function createBlockOverview({
   details.append(list);
   host.append(details);
   function sync() {
+    const totalChanging = speakers.reduce(
+      (n, speaker) => n + speakerSummary(speaker, ticked, measured).blocks,
+      0,
+    );
+    const nothingAnywhere = totalChanging === 0;
+    legend.hidden = nothingAnywhere;
+    help.hidden = nothingAnywhere;
     for (const [id, bar] of bars) {
       bar.dataset.included = String(ticked.has(id));
       bar.dataset.selected = String(selected?.id === id);
@@ -120,20 +131,65 @@ export function createBlockOverview({
         values
           ? t(`ui.block_level.${key}`, { low: signed(values[0]), high: signed(values[1]) })
           : t("ui.block_level.no_span");
+      const unchanged = view.blocks === 0;
+      // Nothing changes for this speaker: one statement (the green card), not the
+      // Ennen/Arvio rows, the "0 lohkoa" count or the graph. When nothing changes
+      // anywhere the card says so for the whole measurement (owner, 2026-11-20).
+      nodes.nochange.hidden = !unchanged;
+      if (unchanged) {
+        nodes.nochangeTitle.textContent = nothingAnywhere
+          ? t("ui.block_level.nothing_title")
+          : t("ui.block_level.nochange_title", { name: speaker.name });
+        const whole = overallSpan(measured);
+        nodes.nochangeSpan.textContent = nothingAnywhere
+          ? whole
+            ? t("ui.block_level.nothing_span", {
+                count: totalBlocks(measured),
+                low: signed(whole[0]),
+                high: signed(whole[1]),
+              })
+            : t("ui.block_level.no_span")
+          : span("nochange_span", view.before);
+      }
+      // Ennen and Arvio as two rows only when they differ; equal spans are one statement.
       nodes.before.textContent = span("before_span", view.before);
       nodes.after.textContent = span("after_span", view.after);
+      nodes.before.hidden = unchanged || spansEqual(view.before, view.after);
+      nodes.after.hidden = unchanged;
       nodes.count.textContent = t("ui.block_level.change_count", { count: view.blocks });
+      nodes.count.hidden = unchanged;
       nodes.extremes.textContent = t("ui.block_level.gain_extremes", {
         lift: fmt(view.lift),
         cut: fmt(view.cut),
       });
-      nodes.warning.hidden = view.limited === 0;
+      nodes.extremes.hidden = unchanged;
+      nodes.warning.hidden = unchanged || view.limited === 0;
       nodes.warning.textContent = t("ui.block_level.limit_warning", {
         count: view.limited,
         boost: fmt(measured.max_boost_db),
         cut: fmt(measured.max_cut_db),
       });
       nodes.left.textContent = t("ui.block_level.left_count", { count: view.leftOut });
+      nodes.left.hidden = nothingAnywhere;
+      const others = othersChanging(speakers, speaker, ticked, measured);
+      nodes.others.hidden = !unchanged || nothingAnywhere || others.length === 0;
+      nodes.othersList.replaceChildren(
+        ...others.map((entry) => {
+          const link = el(
+            "button",
+            "button ghost block-speaker-other",
+            entry.blocks === 1
+              ? t("ui.block_level.other_link_one", { name: entry.speaker.name })
+              : t("ui.block_level.other_link", {
+                  name: entry.speaker.name,
+                  count: entry.blocks,
+                }),
+          );
+          link.type = "button";
+          link.addEventListener("click", () => activate(entry.speaker));
+          return link;
+        }),
+      );
     }
     onChange();
   }
@@ -225,8 +281,19 @@ export function createBlockOverview({
       el("summary", "", t("ui.block_level.estimate_more")),
       el("p", "form-help", t("ui.block_level.estimate_hint")),
     );
+    const nochange = el("div", "block-speaker-nochange");
+    const nochangeTitle = el("p", "block-speaker-nochange-title");
+    const nochangeSpan = el("p", "block-speaker-nochange-span");
+    nochange.append(nochangeTitle, nochangeSpan);
+    const others = el("div", "block-speaker-others");
+    others.append(
+      el("p", "block-speaker-others-label", t("ui.block_level.others_changed")),
+      el("div", "block-speaker-others-links"),
+    );
+    const othersList = others.querySelector(".block-speaker-others-links");
     summary.append(
       el("p", "block-speaker-zero", t("ui.block_level.own_zero")),
+      nochange,
       before,
       after,
       explanation,
@@ -234,8 +301,21 @@ export function createBlockOverview({
       extremes,
       warning,
       left,
+      others,
     );
-    summaries.set(speaker, { before, after, count, extremes, warning, left });
+    summaries.set(speaker, {
+      before,
+      after,
+      count,
+      extremes,
+      warning,
+      left,
+      nochange,
+      nochangeTitle,
+      nochangeSpan,
+      others,
+      othersList,
+    });
     section.append(summary);
     const header = el("div", "block-overview-speaker-head");
     const speakerName = el("strong", "", t("ui.block_level.gain_strip"));
@@ -285,6 +365,12 @@ export function createBlockOverview({
       el("span", "", clock(scale.end / measured.rate)),
     );
     section.append(axis);
+    // No changed blocks at all: the graph has nothing to show, so it stays hidden.
+    if (speaker.rows.length === 0) {
+      header.hidden = true;
+      strip.hidden = true;
+      axis.hidden = true;
+    }
     plots.append(section);
     const field = el("fieldset", "form-fieldset");
     field.append(el("legend", "form-label", speaker.name));

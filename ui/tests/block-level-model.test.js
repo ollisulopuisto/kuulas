@@ -89,18 +89,21 @@ describe("the measurement", () => {
       speakers: 2,
       tracks: 2,
       unchanged: 1,
+      names: ["anna", "ville"],
     });
     assert.deepEqual(impactSummary(result(), new Set(["anna#1"])), {
       blocks: 1,
       speakers: 1,
       tracks: 1,
       unchanged: 1,
+      names: ["anna"],
     });
     assert.deepEqual(impactSummary(result(), new Set()), {
       blocks: 0,
       speakers: 0,
       tracks: 0,
       unchanged: 1,
+      names: [],
     });
   });
 });

@@ -34,10 +34,13 @@ export function leftAloneCount(result) {
 
 /** What the checked rows will touch: block, speaker and track counts for Apply. */
 export function impactSummary(result, ticked) {
-  if (measureError(result)) return { blocks: 0, speakers: 0, tracks: 0, unchanged: 0 };
+  if (measureError(result)) {
+    return { blocks: 0, speakers: 0, tracks: 0, unchanged: 0, names: [] };
+  }
   let blocks = 0;
   let speakers = 0;
   const tracks = new Set();
+  const names = [];
   for (const speaker of result.speakers) {
     const selected = (speaker.blocks ?? []).filter(
       (row) => row.gain_db !== 0 && ticked.has(row.id),
@@ -45,9 +48,10 @@ export function impactSummary(result, ticked) {
     if (selected.length === 0) continue;
     blocks += selected.length;
     speakers += 1;
+    names.push(speaker.name);
     for (const id of speaker.track_ids ?? []) tracks.add(id);
   }
-  return { blocks, speakers, tracks: tracks.size, unchanged: leftAloneCount(result) };
+  return { blocks, speakers, tracks: tracks.size, unchanged: leftAloneCount(result), names };
 }
 
 /** The loud spots (listened to, never changed), by speaker: [{ name, spots }]. */

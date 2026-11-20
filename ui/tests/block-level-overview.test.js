@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { eligibleBlockIds, overviewScale, overviewSpeakers } from "../block-level-overview.js";
+import {
+  eligibleBlockIds,
+  othersChanging,
+  overallSpan,
+  overviewScale,
+  overviewSpeakers,
+  spansEqual,
+  totalBlocks,
+} from "../block-level-overview.js";
 
 const measured = {
   rate: 10,
@@ -38,4 +46,20 @@ test("threshold can only narrow measured proposals; malformed values fail closed
   assert.deepEqual([...eligibleBlockIds(measured, { threshold: 0 })], ["a1", "b0"]);
   assert.equal(eligibleBlockIds(measured, { threshold: NaN }).size, 0);
   assert.deepEqual(overviewScale({ speakers: [] }), { end: 1, gain: 1 });
+});
+test("others changing, the total block count and the overall span back the no-change card", () => {
+  const speakers = overviewSpeakers(measured);
+  const limits = { max_boost_db: 6, max_cut_db: 18 };
+  const others = othersChanging(speakers, speakers[0], new Set(["b0"]), limits);
+  assert.deepEqual(
+    others.map((entry) => [entry.speaker.name, entry.blocks]),
+    [["B", 1]],
+  );
+  assert.equal(othersChanging(speakers, speakers[0], new Set(["a1"]), limits).length, 0);
+  assert.equal(totalBlocks(measured), 3);
+  assert.deepEqual(overallSpan(measured), [-8, 9]);
+  assert.equal(overallSpan({ speakers: [] }), null);
+  assert.equal(spansEqual([1, 2], [1, 2]), true);
+  assert.equal(spansEqual([1, 2], [1, 3]), false);
+  assert.equal(spansEqual(null, null), false);
 });
