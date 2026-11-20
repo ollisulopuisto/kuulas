@@ -94,3 +94,48 @@ test("the app translation pass removes native titles after refreshing command hi
   assert.equal(node.hasAttribute("title"), false);
   assert.match(node.dataset.tip, /F8/);
 });
+
+test("stateful command controls keep their accessible labels without native titles", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { runInNewContext } = await import("node:vm");
+  const source = readFileSync(new URL("../app.js", import.meta.url), "utf8");
+  const loop = source.slice(
+    source.indexOf('    const button = $("loop");', source.indexOf("function render(")),
+    source.indexOf("    // A new range or a switch while playing"),
+  );
+  const button = makeNode();
+  Object.defineProperty(button, "title", {
+    set(value) {
+      button.attrs.title = value;
+    },
+  });
+  runInNewContext(loop, {
+    $: () => button,
+    state: { loop: true },
+    keyboard: { registry: { can: () => true } },
+    t: (key) => key,
+  });
+  assert.equal(button.hasAttribute("title"), false);
+  assert.equal(button.attrs["aria-label"], "ui.transport.loop_on");
+  const scope = source.slice(
+    source.indexOf("function updateScopeChip("),
+    source.indexOf('  if (chip.kind === "clips")'),
+  );
+  const el = makeNode();
+  el.classList = { toggle() {} };
+  Object.defineProperty(el, "title", {
+    set(value) {
+      el.attrs.title = value;
+    },
+    get() {
+      return el.attrs.title;
+    },
+  });
+  runInNewContext(`${scope}\n}\nupdateScopeChip({project:{}});`, {
+    $: () => el,
+    scopeChip: () => ({ kind: "clips" }),
+    t: (key) => key,
+  });
+  assert.equal(el.hasAttribute("title"), false);
+  assert.equal(el.attrs["aria-label"], "ui.scope.chip_title");
+});

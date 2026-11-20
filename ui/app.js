@@ -4581,8 +4581,7 @@ function updateScopeChip(state) {
   el.hidden = chip === null || !state.project;
   if (el.hidden) return;
   el.classList.toggle("warn", chip.kind === "none");
-  el.title = t("ui.scope.chip_title");
-  el.setAttribute("aria-label", el.title);
+  el.setAttribute("aria-label", t("ui.scope.chip_title"));
   if (chip.kind === "clips") {
     // The clips were selected after the marks: they are what Backspace, X and copy touch.
     el.textContent = t("ui.scope.chip_clips", { count: chip.count });
@@ -4697,7 +4696,7 @@ function render(state, patch, previous = null) {
     const button = $("loop");
     button.setAttribute("aria-pressed", String(state.loop));
     button.disabled = !keyboard.registry.can("transport.loop", state);
-    button.title = t(state.loop ? "ui.transport.loop_on" : "ui.transport.loop");
+    button.setAttribute("aria-label", t(state.loop ? "ui.transport.loop_on" : "ui.transport.loop"));
     // A new range or a switch while playing goes to the engine without stopping.
     const loopKey = JSON.stringify(activeLoop(state));
     if (loopKey !== lastLoopKey) {
