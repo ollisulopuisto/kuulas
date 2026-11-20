@@ -124,6 +124,8 @@
 
 ## [v26.10.30.2] - 2026-10-30
 
+**Release v26.10.30.2:** choose Whisper large-v3-turbo or Parakeet Ultra for Colab transcription; fast shuttle uses pitch-preserving grains above 2× and ruler dragging scrubs at pointer velocity; first high-pass playback plumbing is included. Local Orukeet is unchanged. Mac listening and high-pass real-time profiling remain open.
+
 - **Choose the Colab transcription model in Kuulas.** Settings offer Whisper large-v3-turbo and Parakeet Ultra, plus a custom backend model ID. Existing `turbo` settings migrate to `whisper`; local Orukeet is unchanged. The packaged Colab command is pinned to the shared podcast revision that supports both models. A live Colab transcription was not available during implementation.
 - **Fast shuttle and ruler scrubbing may sound smoother.** Forward playback above 2x uses short crossfaded audio grains instead of resampling, and dragging on the timeline ruler sets the scrub speed from drag velocity. Source and tests only: not heard on a Mac, and drags slower than 0.25x still play the old burst.
 - **Track high-pass layer (plumbing only).** A track can hold one high-pass layer with bypass, saved with the project and applied in plain 1x playback. There is no UI to add or edit it (only `ops.set_track(fx=...)`), and its callback timing is unprofiled, so it is not user-ready.
@@ -160,6 +162,8 @@
 
 ## [v26.10.27.4] - 2026-10-28
 
+**Release v26.10.27.4:** live recording progress on new tracks, consistent waveform display, compact recording setup and per-input three-second LUFS; packaged Orukeet certificate trust fix; visible toolbar add picker, drag-away removal and Undo; ordinary menu right-click behavior.
+
 - **New recording tracks show progress before Stop.** Late track assignment keeps buffered waveform peaks, and silent input still advances the recording head. Live waveforms follow the same half/full display and scale as saved clips.
 - **A simpler recording window.** Input and channel routing stay visible; pre-roll, playback, cart routing, delay and stop behavior are under More options. Compact Record/Cancel and Marker/Stop controls replace the oversized layout, retaining the existing stop safeguards.
 - **Recording inputs show real three-second LUFS.** Each input has a graphical loudness meter, a numeric value and −23/−16 reference marks, plus an independent clipping warning. A low-priority editor worker reads flushed audio through the shared loudness implementation. Setup retains an explicitly labelled peak check before recording starts.
@@ -173,6 +177,8 @@ The standalone v26.10.27.3 build was cancelled; its changes ship here.
 
 ## [v26.10.27.2] - 2026-10-27
 
+**Release v26.10.27.2:** GUI Orukeet install/select/reinstall with verified downloads, progress and cancellation; aligned transcription actions; persistent fast-listening button.
+
 - Keep the graphical level meter visible at rest and during playback, with a clearer short-term LUFS bar and −23/−16 reference marks.
 
 - **Install Orukeet from the editor.** Local transcription opens setup when the model is missing. Install downloads about 1.25 GB with progress, cancellation and retry, or choose an existing model folder. A successful setup continues the requested transcription. Text > Transcribe > Orukeet setup also opens it later, including reinstall. Audio stays local; old models are never overwritten or deleted.
@@ -183,6 +189,8 @@ The standalone v26.10.27.3 build was cancelled; its changes ship here.
 - **Old transcription failures point to the new setup.** A saved faster-whisper dependency error now directs the user to GUI Orukeet setup instead of repeating terminal installation instructions.
 
 ## [v26.10.27.1] - 2026-10-27
+
+**Release v26.10.27.1:** local Orukeet, NHSX import from the start page, a three-second LUFS meter, compact track headers and transcript search, clearer toolbar buttons, and corrected Auto-Silence boundary trims.
 
 - **Local transcription uses Orukeet.** The shared podcast tool runs the converted MLX model at `~/.models/orukeet-mlx` in its own environment. The editor no longer asks for faster-whisper. A missing Orukeet model is reported explicitly, without switching to generic Parakeet. Orukeet word timing survives import; a synthetic Finnish speech test succeeded on this Mac.
 - **Import NHSX directly from the start screen.** Choose the Hindenburg session and the destination of a new Kuulas project. There is no need to create an empty project first; existing projects are refused by this new-project action. Recordings remain linked in place.
