@@ -25,16 +25,15 @@ export function nhsxResult(summary) {
 }
 
 /** The state patch for the in/out points an import read from the Hindenburg session's
- * markers (Id 1/2), or null when the answer carries none. A reversed pair keeps only the
- * in point: the marks order rule (marks.js) can never be broken by a file. */
+ * markers (Id 1/2), or null when the answer carries none. The patch always names both
+ * points: setState merges, so a missing point must clear the old one or a stale opposite
+ * mark could leave a reversed range. A reversed pair keeps only the in point: the marks
+ * order rule (marks.js) can never be broken by a file. */
 export function nhsxMarks(marks) {
   if (!marks || typeof marks !== "object") return null;
   const hasIn = Number.isFinite(marks.in);
   const hasOut = Number.isFinite(marks.out);
   if (!hasIn && !hasOut) return null;
-  if (hasIn && hasOut && marks.out <= marks.in) return { inPoint: marks.in };
-  const patch = {};
-  if (hasIn) patch.inPoint = marks.in;
-  if (hasOut) patch.outPoint = marks.out;
-  return patch;
+  if (hasIn && hasOut && marks.out <= marks.in) return { inPoint: marks.in, outPoint: null };
+  return { inPoint: hasIn ? marks.in : null, outPoint: hasOut ? marks.out : null };
 }

@@ -94,6 +94,12 @@ def import_nhsx(nhsx_path: str, folder: str | None = None) -> int:
     session = Session(folder)
     try:
         session.command("import_nhsx", {"path": nhsx_path})
+        # The start-screen path has no browser to receive the marks answer, so
+        # leave them in resume.json: the editor restores its in/out from there.
+        marks = session.last_import_marks
+        if marks:
+            session.resume.remember(
+                {"inPoint": marks.get("in"), "outPoint": marks.get("out")}, now=True)
         print(t("cli.import_nhsx.done", path=folder, tracks=len(session.state.tracks),
                 media=len(session.state.media),
                  clipboard=session.last_import_clipboard))

@@ -59,3 +59,24 @@ def test_import_nhsx_refuses_a_file_as_the_project_folder(tmp_path, capsys):
     assert cli.main(["import-nhsx", "folder", str(nhsx_path)]) == 1
     assert "Traceback" not in capsys.readouterr().err
     assert nhsx_path.is_file()
+
+
+def test_import_nhsx_command_remembers_the_session_marks(tmp_path, capsys):
+    """Start-screen import: the editor opens with the session's in/out (#257)."""
+    from kuulas.resume import read_resume
+
+    nhsx_path = tmp_path / "h-test A.nhsx"
+    shutil.copy(FIXTURE, nhsx_path)
+    audio = tmp_path / "h-test Files"
+    audio.mkdir()
+    for item in read_nhsx(nhsx_path).files:
+        sf.write(audio / item.name, np.zeros(48_000, dtype=np.float32), 48_000,
+                 subtype="PCM_16")
+    project = tmp_path / "Marks.kuulas"
+
+    assert cli.main(["import-nhsx", str(nhsx_path), str(project)]) == 0
+
+    resume = read_resume(project)
+    assert resume is not None
+    assert resume["in"] == round(62.5 * 48_000)
+    assert resume["out"] == round(72.5 * 48_000)

@@ -106,12 +106,12 @@ describe("nhsxMarks: the imported in/out points (BUGS.md #38)", () => {
     assert.deepEqual(nhsxMarks({ in: 100, out: 200 }), { inPoint: 100, outPoint: 200 });
   });
 
-  test("one point alone still applies", () => {
-    assert.deepEqual(nhsxMarks({ in: 100 }), { inPoint: 100 });
-    assert.deepEqual(nhsxMarks({ out: 200 }), { outPoint: 200 });
+  test("one point alone clears the other (setState merges the patch)", () => {
+    assert.deepEqual(nhsxMarks({ in: 100 }), { inPoint: 100, outPoint: null });
+    assert.deepEqual(nhsxMarks({ out: 200 }), { inPoint: null, outPoint: 200 });
   });
 
-  test("a reversed pair never reaches the state (the marks order rule)", () => {
-    assert.deepEqual(nhsxMarks({ in: 200, out: 100 }), { inPoint: 200 });
+  test("a reversed pair keeps only the in point (the marks order rule)", () => {
+    assert.deepEqual(nhsxMarks({ in: 200, out: 100 }), { inPoint: 200, outPoint: null });
   });
 });
