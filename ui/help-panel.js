@@ -12,6 +12,7 @@ import {
   topicFor,
   topicForCommand,
 } from "./help.js";
+import { revealHelpTarget } from "./help-reveal.js";
 import { getLanguage, onLanguageChange, t } from "./i18n.js";
 
 const HIGHLIGHT_MS = 2400;
@@ -35,7 +36,7 @@ const SHELL = `
  * keymap() -> the keymap entries the user has now (shell-keys.js entries()), the
  * data the cheat sheet and menus read; format(combo) writes a key as they do.
  * commands() -> ids to search and run. runCommand(id) runs one. fetchText(path)
- * reads a help file.
+ * reads a help file. revealPanel(name) activates a hidden sidebar panel through app state.
  */
 export function createHelpPanel({
   root,
@@ -45,6 +46,7 @@ export function createHelpPanel({
   commands,
   runCommand,
   fetchText,
+  revealPanel,
 }) {
   const doc = root.ownerDocument;
   const loader = createTopicLoader(fetchText);
@@ -147,10 +149,11 @@ export function createHelpPanel({
     showTopic(topic);
   }
 
-  /** Point at a control for a moment. A control that is hidden at rest is named instead. */
+  /** Reveal a control through app state, open its disclosures, then point at it. */
   function showMe(id) {
     const target = doc.querySelector(`[data-help-id="${id}"]`);
     if (!target) return;
+    revealHelpTarget(target, revealPanel);
     target.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     target.classList.remove("help-highlight");
     void target.offsetWidth; // restart the animation when pressed twice

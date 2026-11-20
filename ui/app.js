@@ -4258,6 +4258,13 @@ const candidatesPanel = createCandidatesPanel({
 // defaults with their overrides), the same data the cheat sheet and menus read.
 const help = createHelpPanel({
   root: $("panel-help"),
+  revealPanel(name) {
+    if (!SIDEBAR_TABS.includes(name)) return;
+    silencePanel?.close();
+    blockLevelPanel?.close();
+    help.close();
+    focusPanel(name);
+  },
   keymap: () => keyboard.entries(),
   format: (combo) => keyboard.format(combo),
   commands: () => keyboard.registry.ids().filter((id) => keyboard.registry.status(id) === "ready"),

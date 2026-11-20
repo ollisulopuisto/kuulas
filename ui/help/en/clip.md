@@ -2,7 +2,7 @@
 id: clip
 title: A clip
 applies-to: [clip]
-commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, clip.relink_media, edit.undo]
+commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, clip.relink_media, edit.undo, help.open]
 related: [timeline, track, transcript]
 ---
 A clip is a stretch of one recording placed on a track. Several clips can come from the same recording; selecting one marks its siblings with a bracket.
@@ -32,7 +32,7 @@ Every edit is one step back with {key:edit.undo}.
 - Every paste form (overwrite, insert, on the current track, on the same tracks) follows this rule; only "same tracks" always uses the source tracks. A speech clip can be pasted on a music track.
 
 ## Look closer
-The inspector shows the clip's level, sync and source. {show:inspector}
+The inspector shows the clip's level, sync and source. {show:inspector} Show me opens the Inspector tab and closes Help so you can use the controls. Press {key:help.open} to return to help.
 
 A clip that keeps the mic open shows a "Mic kept open" row under Level; its button lets Auto-Silence gate the clip again (the same as Keep the mic open under the selected clips, in the Clip menu).
 
