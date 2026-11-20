@@ -7403,3 +7403,11 @@ legend.form-heading {
   gap: 2px;
   padding-block: 2px;
 }
+/* The new track flyout outline is thicker, but the old bus row is still 56px. */
+.track-header.bus-header .th-card {
+  border-width: 1px;
+}
+/* Expanded flyout content must not squeeze the persistent strip sideways. */
+.track-header .th-strip {
+  flex-shrink: 0;
+}
