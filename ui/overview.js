@@ -4,7 +4,6 @@
 import { backingSize } from "./canvas-size.js";
 import { formatClock } from "./i18n.js";
 import { siblingsOf } from "./labels.js";
-import { projectEnd } from "./lanes.js";
 import {
   audibleSegments,
   overviewCandidateTicks,
@@ -13,13 +12,16 @@ import {
 } from "./overview-segments.js";
 import { trackHues } from "./paint.js";
 import { readTheme } from "./theme.js";
-import { overviewScroll, overviewSelectionRect } from "./view.js";
+import { overviewScroll, overviewSelectionRect, viewEnd } from "./view.js";
 
 // The strip is a map, not a waveform: blocks at reduced strength so the
 // visible-part box (accent) is the strongest thing in it. A track's bar is drawn only
 // where that track sounds; every silent stretch is a gap, whatever the reason.
 const OVERVIEW_ALPHA = 0.6;
 const OVERVIEW_LABEL_PX = 10;
+
+/** One extent for the overview map and its pointer navigation. */
+export const overviewEnd = (state, liveEnd = 0) => viewEnd(state.project, liveEnd, state);
 
 export function createOverview({
   canvas,
@@ -61,10 +63,7 @@ export function createOverview({
     context.clearRect(0, 0, width, height);
     if (!state.project) return;
     const liveEnd = getLiveEnd();
-    const total = Math.max(
-      projectEnd(state.project),
-      Number.isFinite(liveEnd) ? Math.max(0, liveEnd) : 0,
-    );
+    const total = overviewEnd(state, liveEnd);
     if (total === 0) return;
     const tracks = state.project.tracks;
     const plotTop = OVERVIEW_LABEL_PX + 6;
@@ -142,10 +141,7 @@ export function createOverview({
     const rect = canvas.getBoundingClientRect();
     const liveEnd = getLiveEnd();
     const scroll = overviewScroll({
-      total: Math.max(
-        projectEnd(state.project),
-        Number.isFinite(liveEnd) ? Math.max(0, liveEnd) : 0,
-      ),
+      total: overviewEnd(state, liveEnd),
       zoom: state.zoom,
       width: getTimelineWidth(),
       strip: rect.width,

@@ -3709,5 +3709,7 @@
   "ui.block_level.filters": "Rajaus ja pienin muutos",
   "ui.block_level.speakers": "Puhujat",
   "ui.block_level.gain_strip": "Ehdotetut vahvistusmuutokset",
-  "ui.block_level.estimate_more": "Tietoa arviosta"
+  "ui.block_level.estimate_more": "Tietoa arviosta",
+  "ui.nhsx.markers_done": "Tuotiin {markers} merkkiä. Äänitteitä ei tuotu.",
+  "ui.nhsx.markers_partial": "Tuotiin {markers} merkkiä. {missing} äänitteen tuonti epäonnistui."
 }

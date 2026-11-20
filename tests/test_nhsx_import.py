@@ -11,6 +11,7 @@ from kuulas.clock import FLICKS
 from kuulas.messages import KuulasError
 from kuulas.server import create_app
 from kuulas.session import Session
+from kuulas.view_memory import ViewMemory
 
 FIXTURE = (Path(__file__).parents[2] / "podcast" / "packages" / "nhsx" /
            "tests" / "data" / "h-test A.nhsx")
@@ -268,3 +269,107 @@ def test_a_clipboard_clip_may_use_a_recording_that_no_track_uses(tmp_path):
     assert count == 1
     assert len(clipboard_entries(project)) == 1
     assert "intro.wav" in names
+
+
+def test_nhsx_imports_markers_and_restores_in_out_in_one_undo_step(tmp_path, monkeypatch):
+    monkeypatch.setenv("KUULAS_VIEW_MEMORY_FILE", str(tmp_path / "view.json"))
+    path = tmp_path / "markers.nhsx"
+    path.write_text(
+        '<Session><AudioPool/><Tracks/><Markers>'
+        '<Marker Id="1" Name="Sisään" Time="01:02.500"/>'
+        '<Marker Id="2" Name="Ulos" Time="01:12.500"/>'
+        '<Marker Id="3" Name="Question" Time="01:00.000"/>'
+        '<Marker Id="4" Name="Answer" Time="01:24.200"/>'
+        '</Markers></Session>', encoding="utf-8")
+    session = Session(tmp_path / "Markers.kuulas")
+    try:
+        before = session.history.head
+        session.command("import_nhsx", {"path": str(path)})
+        assert [(m.name, m.start) for m in session.state.markers] == [
+            ("Question", 60 * RATE), ("Answer", round(84.2 * RATE))]
+        assert session.last_import_marks == {
+            "inPoint": round(62.5 * RATE), "outPoint": round(72.5 * RATE)}
+        assert session.resume.view["inPoint"] == round(62.5 * RATE)
+        assert session.resume.view["outPoint"] == round(72.5 * RATE)
+        session.undo()
+        assert session.history.head == before
+        assert not session.state.markers
+        session.redo()
+        assert len(session.state.markers) == 2
+    finally:
+        session.close()
+
+
+def test_nhsx_bad_marker_is_not_silently_placed_at_zero(tmp_path):
+    path = tmp_path / "markers.nhsx"
+    path.write_text(
+        '<Session xmlns="urn:hindenburg"><AudioPool/><Tracks/><Markers>'
+        '<Marker Id="3" Name="Good" Time="1:02:03.125"/>'
+        '<Marker Id="4" Name="Bad" Time="no"/>'
+        '<Marker Id="5" Name="Missing"/>'
+        '<Marker Id="6" Name="Negative" Time="-1"/>'
+        '<Marker Id="7" Name="Infinite" Time="inf"/>'
+        '<Marker Id="8" Name="NaN" Time="nan"/>'
+        '<Marker Id="9" Name="Too large" Time="1e308"/>'
+        '</Markers></Session>', encoding="utf-8")
+    session = Session(tmp_path / "Markers.kuulas")
+    try:
+        session.command("import_nhsx", {"path": str(path)})
+        assert [(m.name, m.start) for m in session.state.markers] == [
+            ("Good", round(3723.125 * RATE))]
+    finally:
+        session.close()
+
+
+def test_nhsx_marker_response_has_marks_and_does_not_reuse_previous_import(
+        tmp_path, monkeypatch):
+    monkeypatch.setenv("KUULAS_VIEW_MEMORY_FILE", str(tmp_path / "view.json"))
+    path = tmp_path / "marks.nhsx"
+    path.write_text('<Session><AudioPool/><Tracks/><Markers><Marker Id="1" Time="1"/>'
+                    '</Markers></Session>', encoding="utf-8")
+    session = Session(tmp_path / "Api.kuulas")
+    try:
+        app = create_app(session, Engine(), language="en", ui_dir=tmp_path)
+        with TestClient(app) as client:
+            result = client.post("/api/command", json={
+                "name": "import_nhsx", "args": {"path": str(path)}})
+            assert result.status_code == 200
+            assert result.json()["nhsx_marks"] == {"inPoint": RATE, "outPoint": None}
+            assert result.json()["nhsx_markers"] == 1
+            path.write_text('<Session><AudioPool/><Tracks/></Session>', encoding="utf-8")
+            result = client.post("/api/command", json={
+                "name": "import_nhsx", "args": {"path": str(path)}})
+            assert result.json()["nhsx_marks"] == {}
+    finally:
+        session.close()
+
+
+def test_nhsx_marker_import_preserves_the_view_and_existing_markers(
+        tmp_path, monkeypatch):
+    monkeypatch.setenv("KUULAS_VIEW_MEMORY_FILE", str(tmp_path / "view.json"))
+    path = tmp_path / "markers.nhsx"
+    path.write_text(
+        '<Session><AudioPool/><Tracks/><Markers>'
+        '<Marker Id="1" Time="1"/><Marker Id="2" Time="2"/>'
+        '<Marker Id="3" Name="Imported" Time="3"/>'
+        '</Markers></Session>', encoding="utf-8")
+    session = Session(tmp_path / "Markers.kuulas")
+    try:
+        session.edit("add_marker", {"marker_id": "k1", "name": "Existing", "start": 0})
+        session.resume.remember({"zoom": 120, "inPoint": 5, "outPoint": 6})
+        session.command("import_nhsx", {"path": str(path)})
+        assert [(m.name, m.start) for m in session.state.markers] == [
+            ("Existing", 0), ("Imported", 3 * RATE)]
+        assert len({m.id for m in session.state.markers}) == 2
+        view = ViewMemory().get(session.package.manifest["id"])
+        assert (view["zoom"], view["inPoint"], view["outPoint"]) == (120, RATE, 2 * RATE)
+        assert session.last_import_marker_count == 3
+        # An invalid source range must not overwrite the editor's valid range.
+        path.write_text(path.read_text().replace('Time="1"', 'Time="4"'),
+                        encoding="utf-8")
+        session.command("import_nhsx", {"path": str(path)})
+        assert session.last_import_marks == {}
+        assert session.resume.view["inPoint"] == RATE
+        assert session.resume.view["outPoint"] == 2 * RATE
+    finally:
+        session.close()

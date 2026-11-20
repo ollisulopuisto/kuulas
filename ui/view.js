@@ -179,8 +179,18 @@ export function fitRange({ start, end, width, padding = 0.05 }) {
 }
 
 /** The timeline's visible extent includes an active take before it is committed as a clip. */
-export function viewEnd(project, liveEnd = 0) {
-  return Math.max(projectEnd(project), Number.isFinite(liveEnd) ? Math.max(0, liveEnd) : 0);
+export function viewEnd(project, liveEnd = 0, marks = {}) {
+  const positions = [
+    liveEnd,
+    marks.inPoint,
+    marks.outPoint,
+    ...(project?.markers ?? []).flatMap((marker) => [marker.start, marker.end]),
+  ];
+  return positions.reduce(
+    (end, frame) =>
+      Number.isFinite(frame) ? Math.max(end, Math.min(frame, Number.MAX_SAFE_INTEGER)) : end,
+    projectEnd(project),
+  );
 }
 
 /** First start to last end of the selected clips, or null when none is selected. */

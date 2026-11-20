@@ -3709,5 +3709,7 @@
   "ui.block_level.filters": "Scope and minimum change",
   "ui.block_level.speakers": "Speakers",
   "ui.block_level.gain_strip": "Proposed gain changes",
-  "ui.block_level.estimate_more": "About the estimate"
+  "ui.block_level.estimate_more": "About the estimate",
+  "ui.nhsx.markers_done": "Imported {markers} markers. No audio recordings were imported.",
+  "ui.nhsx.markers_partial": "Imported {markers} markers. {missing} audio recordings could not be imported."
 }

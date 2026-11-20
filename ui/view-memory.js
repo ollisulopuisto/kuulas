@@ -7,7 +7,7 @@
 import { pruneLaneHeights } from "./lane-sizing.js";
 import { clampLaneHeight } from "./lanes.js";
 import { normaliseSilence } from "./silence-model.js";
-import { SAMPLE_ZOOM } from "./view.js";
+import { SAMPLE_ZOOM, viewEnd } from "./view.js";
 
 export const SIDEBAR_TABS = [
   "inspector",
@@ -52,7 +52,7 @@ export function recordOf(state, { whole = false } = {}) {
  * not valid is left out of the patch (the default stays). `context` = { project, width,
  * totalFrames }.
  */
-export function restoreFrom(record, { project, width, totalFrames }) {
+export function restoreFrom(record, { project, width, totalFrames, audioFrames = totalFrames }) {
   const patch = {};
   // A project in a series carries its own copy of the series' Auto-Silence options
   // (docs/design/SERIES.md): the start when this view remembers none of its own (a new
@@ -62,8 +62,22 @@ export function restoreFrom(record, { project, width, totalFrames }) {
     patch.autoSilence = normaliseSilence(seriesSilence);
   }
   if (!record || typeof record !== "object" || Array.isArray(record)) return { patch, whole: true };
+  // Transport marks may outlive missing/trimmed audio. Only the play cursor is
+  // bounded by audio duration; otherwise marker-only launcher imports lose them.
+  const inPoint = num(record.inPoint);
+  const outPoint = num(record.outPoint);
+  const from = inPoint === null ? null : clamp(Math.round(inPoint), 0, Number.MAX_SAFE_INTEGER);
+  const to = outPoint === null ? null : clamp(Math.round(outPoint), 0, Number.MAX_SAFE_INTEGER);
+  if (from !== null && to !== null && to < from) {
+    patch.inPoint = null;
+    patch.outPoint = null;
+  } else {
+    if (from !== null) patch.inPoint = from;
+    if (to !== null) patch.outPoint = to;
+  }
+  const extent = viewEnd(null, totalFrames, patch);
   const rate = project?.rate ?? 48000;
-  const span = totalFrames > 0 ? totalFrames : EMPTY_EDIT_SECONDS * rate;
+  const span = extent > 0 ? extent : EMPTY_EDIT_SECONDS * rate;
   const widest = span / Math.max(1, width);
   const zoom = num(record.zoom);
   if (zoom !== null) {
@@ -72,7 +86,7 @@ export function restoreFrom(record, { project, width, totalFrames }) {
     if (scroll !== null) {
       // Same limits as clampScroll: never before the start, half a screen of room after the end.
       const visible = Math.max(1, width) * patch.zoom;
-      const max = visible >= totalFrames ? 0 : totalFrames - visible / 2;
+      const max = visible >= extent ? 0 : extent - visible / 2;
       patch.scroll = Math.round(clamp(scroll, 0, max));
     }
   }
@@ -111,18 +125,7 @@ export function restoreFrom(record, { project, width, totalFrames }) {
     patch.collapsedBuses = new Set(record.collapsedBuses.filter((id) => known.has(id)));
   }
   const playhead = num(record.playhead);
-  if (playhead !== null) patch.playhead = clamp(Math.round(playhead), 0, totalFrames);
-  const inPoint = num(record.inPoint);
-  const outPoint = num(record.outPoint);
-  const from = inPoint === null ? null : clamp(Math.round(inPoint), 0, totalFrames);
-  const to = outPoint === null ? null : clamp(Math.round(outPoint), 0, totalFrames);
-  if (from !== null && to !== null && to < from) {
-    patch.inPoint = null;
-    patch.outPoint = null;
-  } else {
-    if (from !== null) patch.inPoint = from;
-    if (to !== null) patch.outPoint = to;
-  }
+  if (playhead !== null) patch.playhead = clamp(Math.round(playhead), 0, audioFrames);
   // A view that fitted the whole edit keeps fitting it when the edit has grown since.
   return { patch, whole: record.whole === true && zoom !== null };
 }

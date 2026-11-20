@@ -5,7 +5,9 @@ import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_KEYMAP } from "../keymap-default.js";
 import { MENU, menuTargets } from "../menu-model.js";
-import { nhsxRequest, nhsxResult } from "../nhsx-import.js";
+import { nhsxMarkPatch, nhsxRequest, nhsxResult } from "../nhsx-import.js";
+
+import { resolveScope } from "../range-scope.js";
 
 const catalog = (lang) =>
   JSON.parse(
@@ -93,4 +95,34 @@ describe("the command", () => {
         assert.ok(messages[key], `${lang} ${key}`);
     }
   });
+});
+
+test("a marker-only session is a successful import, even without audio", () => {
+  assert.deepEqual(nhsxResult({ imported: 0, failures: [], warnings: [] }, 3), {
+    key: "ui.nhsx.markers_done",
+    values: { markers: 3 },
+    kind: "ok",
+  });
+  assert.deepEqual(nhsxResult({ imported: 0, failures: [{ name: "gone.wav" }] }, 3), {
+    key: "ui.nhsx.markers_partial",
+    values: { markers: 3, missing: 1 },
+    kind: "warn",
+  });
+});
+
+test("imported marks replace painted lanes but preserve explicit header scope", () => {
+  const state = {
+    project: { tracks: [{ id: "voice" }, { id: "interview" }] },
+    rangeTracks: new Set(["voice"]),
+    rangeMode: "all",
+  };
+  const marks = { inPoint: 2, outPoint: 8 };
+  const after = { ...state, ...nhsxMarkPatch(marks) };
+  assert.deepEqual(resolveScope(after).tracks, ["voice", "interview"]);
+  assert.deepEqual(
+    resolveScope({ ...after, rangeMode: "selected", trackSelection: new Set(["voice"]) }).tracks,
+    ["voice"],
+  );
+  assert.deepEqual(nhsxMarkPatch({}), {});
+  assert.deepEqual(nhsxMarkPatch(undefined), {});
 });
