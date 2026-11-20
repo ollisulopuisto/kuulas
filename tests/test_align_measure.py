@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from kuulas import align_math
-from kuulas.align_measure import windowed_lags
+from kuulas.align_measure import _slide_correlation, windowed_lags
 
 RATE = 100  # envelopes, not audio: 100 values per second
 
@@ -82,3 +82,11 @@ def test_drifting_pair_feeds_a_drift_fit():
     assert offset == pytest.approx(0.0, abs=0.2)
     assert slope == pytest.approx(0.002, rel=0.2)
     assert align_math.has_drift(slope)
+
+
+def test_fft_valid_correlation_matches_direct_normalized_reference():
+    rng = np.random.default_rng(42)
+    region, window = rng.normal(size=137), rng.normal(size=31)
+    want = np.array([np.corrcoef(region[i:i + window.size], window)[0, 1]
+                     for i in range(region.size - window.size + 1)])
+    assert np.allclose(_slide_correlation(region, window), want, atol=1e-12)
