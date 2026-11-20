@@ -3,9 +3,10 @@ from dataclasses import replace
 
 import numpy as np
 import pytest
-from test_align_job import setup
+from test_align_job import Store, setup
 
 from kuulas.align_tracks import analyze_tracks, gap_options
+from kuulas.model import Clip, Media, Project, Track
 
 
 def test_multiclip_track_agrees_on_one_shift(tmp_path):
@@ -60,3 +61,24 @@ def test_unmatched_piece_prevents_whole_track_suggestion(tmp_path):
     p=replace(p,tracks=(p.tracks[0],replace(p.tracks[1],clips=clips)))
     row=analyze_tracks(p,store,['top','below'],'sound')['tracks'][0]
     assert row['status']=='pieces_unverified'
+
+
+def test_remote_tracks_without_bleed_produce_manual_gap_choices(tmp_path):
+
+    rate=8000
+    rng=np.random.default_rng(2026)
+    blocks=rng.integers(25,150,100)
+    activity=np.concatenate([np.full(n,bool(i%2)) for i,n in enumerate(blocks)])
+    delayed=np.r_[np.zeros(40,bool),~activity[:-40]]
+    ref=np.repeat(np.where(activity,.2,.001),160)
+    guest=np.repeat(np.where(delayed,.2,.001),160)
+    audio={'r':(ref*rng.normal(size=ref.size))[None,:].astype(np.float32),
+           'g':(guest*rng.normal(size=guest.size))[None,:].astype(np.float32)}
+    store=Store(tmp_path,audio)
+    p=Project(rate=rate,media=tuple(Media(k,k,1,v.shape[1]) for k,v in audio.items()),
+              tracks=(Track('r','Reference',clips=(Clip('r1','r',rate,0,ref.size),)),
+                      Track('g','Remote',clips=(Clip('g1','g',0,0,guest.size),))))
+    row=analyze_tracks(p,store,['r','g'],'gaps')['tracks'][0]
+    assert row['status']=='ambiguous'
+    assert row['options'][0]['delta']==pytest.approx(.2,abs=.1)
+    assert row['options'][0]['auditions']

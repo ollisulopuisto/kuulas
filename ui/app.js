@@ -4806,8 +4806,8 @@ function render(state, patch, previous = null) {
     )
   ) {
     trackHeaders.update(state);
-    syncReview.update(state.automaticSync ?? []);
     trackHeaders.setRecording(recordView.isRecording());
+    syncReview.update(state.automaticSync ?? []);
   }
   focusChanged(state, touched);
   if (touched("project", "autoFitTracks", "laneHeights", "collapsedBuses", "busHeight", "groupGap"))
