@@ -104,8 +104,16 @@ for (const sheet of document.styleSheets) {
   }
 }
 if (bus) {
+  if (query.get("busopen")) bus.classList.add("hover-open");
   out.bus = {
     header: rect(bus),
+    card: rect(bus.querySelector(".th-card")),
+    boxes: [...bus.querySelectorAll(".th-card *")].map((n) => ({
+      class: n.className,
+      ...rect(n),
+      display: getComputedStyle(n).display,
+    })),
+    strip: rect(bus.querySelector(".th-strip")),
     name: rect(bus.querySelector(".bus-name")),
     badge: Boolean(bus.querySelector(".th-strip .bus-badge")),
     controlsDisplay: getComputedStyle(bus.querySelector(".th-controls")).display,

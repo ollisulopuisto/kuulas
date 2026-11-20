@@ -260,15 +260,20 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const flyout = parts.flyout;
     flyout.style.height = "auto";
     const width = Math.min(Math.max(240, Math.round(rect.width)), window.innerWidth - 16);
-    const top = Math.min(rect.bottom + 6, window.innerHeight - 128);
+    let top = Math.min(rect.bottom + 6, window.innerHeight - 128);
+    const grip = parts.node.querySelector(".lane-grip");
+    const gripRect = grip?.getBoundingClientRect();
+    // No usable space between the card and grip: attach after the grip,
+    // rather than letting the minimum-height flyout cover the resize target.
+    if (gripRect && top <= gripRect.bottom && gripRect.top - 4 - top < 32)
+      top = gripRect.bottom + 4;
     flyout.style.left = `${Math.min(Math.max(8, rect.left), window.innerWidth - width - 8)}px`;
     flyout.style.top = `${Math.max(8, top)}px`;
     flyout.style.width = `${width}px`;
     let maxHeight = Math.max(120, window.innerHeight - Math.max(8, top) - 8);
     // The lane's resize grip stays grabbable: the popover stops above it and
     // scrolls instead of covering it.
-    const grip = parts.node.querySelector(".lane-grip");
-    const room = grip ? grip.getBoundingClientRect().top - 4 - top : Infinity;
+    const room = gripRect ? gripRect.top - 4 - top : Infinity;
     if (Number.isFinite(room) && room > 0) maxHeight = Math.min(maxHeight, room);
     flyout.style.maxHeight = `${maxHeight}px`;
   };
@@ -1153,6 +1158,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       parts.node.style.order = String(order);
       parts.node.style.height = `${row.height}px`;
       parts.node.classList.toggle("micro-controls", row.height < 32);
+      parts.node.classList.toggle("short-header", row.height < 120);
       if (parts.kind === "gap") continue;
       parts.node.classList.toggle("group-end", Boolean(row.last));
       // The bus spine runs from the bus header down through its members.
@@ -1163,7 +1169,10 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.node.style.setProperty("--bus-band", `var(--bus-${group}-band)`);
         parts.node.style.setProperty("--bus-text", `var(--bus-${group}-text)`);
       }
-      parts.node.classList.toggle("compact", row.height < COMPACT_BELOW_PX && row.kind === "track");
+      parts.node.classList.toggle(
+        "compact",
+        row.height <= COMPACT_BELOW_PX && row.kind === "track",
+      );
       parts.node.classList.toggle("strip", row.height < STRIP_BELOW_PX && row.kind === "track");
       if (parts.kind === "track") {
         const track = state.project.tracks[row.index];

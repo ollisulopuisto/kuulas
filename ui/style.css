@@ -7329,3 +7329,85 @@ legend.form-heading {
   font: inherit;
   font-weight: var(--weight-strong);
 }
+
+/* Bus rows are 56px high, not track-height cards. Keep the existing vertical
+   fold/badge/mute strip inside that row so it cannot cover its first member.
+   This is containment, not the proposed horizontal bus redesign. */
+.track-header.bus-header .th-card {
+  top: 2px;
+  padding-block: 2px;
+  gap: 2px;
+}
+.track-header.bus-header .th-strip {
+  gap: 0;
+  padding-block: 1px;
+}
+.track-header.bus-header .th-strip .bus-chevron {
+  height: 12px;
+  min-height: 12px;
+  line-height: 12px;
+}
+.track-header.bus-header .th-strip .bus-badge {
+  height: 14px;
+  min-height: 14px;
+  line-height: 14px;
+}
+.track-header.bus-header .th-strip .ms-button {
+  height: 18px;
+  min-height: 18px;
+}
+.track-header.bus-header .th-card > .th-controls .slider-caption {
+  display: none;
+}
+.track-header.bus-header .th-card > .th-controls .slider-control input[type="range"] {
+  height: 20px;
+}
+.track-header.bus-header .th-card > .th-controls .slider-control {
+  grid-template-rows: 20px;
+}
+.track-header.bus-header .th-card > .th-controls .control-gain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.track-header.bus-header .th-card > .th-controls .control-gain input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  width: 110px;
+}
+.track-header.bus-header .th-card > .th-controls .control-gain output {
+  flex: none;
+  width: 54px;
+}
+.track-header.bus-header .th-card > .th-controls .control-pan {
+  width: 28px;
+  height: 20px;
+  grid-template: 20px / 28px;
+}
+.track-header.bus-header .th-card > .th-controls .control-pan input[type="range"] {
+  grid-area: 1 / 1;
+}
+/* Short lanes cannot hold the read-only gain/pan stack below M/S.
+   Those values remain in the expanded controls and summary. */
+.track-header.short-header .th-state {
+  display: none;
+}
+.track-header:not(.bus-header, .compact):is(.hover-open, :focus-within, .controls-open) .th-strip {
+  align-self: flex-start;
+}
+.track-header .th-strip .ms .ms-button {
+  height: 18px;
+}
+
+.track-header.short-header:not(.bus-header) .th-strip {
+  gap: 2px;
+  padding-block: 2px;
+}
+/* The new track flyout outline is thicker, but the old bus row is still 56px. */
+.track-header.bus-header .th-card {
+  border-width: 1px;
+}
+/* Expanded flyout content must not squeeze the persistent strip sideways. */
+.track-header .th-strip {
+  flex-shrink: 0;
+}
