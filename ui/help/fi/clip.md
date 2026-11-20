@@ -2,7 +2,7 @@
 id: clip
 title: Leike
 applies-to: [clip]
-commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, clip.relink_media, edit.undo]
+commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, clip.relink_media, edit.undo, help.open]
 related: [timeline, track, transcript]
 ---
 Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi olla monta leikettä; kun valitset yhden, sen sisarleikkeet merkitään hakasella.
@@ -32,7 +32,7 @@ Jokaisen muokkauksen voi perua askel kerrallaan: {key:edit.undo}.
 - Kaikki liitostavat (päälle, lisää, nykyiselle raidalle, samoille raidoille) noudattavat tätä sääntöä; vain "samat raidat" käyttää aina lähderaitoja. Puheleikkeen voi liittää musiikkiraidalle.
 
 ## Katso tarkemmin
-Tarkastimessa näkyvät leikkeen taso, tahdistus ja lähde. {show:inspector}
+Tarkastimessa näkyvät leikkeen taso, tahdistus ja lähde. {show:inspector} Näytä avaa Tarkastin-välilehden ja sulkee ohjeen, jotta voit käyttää säätimiä. Palaa ohjeeseen painamalla {key:help.open}.
 
 Leike, joka pitää mikin auki, näyttää Taso-osiossa rivin "Mikki pidetään auki"; sen painike antaa Auto-Silencen hiljentää leikkeen taas (sama kuin Pidä mikki auki valittujen leikkeiden alla, Leike-valikossa).
 
