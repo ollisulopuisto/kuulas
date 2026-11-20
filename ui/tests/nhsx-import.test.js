@@ -94,3 +94,16 @@ describe("the command", () => {
     }
   });
 });
+
+test("a marker-only session is a successful import, even without audio", () => {
+  assert.deepEqual(nhsxResult({ imported: 0, failures: [], warnings: [] }, 3), {
+    key: "ui.nhsx.markers_done",
+    values: { markers: 3 },
+    kind: "ok",
+  });
+  assert.deepEqual(nhsxResult({ imported: 0, failures: [{ name: "gone.wav" }] }, 3), {
+    key: "ui.nhsx.markers_partial",
+    values: { markers: 3, missing: 1 },
+    kind: "warn",
+  });
+});

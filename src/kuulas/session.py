@@ -119,7 +119,7 @@ from .part_versions import distinct_versions, gate_snapshot, snapshot
 from .paste_apply import apply_paste
 from .paste_plan import _targets, plan_paste
 from .people import Interview, Passage, Person
-from .resume import ResumeWriter, now_iso
+from .resume import ResumeWriter, merge_view, now_iso, read_resume
 from .view_memory import ViewMemory
 
 log = logging.getLogger("kuulas.session")
@@ -222,6 +222,39 @@ def _nhsx_clipboard_clips(root) -> list[tuple[int, Any]]:
                 (g for g in board if nhsx_localname(g) == "Group"), start=1):
             out.extend((number, clip) for clip in nhsx_children(group, "Clip"))
     return out
+
+
+
+def _nhsx_markers(project: Project, root) -> tuple[Project, dict]:
+    """Hindenburg IDs 1/2 are transport marks, not numbered sidebar markers.
+
+    Bad optional marker times must not discard valid audio or land at zero.
+    The untouched source XML still carries every vendor field for round trips.
+    """
+    marks = {}
+    for group in nhsx_children(root, "Markers"):
+        for element in nhsx_children(group, "Marker"):
+            raw = element.get("Time")
+            if raw is None:
+                continue
+            try:
+                seconds = nhsx_time_to_seconds(raw)
+            except ValueError:
+                continue
+            if not math.isfinite(seconds * project.rate) or seconds < 0:
+                continue
+            frame = round(seconds * project.rate)
+            identity = element.get("Id")
+            if identity in {"1", "2"}:
+                marks["inPoint" if identity == "1" else "outPoint"] = frame
+            else:
+                project = ops.add_marker(project, None, element.get("Name", ""), frame)
+    if marks:
+        marks = {"inPoint": marks.get("inPoint"), "outPoint": marks.get("outPoint")}
+        if (marks["inPoint"] is not None and marks["outPoint"] is not None
+                and marks["outPoint"] < marks["inPoint"]):
+            marks = {}
+    return project, marks
 
 
 def _element_xml(elem) -> str:
@@ -404,6 +437,8 @@ class Session:
         #: How many Hindenburg clipboard clips the last ``import_nhsx`` turned
         #: into clipboard entries.
         self.last_import_clipboard = 0
+        self.last_import_marks: dict = {}
+        self.last_import_marker_count = 0
         #: The interview the latest import made (WP41), or None.
         self.last_import_interview: str | None = None
         #: New stereo speech tracks of the latest import, ``[{id, name}]``: the
@@ -2899,13 +2934,25 @@ class Session:
 
         self.last_import_clipboard = self._import_nhsx_clipboard(
             nhsx_session, media_by_file)
-        if p == self.history.state and root == self.history.material:
-            return p
+        marker_count = len(p.markers)
+        p, self.last_import_marks = _nhsx_markers(p, nhsx_session.tree.getroot())
+        self.last_import_marker_count = len(p.markers) - marker_count + sum(
+            value is not None for value in self.last_import_marks.values())
         p = replace(p, extra={**p.extra, "nhsx": {"source_xml": source_xml}})
         self.last_import_interview = None
         self.last_import_stereo = []
-        return self._commit(t("history.nhsx_import", name=source.name), p,
-                            "import_nhsx", {"path": str(source)}, material=root)
+        if p != self.history.state or root != self.history.material:
+            p = self._commit(t("history.nhsx_import", name=source.name), p,
+                             "import_nhsx", {"path": str(source)}, material=root)
+        if self.last_import_marks:
+            # The launcher/CLI imports before a page exists. Seed its remembered
+            # transport marks too; these are view state, not another undo step.
+            view = self.resume.view or merge_view(
+                ViewMemory().get(self.package.manifest["id"]),
+                read_resume(self.package.path)) or {}
+            self.resume.remember({**view, **self.last_import_marks}, now=True)
+            self.flush_view()
+        return p
 
     def _import_nhsx_clipboard(self, nhsx_session, media_by_file: dict) -> int:
         """Turn the session's non-empty clipboard clips into pinned entries of

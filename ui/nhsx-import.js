@@ -16,9 +16,13 @@ export function nhsxRequest(typed) {
 }
 
 /** What to say after the import: `summary` is summariseImport(report) of the server's answer. */
-export function nhsxResult(summary) {
+export function nhsxResult(summary, markers = 0) {
   const count = summary.imported;
   const missing = summary.failures.length;
+  if (count === 0 && markers > 0)
+    return missing > 0
+      ? { key: "ui.nhsx.markers_partial", values: { markers, missing }, kind: "warn" }
+      : { key: "ui.nhsx.markers_done", values: { markers }, kind: "ok" };
   if (count === 0) return { key: "ui.nhsx.nothing", values: { missing }, kind: "error" };
   if (missing > 0) return { key: "ui.nhsx.partial", values: { count, missing }, kind: "warn" };
   return { key: "ui.nhsx.done", values: { count }, kind: "ok" };

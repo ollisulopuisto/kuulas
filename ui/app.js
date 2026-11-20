@@ -3459,7 +3459,8 @@ async function runNhsxImport(path) {
   try {
     const response = await api.command("import_nhsx", { path });
     apply(response);
-    const result = nhsxResult(summariseImport(response.report));
+    if (response.nhsx_marks) setState(response.nhsx_marks);
+    const result = nhsxResult(summariseImport(response.report), response.nhsx_markers);
     showNotice(t(result.key, result.values), result.kind, { undo: result.kind !== "error" });
   } catch (error) {
     showError(error);
