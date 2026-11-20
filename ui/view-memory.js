@@ -112,10 +112,12 @@ export function restoreFrom(record, { project, width, totalFrames }) {
   }
   const playhead = num(record.playhead);
   if (playhead !== null) patch.playhead = clamp(Math.round(playhead), 0, totalFrames);
+  // Transport marks may outlive missing/trimmed audio. Only the play cursor is
+  // bounded by audio duration; otherwise marker-only launcher imports lose them.
   const inPoint = num(record.inPoint);
   const outPoint = num(record.outPoint);
-  const from = inPoint === null ? null : clamp(Math.round(inPoint), 0, totalFrames);
-  const to = outPoint === null ? null : clamp(Math.round(outPoint), 0, totalFrames);
+  const from = inPoint === null ? null : clamp(Math.round(inPoint), 0, Number.MAX_SAFE_INTEGER);
+  const to = outPoint === null ? null : clamp(Math.round(outPoint), 0, Number.MAX_SAFE_INTEGER);
   if (from !== null && to !== null && to < from) {
     patch.inPoint = null;
     patch.outPoint = null;

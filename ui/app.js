@@ -150,7 +150,7 @@ import { createMusicReportDialog } from "./music-report-dialog.js";
 import { reportQuery } from "./music-report-model.js";
 import { createNameDialog } from "./name-dialog.js";
 import { createNhsxDialog } from "./nhsx-dialog.js";
-import { nhsxResult } from "./nhsx-import.js";
+import { nhsxMarkPatch, nhsxResult } from "./nhsx-import.js";
 import { chipText, createNoticeHold, toastStaysOpen } from "./notice-hold.js";
 import { createOrukeetDialog } from "./orukeet-dialog.js";
 import { createOverview } from "./overview.js";
@@ -429,7 +429,7 @@ let exportFormatList = null; // the same as [{ id, label, ... }], for the export
 
 const rate = () => getState().project?.rate ?? RATE;
 const totalFrames = () => projectEnd(getState().project);
-const viewEnd = () => View.viewEnd(getState().project, recordView.liveFrame());
+const viewEnd = () => View.viewEnd(getState().project, recordView.liveFrame(), getState());
 // What every export honours (owner, 2026-10-21): the In/Out range or the selected clips'
 // tracks and span; null is the whole mix (export-selection-model.js).
 const exportSelection = () => resolveExportSelection(getState(), { length: totalFrames() });
@@ -3459,7 +3459,7 @@ async function runNhsxImport(path) {
   try {
     const response = await api.command("import_nhsx", { path });
     apply(response);
-    if (response.nhsx_marks) setState(response.nhsx_marks);
+    setState(nhsxMarkPatch(response.nhsx_marks));
     const result = nhsxResult(summariseImport(response.report), response.nhsx_markers);
     showNotice(t(result.key, result.values), result.kind, { undo: result.kind !== "error" });
   } catch (error) {
@@ -5137,9 +5137,18 @@ async function restoreView(pending = api.getViewMemory()) {
       width: width(),
       totalFrames: viewEnd(),
     });
+    // Marks can be beyond surviving audio after a partial NHSX import. Restore
+    // them before fitting the view, without changing playable/export duration.
+    const { inPoint, outPoint } = patch;
+    setState({
+      ...(inPoint !== undefined ? { inPoint } : {}),
+      ...(outPoint !== undefined ? { outPoint } : {}),
+    });
     if (patch.zoom !== undefined) {
       setView({ zoom: patch.zoom, scroll: patch.scroll ?? 0 }, { record: false, whole });
       if (whole) fitWholeEdit();
+    } else if (inPoint !== undefined || outPoint !== undefined) {
+      fitWholeEdit();
     }
     delete patch.zoom; // applied by setView, with its scroll
     delete patch.scroll;

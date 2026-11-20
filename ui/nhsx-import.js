@@ -27,3 +27,8 @@ export function nhsxResult(summary, markers = 0) {
   if (missing > 0) return { key: "ui.nhsx.partial", values: { count, missing }, kind: "warn" };
   return { key: "ui.nhsx.done", values: { count }, kind: "ok" };
 }
+
+/** Imported transport marks are global, like keyboard In/Out, not an old lane drag. */
+export function nhsxMarkPatch(marks) {
+  return marks && Object.keys(marks).length > 0 ? { ...marks, rangeTracks: new Set() } : {};
+}

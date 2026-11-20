@@ -326,3 +326,10 @@ describe("overview strip", () => {
     assert.ok(box.x + box.w <= 200 + 1e-9);
   });
 });
+
+test("transport marks extend only the view, never the playable project", () => {
+  const project = { tracks: [], markers: [{ start: 60, end: 84 }] };
+  assert.equal(viewEnd(project, 0, { inPoint: 62, outPoint: 72 }), 84);
+  assert.equal(viewEnd({ tracks: [] }, 0, { inPoint: 62, outPoint: 72 }), 72);
+  assert.equal(viewEnd({ tracks: [] }, 0, { outPoint: Infinity }), 0);
+});

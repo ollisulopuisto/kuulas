@@ -105,11 +105,11 @@ describe("restoreFrom", () => {
     assert.ok(late.scroll <= 480_000);
   });
 
-  test("clamps the play cursor and the marks to the project length", () => {
+  test("clamps the play cursor to audio, but preserves marks beyond missing audio", () => {
     const patch = restoreFrom({ playhead: 9e9, inPoint: -5, outPoint: 9e9 }, context).patch;
     assert.equal(patch.playhead, 480_000);
     assert.equal(patch.inPoint, 0);
-    assert.equal(patch.outPoint, 480_000);
+    assert.equal(patch.outPoint, 9e9);
   });
 
   test("marks that are not a range are dropped together", () => {
@@ -303,4 +303,13 @@ test("without remembered options, the series copy in the project gives Auto-Sile
   const own = restoreFrom({ autoSilence: { margin_db: 5 } }, linked).patch.autoSilence;
   assert.equal(own.margin_db, 5);
   assert.equal(restoreFrom({}, context).patch.autoSilence, undefined);
+});
+
+test("launcher marker-only and missing-tail imports retain their transport range", () => {
+  const record = { inPoint: 62.5 * 48000, outPoint: 72.5 * 48000 };
+  for (const totalFrames of [0, 30 * 48000]) {
+    const { patch } = restoreFrom(record, { ...context, totalFrames });
+    assert.equal(patch.inPoint, record.inPoint);
+    assert.equal(patch.outPoint, record.outPoint);
+  }
 });
