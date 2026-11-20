@@ -39,7 +39,7 @@ test("notice-chip in index.html and app.js sets aria-label matching its title", 
   );
 });
 
-test("waveform-gain, speed-chip, follow-arrow, series-chip, and scope-chip in app.js set aria-label matching their title", () => {
+test("interactive chips in app.js expose accessible descriptions", () => {
   const code = readFileSync(new URL("../app.js", import.meta.url), "utf8");
 
   // In the waveformGain touched branch:
@@ -76,8 +76,8 @@ test("waveform-gain, speed-chip, follow-arrow, series-chip, and scope-chip in ap
   // In updateScopeChip:
   assert.match(
     code,
-    /function updateScopeChip[\s\S]*?el\.setAttribute\("aria-label",\s*el\.title\)/,
-    "scope-chip sets aria-label matching el.title",
+    /function updateScopeChip[\s\S]*?el\.setAttribute\("aria-label",\s*t\("ui\.scope\.chip_title"\)\)/,
+    "scope-chip exposes its description without a competing native title",
   );
 });
 
