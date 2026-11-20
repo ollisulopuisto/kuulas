@@ -12,6 +12,29 @@ export function applyCommandShortcuts(document, entries, platform, { t } = {}) {
         .map((combo) => combo.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control"))
         .join(" "),
     );
+    // Preserve state-specific tips owned by another view. Only generated command
+    // tips are refreshed when the keymap or language changes.
+    if (t && entry?.labelKey && (!node.dataset.tip || node.dataset.cmdTip === node.dataset.tip)) {
+      const name = t(entry.labelKey);
+      const hintKey = `cmd.${node.dataset.cmd}.hint`;
+      const hint = t(hintKey);
+      node.dataset.tip = [
+        name,
+        hint !== hintKey && hint !== name ? hint : "",
+        ...combos.map((combo) => formatShortcut(combo, platform)),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      node.dataset.cmdTip = node.dataset.tip;
+    }
+    // One tooltip owner: a native title must not compete with the custom tip.
+    // Keep its accessible name when the view did not provide one explicitly.
+    const title = node.getAttribute?.("title");
+    if (node.dataset.tip && title !== null && title !== undefined) {
+      if (!node.hasAttribute?.("aria-label") && !node.hasAttribute?.("aria-labelledby"))
+        node.setAttribute("aria-label", title);
+      node.removeAttribute?.("title");
+    }
     if (
       t &&
       entry?.labelKey &&
