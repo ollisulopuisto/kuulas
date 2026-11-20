@@ -817,7 +817,28 @@ button.chip {
   pointer-events: auto;
 }
 .lane-grip:hover {
-  background: var(--border-subtle);
+  background: var(--signal-preview);
+}
+/* The grip pill above the hovered edge: the DOM twin of the timeline canvas handles
+   (owner, 2026-11-20; geometry mirrored from drag-handle.js). */
+.lane-grip:hover::after {
+  content: "";
+  position: absolute;
+  left: 60px;
+  bottom: 8px;
+  transform: translateX(-50%);
+  width: 26px;
+  height: 12px;
+  border-radius: 6px;
+  background-color: var(--text);
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--surface-panel) 0 2px,
+    transparent 2px 6px
+  );
+  background-size: 16px 6px;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 /* The track's hue (trackHues in paint.js), set by tracks.js as --track-colour. */
 /* Two marks at the left edge that never fight (GUI-DESIGN.md, "Buses"):
