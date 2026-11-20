@@ -93,6 +93,8 @@ from . import loudness_curve as loudness_curve_module
 from . import markers as markers_module
 from . import music_report as music_report_module
 from . import send_copy as send_copy_module
+from .align_review import fail as sync_fail
+from .align_session import SyncSession
 from .cart_level import cart_gain_db, trimmed_length
 from .clipboard import (
     ClipRef,
@@ -365,7 +367,7 @@ def _replaced_by(before: Project, after: Project, track_ids: list[str],
     return out
 
 
-class Session:
+class Session(SyncSession):
     """``folder`` is the ``Name.kuulas`` package; it is created if it does not
     exist. ``rate`` applies to a new project only: an existing one keeps its own."""
 
@@ -897,6 +899,8 @@ class Session:
         the take lands at a fixed frame when it stops, so a cut or move before that frame
         would put it in the wrong place. Markers are safe, and the take's own landing is
         the one edit that must go through."""
+        if self._sync_review is not None:
+            sync_fail("active")
         if name in RECORDING_OK_EDITS:
             return
         paused = getattr(self, "editing_paused", None)
@@ -1546,6 +1550,7 @@ class Session:
         """Restore the project to any step, on any branch. Nothing is lost:
         the steps left behind stay reachable."""
         with self.lock:
+            self._check_not_recording()
             self.history.goto(node)
             self._changed()
 

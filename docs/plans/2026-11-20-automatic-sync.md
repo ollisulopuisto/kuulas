@@ -1,56 +1,49 @@
 # Automatic sync implementation, 20 November 2026
 
-The owner requested automatic alignment of separately recorded remote tracks.
-The existing correlator and manual sync points do not fulfill that request.
-This branch is incomplete until the user can run the workflow safely.
+The owner requested sync for separately recorded remote participants, including
+recordings delivered in multiple pieces. The approved UI is a full-window timing
+review mode, not an immediate edit or a modal. The user arranges files in order
+on participant tracks before starting.
 
-## Measurement core
+## Implemented in this branch
 
-- Compute channel-power RMS envelopes at 1 ms. Stereo phase cancellation must
-  not erase the reference. Callers must transpose MediaStore's channel-first
-  arrays before passing them to the frame-first envelope function.
-- Search the entire reference independently for every coarse window, so a
-  twenty-minute local can begin fifteen minutes into an hour-long call and a
-  dropout can change its lag halfway through.
-- Refine a clear coarse match to milliseconds in a bounded local search.
-- Require an absolute correlation floor as well as the competing-peak ratio.
-  A unique but tiny random peak is not evidence of shared audio.
-- Use zero-padded FFT convolution. Do not perform quadratic direct convolution
-  over a long call. Yield at window boundaries to the playback priority gate.
+- Channel-power RMS envelopes at 1 ms, bounded ten-second channel-first reads,
+  whole-reference coarse FFT search and bounded fine correlation. Absolute
+  correlation and competing-peak checks reject weak or repetitive matches.
+- Conservative offset/drift consensus across independent windows. A fixed start
+  move is proposed only when all measured windows fit and the total drift is
+  within 4 ms. Drift is reported, never described as corrected by a single move.
+- Track-unit analysis checks every piece. A missing, partial, unmatched or
+  inconsistent piece prevents a whole-track sound proposal. Multiple source
+  files keep their timeline order and gaps; no filename-order guessing.
+- Auto tries shared sound first. Turn-gap analysis uses speechmix activity,
+  shared recorded coverage and turn handoffs, not minimum overlap alone.
+  Gap alternatives are always manual choices, never confidence percentages.
+- Full-window review has actual source waveforms, whole-track drag by default,
+  explicit individual-piece movement, a numeric offset and 10 ms nudges,
+  zoom, seek, loop, original/proposal listening and reset to suggestion.
+- Preview is a server-owned frozen Project with timing changes only. Engine
+  listening-source replacement plays it without editing history. Apply commits
+  that same plan once. Cancel discards it. Normal API writes and history edits
+  are blocked during the mode; stale snapshots and invalid moves fail closed.
+- New movement does not overwrite another piece or cross project frame zero.
+  Original media, source offsets, fades, envelopes and file order stay intact.
+- Analysis runs through the existing read-only worker/background job system.
+  Cancellation and job completion cannot apply to a replacement review.
+- Menu, command palette, shortcut (Alt+Mod+Shift+F7), English/Finnish strings
+  and help are part of the workflow.
 
-Synthetic tests cover a 2.345 s offset, 100 ppm clock drift, a removed 1.2 s
-interval, unrelated audio, silence, periodic ambiguity, opposite-phase stereo,
-and the long-reference/short-local case. These test measurements, not a finished
-editing workflow or resampling correction.
+## Explicit limits and verification still required
 
-## Remaining work
+Continuous drift is not resampled or stretched. Discontinuous pieces are not
+split automatically: the review reports disagreement and permits explicit
+piece moves. This follows the approved no-resampling design, replacing the
+older resampled-variant plan. Existing sync-group metadata is not silently
+redefined by this timing edit. A separate intentional mark-in-sync command
+remains available after leaving the mode.
 
-1. A bounded pair-consensus fitter now proposes offset/drift only when at least
-   three independent windows agree across >=80% of clear windows and time span.
-   It rejects tested discontinuities and competing matches. Excluded windows
-   remain explicit; any excluded region needs validation before a whole-clip
-   edit can be accepted. Segment proposals and boundary refinement are still
-   missing. Never move an unmatched or ambiguous clip.
-2. Refine each discontinuity before picking a quiet split. Merely picking the
-   quietest point between sparse windows could misalign seconds of speech.
-3. Read-only snapshot analysis is now registered in the existing worker, with
-   bounded ten-second channel-first reads, source-span/duration checks,
-   offline/partial-media statuses and cancellation checkpoints. A real worker
-   reopen test matches inline results and leaves project state unchanged.
-   This is not yet called by a UI/background job. Production memory limits,
-   project read-only execution gating and actual-session behavior still need
-   end-to-end checks.
-4. Make drift-corrected variants without altering originals. The existing
-   ops.use_variant deliberately requires equal source/variant lengths, so do
-   not reuse it for a different-length resample. Preserve source offsets,
-   transcript timings, mute/gate ranges, fades and media provenance explicitly.
-5. Apply the entire accepted proposal as one undo step. Protect it with a
-   project-snapshot key. Preserve existing sync partners and use the topmost
-   selected track as the reference. Do not overwrite unrelated clips silently.
-6. Run a background measurement job, show per-clip offsets, drift and split
-   decisions, and respect the owner's confirmation-before-moving setting.
-   Wire Alt+Mod+G and menu/palette/help only when the full route is tested.
-7. Test actual session/export behavior separately from synthetic source tests.
-   A local browser cannot prove a native Mac audio or recording-device path.
+Synthetic tests and browser checks do not establish accuracy on the owner's
+actual remote recordings. Native Mac audio, real output devices and the
+packaged application are untested here. CI is the only Mac compiler.
 
-No version, changelog, roadmap or plan-status change is part of this work.
+No version, changelog, roadmap or PLAN status change belongs to this branch.

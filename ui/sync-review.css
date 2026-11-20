@@ -1,0 +1,122 @@
+/* Dedicated timing workspace. Fixed positioning takes over the existing window;
+   it is not a modal and the editor beneath it is inert until Accept or Cancel. */
+.sync-review {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  overflow: auto;
+  background: var(--surface-lane);
+  color: var(--text);
+}
+.sync-review-banner,
+.sync-review-tools,
+.sync-review-controls,
+.sync-review-results > div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.sync-review-banner {
+  padding: var(--space-3);
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+}
+.sync-review-banner > div {
+  flex: 1;
+}
+.sync-review h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+.sync-review p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+.sync-review button,
+.sync-review input,
+.sync-review select {
+  min-height: 34px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.sync-review button {
+  cursor: pointer;
+}
+.sync-review button:hover {
+  background: var(--surface-hover);
+}
+.sync-review button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.sync-review button.primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.sync-review button[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+.sync-review input {
+  width: 120px;
+}
+.sync-review-lanes {
+  flex: 1;
+  min-height: 220px;
+  overflow: auto;
+}
+.sync-review-lanes svg {
+  display: block;
+  touch-action: none;
+}
+.sync-review-lanes text {
+  fill: var(--text);
+  font: inherit;
+}
+.sync-review-lanes .sync-name {
+  font-weight: var(--weight-medium);
+}
+.sync-review-lanes .sync-time {
+  fill: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.sync-review-lanes .sync-grid {
+  stroke: var(--border);
+}
+.sync-review-lanes .sync-playhead {
+  stroke: var(--warn);
+  stroke-width: 2;
+}
+.sync-review-lanes .sync-clip {
+  fill: var(--surface-panel);
+  stroke: var(--border);
+  cursor: ew-resize;
+}
+.sync-review-lanes .sync-clip.selected {
+  fill: var(--accent-subtle);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.sync-review-controls {
+  padding: var(--space-3);
+  background: var(--surface-panel);
+}
+.sync-review-results {
+  display: grid;
+  gap: var(--space-2);
+  max-height: 170px;
+  overflow: auto;
+}
+.sync-review-badge {
+  color: var(--accent-text);
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
+}

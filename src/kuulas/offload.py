@@ -75,6 +75,7 @@ MODE = os.environ.get("KUULAS_ANALYSIS", "process")
 #: What the worker may run: ``fn(project, store, *args, **kwargs)``, pure on
 #: the snapshot. A name, so the task file never names code.
 TASKS: dict[str, str] = {
+    "automatic_sync_tracks": "kuulas.align_tracks:analyze_tracks",
     "automatic_sync": "kuulas.align_job:analyze",
     "silence_ranges": "kuulas.analysis:silence_ranges",
     "raw_silence_ranges": "kuulas.analysis:raw_silence_ranges",

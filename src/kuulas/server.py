@@ -47,6 +47,7 @@ from pydantic import BaseModel, Field, StrictBool
 from starlette.websockets import WebSocketDisconnect
 
 from . import (
+    align_routes,
     automix,
     automix_remote,
     bgjobs,
@@ -517,6 +518,8 @@ def create_app(session, engine, *, language: str | None = None,
         # Levels, notices and the take's state go out on the live channel (no polling).
         recorder.set_publish(hub.publish)
 
+    align_routes.install(app, session, engine)
+
     # -- plumbing ----------------------------------------------------------
 
     @app.middleware("http")
@@ -560,6 +563,14 @@ def create_app(session, engine, *, language: str | None = None,
                         "error.server.bad_request", detail="Invalid control token"),
                     status_code=403,
                 ))
+
+        if (session._sync_review is not None
+                and request.method not in {"GET", "HEAD", "OPTIONS"}
+                and request.url.path.startswith("/api/")
+                and not request.url.path.startswith("/api/sync-review")
+                and request.url.path != "/api/transport"
+                and not request.url.path.startswith("/api/jobs/")):
+            return secure(JSONResponse(error_body("error.sync.active"), status_code=409))
 
         messages.set_language(request_language(request.headers.get("accept-language"),
                                                default_language))
@@ -683,6 +694,7 @@ def create_app(session, engine, *, language: str | None = None,
             project = session.state
             out = {"project": project.to_dict(), "head": h.head,
                    "can_undo": h.can_undo, "can_redo": h.can_redo,
+                   "automatic_sync": session.sync_applied_status(),
                    "missing": session.store.missing(),
                    # The rendered mix the edit can be compared with (render_listen).
                    "render": {**render_listen.status(project),

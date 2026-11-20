@@ -2,7 +2,7 @@
 id: clip
 title: Leike
 applies-to: [clip]
-commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, clip.relink_media, edit.undo, help.open]
+commands: [sync.automatic, edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, clip.relink_media, edit.undo, help.open]
 related: [timeline, track, transcript]
 ---
 Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi olla monta leikettä; kun valitset yhden, sen sisarleikkeet merkitään hakasella.
@@ -37,3 +37,13 @@ Tarkastimessa näkyvät leikkeen taso, tahdistus ja lähde. {show:inspector} Nä
 Leike, joka pitää mikin auki, näyttää Taso-osiossa rivin "Mikki pidetään auki"; sen painike antaa Auto-Silencen hiljentää leikkeen taas (sama kuin Pidä mikki auki valittujen leikkeiden alla, Leike-valikossa).
 
 Katso myös [[track]] ja [[transcript]].
+
+## Tallennusraitojen automaattinen tahdistus
+
+Valitse Leike > Synkronointi > Automaattinen tahdistus… ({key:sync.automatic}), kun olet järjestänyt kunkin osallistujan tiedostot yhdelle raidalle oikeaan järjestykseen. Valitut raidat tai leikkeet määräävät osallistujien raidat. Muuten mukaan tulevat raidat, joilla on leikkeitä. Ylin raita on kiinteä ankkuri.
+
+Tahdistustila käyttää koko ikkunaa. Muut muokkaukset on lukittu, kunnes hyväksyt tai perut. Automaattinen tila etsii ensin yhteistä ääntä, sitten puheenvuorojen välejä. Jos etä-äänitteissä ei ole muiden puhujien ääntä, käytä puheenvuorojen välejä ja tarkista vaihtoehdot kuuntelemalla. Väleistä laskettu ehdotus ei takaa tarkkaa tahdistusta.
+
+Palan raahaus siirtää oletuksena koko raitaa ja säilyttää tiedostojen järjestyksen ja välit. Valitse Vain tämä pala, jos haluat siirtää vain yhtä palaa. Anna siirto sekunteina tai käytä 10 ms:n askelia. Aseta kuuntelukohta napsauttamalla aikajanaa, zoomaa ja vertaa ehdotusta alkuperäiseen. Alun, keskikohdan ja lopun tarkistukset auttavat havaitsemaan ajautumisen. Palauta laskettu ehdotus peruu käsisäädöt.
+
+Hyväksy tekee kaikki ajoitussiirrot yhdellä kumouksella. Peru ei muuta projektia. Puuttuville tai keskeneräisille lähteille ja ristiriitaisille paloille ei tehdä automaattista ehdotusta. Alkusiirto ei korjaa jatkuvaa kelloeroa eikä ääntä uudelleennäytteistetä. Nykyisiä synkronointiryhmiä ei määritellä automaattisesti uudelleen. Merkitse leikkeet tarkoituksella synkronoiduiksi ajoituksen tarkistamisen jälkeen, jos haluat muuttaa tätä suhdetta.

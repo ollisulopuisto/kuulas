@@ -127,6 +127,7 @@ describe("Edit", () => {
   });
   test("the rarer sync commands are Clip > Sync, and the dialog switch is in View", () => {
     assert.deepEqual(subIds("clip", "menu.sync"), [
+      "sync.automatic",
       "sync.mark",
       "sync.set_anchor",
       "sync.point1",
