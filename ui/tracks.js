@@ -1184,13 +1184,14 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
           parseFloat(
             getComputedStyle(document.documentElement).getPropertyValue("--track-gutter-w"),
           ) || 0;
+        // Measured with bounding rectangles in one coordinate system: the
+        // flyout's positioned .th-main became the name pill's offsetParent, so
+        // offsetLeft no longer reaches from the card (Devin review on #261).
+        const nameReach =
+          parts.name.getBoundingClientRect().right - parts.card.getBoundingClientRect().left;
         setLaneInset(
           track.id,
-          Math.max(
-            0,
-            Math.round(parts.card.offsetLeft + parts.name.offsetLeft + parts.name.offsetWidth + 8) -
-              gutter,
-          ),
+          Math.max(0, Math.round(parts.card.offsetLeft + nameReach + 8) - gutter),
         );
         if (!parts.tag.classList.contains(`kind-${track.kind}`)) paintTag(parts.tag, track.kind);
         const differs = roleDiffers(state.project, track);

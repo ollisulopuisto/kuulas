@@ -1,5 +1,6 @@
 // Browser harness for the track headers: the real tracks.js and style.css, driven by the query
 // string (density, lane, open), reporting measurements into #result for header-browser.test.js.
+import { laneInset } from "../../lane-insets.js";
 import { createTrackHeaders } from "../../tracks.js";
 
 const query = new URLSearchParams(location.search);
@@ -62,7 +63,7 @@ const rect = (node) => {
   const box = node.getBoundingClientRect();
   return { left: box.left, top: box.top, width: box.width, height: box.height };
 };
-const out = { names: {}, calls, error: null };
+const out = { names: {}, insets: {}, calls, error: null };
 for (const node of root.querySelectorAll(".track-header[data-track]")) {
   const name = node.querySelector(".track-name");
   out.names[name.textContent] = {
@@ -72,6 +73,24 @@ for (const node of root.querySelectorAll(".track-header[data-track]")) {
     strip: rect(node.querySelector(".th-strip")),
     ...rect(name),
     header: rect(node),
+  };
+  // Devin (#261): the stored lane inset must reach the name pill's true right
+  // edge even when a positioned ancestor (.th-main) changes offsetLeft chains.
+  const card = node.querySelector(".th-card");
+  const gutter =
+    parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--track-gutter-w")) ||
+    0;
+  out.insets[name.textContent] = {
+    grouped: node.hasAttribute("data-bus"),
+    stored: laneInset(node.dataset.track),
+    pillRight: Math.max(
+      0,
+      Math.round(
+        card.offsetLeft +
+          (name.getBoundingClientRect().right - card.getBoundingClientRect().left) +
+          8,
+      ) - gutter,
+    ),
   };
 }
 const bus = root.querySelector(".bus-header");

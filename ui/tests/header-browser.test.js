@@ -88,6 +88,20 @@ for (const density of ["comfortable", "compact"]) {
     // Bus members sit further right than ungrouped tracks.
     assert.ok(grouped[0].left > plain[0].left, "grouped names are not indented");
   });
+  test(`${density} density: the stored lane inset reaches the name pill's right edge`, async () => {
+    const { insets } = await measure(`density=${density}`);
+    const items = Object.values(insets);
+    assert.ok(
+      items.some((item) => item.grouped),
+      "a grouped track is measured",
+    );
+    assert.ok(
+      items.some((item) => !item.grouped),
+      "an ungrouped track is measured",
+    );
+    for (const item of items)
+      assert.equal(item.stored, item.pillRight, `inset ${item.stored} != pill ${item.pillRight}`);
+  });
   test(`${density} density: a bus header is a card with its badge in the strip`, async () => {
     const { bus } = await measure(`density=${density}`);
     assert.ok(bus.badge, "bus badge is not in the strip");
