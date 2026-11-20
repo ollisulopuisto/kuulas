@@ -95,3 +95,25 @@ def test_real_worker_matches_inline(tmp_path, monkeypatch):
         assert session.state == project
     finally:
         session.close()
+
+
+def test_multitrack_analysis_reopens_store_in_real_worker(tmp_path, monkeypatch):
+    rng = np.random.default_rng(50)
+    level = np.repeat(rng.uniform(.05, .8, 60 * 1000), 48)
+    audio = (level * rng.standard_normal(level.size)).astype(np.float32)
+    sf.write(tmp_path / 'reference.wav', audio, 48000, subtype='FLOAT')
+    sf.write(tmp_path / 'candidate.wav', audio[2*48000:], 48000, subtype='FLOAT')
+    session = Session(tmp_path / 'Tracks.kuulas')
+    try:
+        session.import_media([str(tmp_path / 'reference.wav'),
+                              str(tmp_path / 'candidate.wav')])
+        project = session.state
+        ids = [track.id for track in project.tracks]
+        monkeypatch.setattr(offload, 'MODE', 'process')
+        result = offload.call('automatic_sync_tracks', project, session.store,
+                              ids, 'sound')
+        assert result['tracks'][0]['delta'] == pytest.approx(2., abs=.001)
+        assert result['tracks'][0]['status'] == 'proposal'
+        assert session.state == project
+    finally:
+        session.close()

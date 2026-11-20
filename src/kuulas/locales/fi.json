@@ -3777,5 +3777,9 @@
   "ui.sync_review.status.pieces_unverified": "Kaikille paloille ei löytynyt ääniosumaa · tarkista käsin",
   "ui.sync_review.manual_badge": "Tahdistettu käsin",
   "ui.sync_review.aligned_badge": "Tahdistus tarkistettu",
-  "ui.sync_review.badge_hint": "Ajoitus tehtiin tahdistustilassa. Merkki poistuu seuraavasta muokkauksesta. Synkronointiryhmiä ei määritelty uudelleen."
+  "ui.sync_review.badge_hint": "Ajoitus tehtiin tahdistustilassa. Merkki poistuu seuraavasta muokkauksesta. Synkronointiryhmiä ei määritelty uudelleen.",
+  "ui.sync_review.status.reference_offline": "Ankkurin lähde puuttuu",
+  "ui.sync_review.status.reference_partial": "Ankkurin lähde on keskeneräinen",
+  "ui.sync_review.status.reference_range": "Ankkurin lähdealue on virheellinen",
+  "ui.sync_review.status.reference_limit": "Ankkuri ylittää analyysirajan"
 }

@@ -39,3 +39,24 @@ test("audition stays around selected handoff and in recorded duration", () => {
   assert.deepEqual(auditionRange(48000 * 2, 48000 * 20, 48000), { at: 0, seconds: 6 });
   assert.deepEqual(auditionRange(48000 * 19, 48000 * 20, 48000), { at: 48000 * 16, seconds: 4 });
 });
+
+test("manual changes are not still labeled as the computed suggestion", async () => {
+  const { timingStatus } = await import("../sync-review-model.js");
+  const track = { clips: [{ id: "a" }, { id: "b" }] };
+  assert.equal(
+    timingStatus({ offsets: { a: 20, b: 20 }, suggestion: { a: 20, b: 20 } }, track, {
+      status: "proposal",
+    }),
+    "proposal",
+  );
+  assert.equal(
+    timingStatus({ offsets: { a: 20, b: 21 }, suggestion: { a: 20, b: 20 } }, track, {
+      status: "proposal",
+    }),
+    "manual",
+  );
+});
+
+test("a single explicit track is not silently widened to every participant", () => {
+  assert.deepEqual(selectedTrackIds({ project, trackSelection: new Set(["b"]) }), ["b"]);
+});

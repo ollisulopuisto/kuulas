@@ -63,7 +63,8 @@ def test_unmatched_piece_prevents_whole_track_suggestion(tmp_path):
     assert row['status']=='pieces_unverified'
 
 
-def test_remote_tracks_without_bleed_produce_manual_gap_choices(tmp_path):
+@pytest.mark.parametrize("method", ["gaps", "auto"])
+def test_remote_tracks_without_bleed_produce_manual_gap_choices(tmp_path, method):
 
     rate=8000
     rng=np.random.default_rng(2026)
@@ -78,7 +79,16 @@ def test_remote_tracks_without_bleed_produce_manual_gap_choices(tmp_path):
     p=Project(rate=rate,media=tuple(Media(k,k,1,v.shape[1]) for k,v in audio.items()),
               tracks=(Track('r','Reference',clips=(Clip('r1','r',rate,0,ref.size),)),
                       Track('g','Remote',clips=(Clip('g1','g',0,0,guest.size),))))
-    row=analyze_tracks(p,store,['r','g'],'gaps')['tracks'][0]
+    row=analyze_tracks(p,store,['r','g'],method)['tracks'][0]
     assert row['status']=='ambiguous'
     assert row['options'][0]['delta']==pytest.approx(.2,abs=.1)
     assert row['options'][0]['auditions']
+
+
+def test_offline_reference_is_identified_as_the_reference(tmp_path):
+    p,store=setup(tmp_path)
+    (tmp_path/'ref').unlink()
+    result=analyze_tracks(p,store,['top','below'],'auto')
+    assert result['anchor_status']=='offline'
+    assert result['tracks'][0]['status']=='reference_offline'
+    assert store.reads==[]

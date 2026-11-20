@@ -127,8 +127,10 @@ def analyze_tracks(project, store, track_ids, method='auto'):
     reference=tracks[0]
     rows=[]
     ref_activity=None
+    anchor_status=None
     for track in tracks[1:]:
         row={'track':track.id,'status':'unmatched','method':method,'options':[]}
+        active_track=reference.id
         try:
             if method!='gaps':
                 if len(reference.clips)*len(track.clips)>256:
@@ -136,8 +138,10 @@ def analyze_tracks(project, store, track_ids, method='auto'):
                 measurements=[]
                 measured_pieces=set()
                 for rc in reference.clips:
+                    active_track=reference.id
                     ref=source(rc)
                     for cc in track.clips:
+                        active_track=track.id
                         points=measure(ref,source(cc))
                         if points:
                             measured_pieces.add(cc.id)
@@ -159,10 +163,13 @@ def analyze_tracks(project, store, track_ids, method='auto'):
                                else 'drift_review')
                 elif measurements:
                     row['status']='pieces_disagree'
-            if method=='gaps' or (method=='auto' and row['status']=='unmatched'):
+            if method=='gaps' or (method=='auto' and row['status'] in
+                                  ('unmatched','pieces_unverified','pieces_disagree')):
                 if ref_activity is None:
+                    active_track=reference.id
                     ref_activity=activity(reference)
                 ref_on,ref_valid,ref_origin=ref_activity
+                active_track=track.id
                 on,valid,origin=activity(track)
                 options=gap_options(ref_on,on,ref_valid,valid)
                 for option in options:
@@ -172,5 +179,9 @@ def analyze_tracks(project, store, track_ids, method='auto'):
                            status='ambiguous' if options else 'unmatched')
         except KuulasError as e:
             row['status']=e.key.removeprefix('error.sync.')
+            if active_track==reference.id:
+                anchor_status=row['status']
+                row['status']='reference_'+row['status']
         rows.append(row)
-    return {'snapshot':snapshot_key(project),'anchor':reference.id,'tracks':rows}
+    return {'snapshot':snapshot_key(project),'anchor':reference.id,
+            'anchor_status':anchor_status,'tracks':rows}

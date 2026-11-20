@@ -2,7 +2,7 @@
 // Every change is acknowledged by the server before another move or audition.
 import * as api from "./api.js";
 import { frameToTime } from "./format.js";
-import { auditionRange, moveRequest, selectedTrackIds } from "./sync-review-model.js";
+import { auditionRange, moveRequest, selectedTrackIds, timingStatus } from "./sync-review-model.js";
 import { createTileStore } from "./tiles.js";
 import { columnsFromTiles, pickLevel, waveformColumns } from "./waveform.js";
 
@@ -206,7 +206,11 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
       title.textContent = track.name;
       const subtitle = svgNode("text", { x: 8, y: y + 49, class: "sync-time" }, svg);
       subtitle.textContent =
-        track.id === review.anchor ? text("anchor") : text(`status.${row?.status ?? "manual"}`);
+        track.id === review.anchor
+          ? review.result?.anchor_status
+            ? text(`status.${review.result.anchor_status}`)
+            : text("anchor")
+          : text(`status.${timingStatus(review, track, row)}`);
       const color = track.id === review.anchor ? "var(--track-0-wave)" : "var(--accent-text)";
       for (const clip of track.clips) {
         const x = xOf(clip.start),
@@ -394,7 +398,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
       const line = element("div", "", results);
       element(
         "strong",
-        `${track?.name ?? row.track} · ${text(row.method)} · ${text(`status.${row.status}`)}`,
+        `${track?.name ?? row.track} · ${text(row.method)} · ${text(`status.${timingStatus(review, track, row)}`)}`,
         line,
       );
       if (row.fit?.slope && Math.abs(row.fit.slope) >= 1e-6)

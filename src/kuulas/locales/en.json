@@ -3777,5 +3777,9 @@
   "ui.sync_review.status.pieces_unverified": "Some pieces have no sound match · review manually",
   "ui.sync_review.manual_badge": "Manually aligned",
   "ui.sync_review.aligned_badge": "Sync reviewed",
-  "ui.sync_review.badge_hint": "Timing was applied in sync mode. This mark clears on the next edit. Sync groups were not redefined."
+  "ui.sync_review.badge_hint": "Timing was applied in sync mode. This mark clears on the next edit. Sync groups were not redefined.",
+  "ui.sync_review.status.reference_offline": "Reference source is offline",
+  "ui.sync_review.status.reference_partial": "Reference source is incomplete",
+  "ui.sync_review.status.reference_range": "Reference source range is invalid",
+  "ui.sync_review.status.reference_limit": "Reference exceeds analysis limit"
 }
