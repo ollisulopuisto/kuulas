@@ -104,6 +104,19 @@ for (const density of ["comfortable", "compact"]) {
   });
 }
 
+test("the lane grip's hover shows the teal edge and the grip pill", async () => {
+  const { gripHover } = await measure("density=comfortable");
+  const hover = gripHover.find((rule) => rule.selector === ".lane-grip:hover");
+  const pill = gripHover.find((rule) => rule.selector === ".lane-grip:hover::after");
+  assert.ok(hover, "a .lane-grip:hover rule exists");
+  assert.match(hover.css, /--signal-preview/, "the hovered grip edge is the preview teal");
+  assert.ok(pill, "the grip pill ::after exists");
+  assert.match(pill.css, /width:\s*26px/, "pill width mirrors drag-handle.js");
+  assert.match(pill.css, /height:\s*12px/, "pill height mirrors drag-handle.js");
+  assert.match(pill.css, /border-radius:\s*6px/, "pill is fully rounded");
+  assert.match(pill.css, /repeating-linear-gradient/, "the pill carries grip bars");
+});
+
 test("a fast press at Solo's original centre runs only Solo (Devin, #233)", async () => {
   const result = await measure(`density=comfortable&intent=Bob`);
   assert.equal(result.intentImmediate, "none", "hover opens the card at once, without intent");

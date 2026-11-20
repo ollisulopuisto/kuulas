@@ -73,6 +73,13 @@ describe("fade handles", () => {
     assert.equal(fadeHandleAt(clip, frame, 250, h.in.y, H), null);
     assert.equal(fadeHandleAt(clip, frame, h.in.x, h.in.y + 30, H), null);
   });
+  test("are hit anywhere on the painted pill, not just its centre", () => {
+    const h = fadeHandles(clip, frame);
+    assert.equal(fadeHandleAt(clip, frame, h.in.x + 8, h.in.y, H), "in");
+    assert.equal(fadeHandleAt(clip, frame, h.in.x - 12, h.in.y + 5, H), "in");
+    assert.equal(fadeHandleAt(clip, frame, h.in.x + 14, h.in.y, H), null);
+    assert.equal(fadeHandleAt(clip, frame, h.in.x, h.in.y + 7, H), null);
+  });
   test("not in a short lane or a clip too narrow for two handles", () => {
     const h = fadeHandles(clip, frame);
     assert.equal(fadeHandleAt(clip, frame, h.in.x, h.in.y, 30), null);

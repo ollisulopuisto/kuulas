@@ -75,6 +75,15 @@ for (const node of root.querySelectorAll(".track-header[data-track]")) {
   };
 }
 const bus = root.querySelector(".bus-header");
+// The lane grip's hover treatment (drag-handle pill, 2026-11-20): read the stylesheet rules
+// directly, since :hover cannot be forced in headless Chrome.
+out.gripHover = [];
+for (const sheet of document.styleSheets) {
+  for (const rule of sheet.cssRules ?? []) {
+    if (rule.selectorText?.startsWith(".lane-grip:hover"))
+      out.gripHover.push({ selector: rule.selectorText, css: rule.style.cssText });
+  }
+}
 if (bus) {
   out.bus = {
     header: rect(bus),

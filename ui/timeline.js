@@ -26,6 +26,13 @@ import { overLabel } from "./clip-overs.js";
 import { implicitPortions, implicitSilenceRanges } from "./clip-silence.js";
 import { averageWordFrames, layoutClipWords, wordsWideEnough } from "./clip-words.js";
 import { dropTarget as clipboardDropTarget, dropOutlines } from "./clipboard-drag.js";
+import {
+  gripPill,
+  EDGE_PX as HANDLE_EDGE_PX,
+  hoverTrimEdge,
+  PILL_WIDTH,
+  sameHandle,
+} from "./drag-handle.js";
 import { DEFAULT_DRAG_MODE, dragIntent } from "./drag-mode.js";
 import { createDragSnap } from "./drag-snap.js";
 import { clampImplicitEdge, edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
@@ -202,6 +209,7 @@ export function createTimeline({
   let markerSession = null; // a marker flag being dragged along the ruler (owner, 2026-11-01)
   let markerRenameInput = null;
   let hoverClipId = null; // the clip under the pointer: its fade handles show
+  let hoverEdge = null; // the trim edge under the pointer: its handle shows (drag-handle.js)
   let altTargetClip = null; // clip targeted for direct mute with Alt held
   let lastPointerHit = null;
   let altKeyHeld = false;
@@ -946,6 +954,8 @@ export function createTimeline({
         drawGain(state, track, clip, left, right, top, row.height);
       if (row.height >= 40 && (selected || clip.id === hoverClipId))
         drawFadeHandles(clip, { left, right, zoom: state.zoom }, { top, y, h });
+      if (hoverEdge?.clipId === clip.id)
+        drawTrimHandle(hoverEdge.edge === "end" ? right : left, y, h);
       if (siblings.has(clip.id)) drawSiblingMarks(left, y, w, h);
       if (altTargetClip?.id === clip.id) {
         overlay.save();
@@ -1188,7 +1198,7 @@ export function createTimeline({
       blocked.push([left - EDGE_PX, left + EDGE_PX], [right - EDGE_PX, right + EDGE_PX]);
       const handles = fadeHandles(clip, { left, right, zoom: state.zoom });
       for (const side of ["in", "out"])
-        blocked.push([handles[side].x - POINT_RADIUS - 2, handles[side].x + POINT_RADIUS + 2]);
+        blocked.push([handles[side].x - PILL_WIDTH / 2 - 2, handles[side].x + PILL_WIDTH / 2 + 2]);
     }
     // Under the name strip (and the words row), where no label can paint over it.
     const offset = lockTop(row.height, {
@@ -1684,12 +1694,40 @@ export function createTimeline({
     overlay.restore();
   }
 
-  // Fade handles (WP6): a dot at the end of each fade, with the fade's shape as a line from
+  // The grip pill (owner, 2026-11-20): one handle design for every draggable edge, a small
+  // pill centred on the edge with three grip bars, ink on panel so it inverts with the theme,
+  // hover-only. The canvas twin of the lane grip's ::after in style.css.
+  function drawGripPill(cx, cy) {
+    const pill = gripPill(cx, cy);
+    overlay.save();
+    overlay.fillStyle = theme.ink;
+    overlay.beginPath();
+    overlay.roundRect(pill.x, pill.y, pill.width, pill.height, pill.radius);
+    overlay.fill();
+    overlay.fillStyle = theme.panel;
+    for (const barX of pill.bars) overlay.fillRect(barX, pill.barY, pill.barWidth, pill.barHeight);
+    overlay.restore();
+  }
+
+  // A trim edge under the pointer: the thicker teal edge and the grip pill above; at rest
+  // nothing shows. Silence cuts (implicit ranges) come through the same hover path.
+  function drawTrimHandle(x, y, h) {
+    overlay.save();
+    overlay.strokeStyle = theme.preview;
+    overlay.lineWidth = HANDLE_EDGE_PX;
+    overlay.beginPath();
+    overlay.moveTo(x, y);
+    overlay.lineTo(x, y + h);
+    overlay.stroke();
+    overlay.restore();
+    drawGripPill(x, y);
+  }
+
+  // Fade handles (WP6): the grip pill at the end of each fade, with the fade's shape as a line from
   // the clip's bottom corner while a fade is set.
   function drawFadeHandles(clip, frame, box) {
     const handles = fadeHandles(clip, frame);
     overlay.strokeStyle = theme.gain;
-    overlay.fillStyle = theme.accent;
     overlay.lineWidth = 1;
     for (const side of ["in", "out"]) {
       if (clip[`fade_${side}`] > 0) {
@@ -1699,9 +1737,7 @@ export function createTimeline({
         overlay.lineTo(shape[1][0], shape[1][1]);
         overlay.stroke();
       }
-      overlay.beginPath();
-      overlay.arc(handles[side].x, box.top + handles[side].y, POINT_RADIUS + 0.5, 0, Math.PI * 2);
-      overlay.fill();
+      drawGripPill(handles[side].x, box.top + handles[side].y);
     }
   }
 
@@ -2065,6 +2101,11 @@ export function createTimeline({
     if (!state.project) return;
     hoverGate(event);
     const hit = hitAt(event);
+    const nextHoverEdge = hoverTrimEdge(hit, Boolean(tweakSession));
+    if (!sameHandle(nextHoverEdge, hoverEdge)) {
+      hoverEdge = nextHoverEdge;
+      requestOverlay();
+    }
     const hovered = hit.row?.kind === "track" ? (hit.clip?.id ?? null) : null;
     if (hovered !== hoverClipId) {
       hoverClipId = hovered;
@@ -2131,6 +2172,10 @@ export function createTimeline({
     }
     if (hoverClipId !== null && !tweakSession) {
       hoverClipId = null;
+      requestOverlay();
+    }
+    if (hoverEdge !== null) {
+      hoverEdge = null;
       requestOverlay();
     }
   });
@@ -2370,6 +2415,11 @@ export function createTimeline({
   overlayCanvas.addEventListener("pointerdown", (event) => {
     hintRest.cancel();
     if (!getState().project || event.button !== 0) return;
+    // A press may arm a drag; the hover handle steps aside for the drag's own ghost.
+    if (hoverEdge !== null) {
+      hoverEdge = null;
+      requestOverlay();
+    }
     overlayCanvas.focus();
     const hit = hitAt(event);
     const markerLabel = hit.area === "ruler" ? markerLabelHit(event) : null;
@@ -2412,8 +2462,8 @@ export function createTimeline({
       overlayCanvas.setPointerCapture?.(event.pointerId);
     }
     if (!zone && !moving && intent === "range") beginRangeDrag(event, hit);
-    if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
-    else if (zone) startTweak(hit, event, zone);
+    if (zone) startTweak(hit, event, zone);
+    else if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
     else if (moving) {
       const clickIntent = pointerIntent(hit, {
         shift: event.shiftKey,
@@ -2433,9 +2483,7 @@ export function createTimeline({
   // Dragging a clip's gain line, envelope point or fade handle (WP6): live edits (coalesced by
   // the app, so one undo step); Esc puts the value back. A short press is a click.
   function tweakZone(hit, event, selection) {
-    if (!hit.clip || hit.row?.kind !== "track" || hit.edge) return null;
-    const pointZone = envelopePointZone(hit);
-    if (pointZone) return pointZone;
+    if (!hit.clip || hit.row?.kind !== "track") return null;
     const state = getState();
     const x = locate(event).x;
     const rowY = rowYOf(event, hit);
@@ -2444,8 +2492,12 @@ export function createTimeline({
       right: frameToX(clipEnd(hit.clip), state.scroll, state.zoom),
       zoom: state.zoom,
     };
+    // A fade pill beats the trim edge it overlaps: what is painted as the handle is the target.
     const side = fadeHandleAt(hit.clip, frame, x, rowY, hit.row.height);
     if (side) return { kind: "fade", side };
+    if (hit.edge) return null;
+    const pointZone = envelopePointZone(hit);
+    if (pointZone) return pointZone;
     if (hit.point == null && gainLineVisible(hit.clip, selection?.has(hit.clip.id))) {
       if (gainLineHit(hit.clip, hit.row.height, rowY)) return { kind: "gain" };
     }
