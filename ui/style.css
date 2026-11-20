@@ -7329,3 +7329,61 @@ legend.form-heading {
   font: inherit;
   font-weight: var(--weight-strong);
 }
+
+/* Bus rows are 56px high, not track-height cards. Keep the existing vertical
+   fold/badge/mute strip inside that row so it cannot cover its first member.
+   This is containment, not the proposed horizontal bus redesign. */
+.track-header.bus-header .th-card {
+  top: 2px;
+  padding-block: 2px;
+  gap: 2px;
+}
+.track-header.bus-header .th-strip {
+  gap: 0;
+  padding-block: 1px;
+}
+.track-header.bus-header .th-strip .bus-chevron {
+  height: 12px;
+  min-height: 12px;
+  line-height: 12px;
+}
+.track-header.bus-header .th-strip .bus-badge {
+  height: 14px;
+  min-height: 14px;
+  line-height: 14px;
+}
+.track-header.bus-header .th-strip .ms-button {
+  height: 18px;
+  min-height: 18px;
+}
+.track-header.bus-header .th-card > .th-controls .slider-caption {
+  display: none;
+}
+.track-header.bus-header .th-card > .th-controls .slider-control input[type="range"] {
+  height: 20px;
+}
+.track-header.bus-header .th-card > .th-controls .slider-control {
+  grid-template-rows: 20px;
+}
+.track-header.bus-header .th-card > .th-controls .control-gain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.track-header.bus-header .th-card > .th-controls .control-gain input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  width: 110px;
+}
+.track-header.bus-header .th-card > .th-controls .control-gain output {
+  flex: none;
+  width: 54px;
+}
+.track-header.bus-header .th-card > .th-controls .control-pan {
+  width: 28px;
+  height: 20px;
+  grid-template: 20px / 28px;
+}
+.track-header.bus-header .th-card > .th-controls .control-pan input[type="range"] {
+  grid-area: 1 / 1;
+}

@@ -278,3 +278,28 @@ for (const query of ["key=Escape", "value=%20%20", "value=Alice"]) {
     assert.deepEqual(result.renameCalls, []);
   });
 }
+
+for (const density of ["comfortable", "compact"]) {
+  test(`${density}: bus controls stay above its first member header`, async () => {
+    const { bus, names } = await measure(`density=${density}`);
+    const first = names.Alice;
+    assert.ok(
+      bus.strip.top + bus.strip.height <= first.header.top,
+      `bus strip ends ${bus.strip.top + bus.strip.height}, member begins ${first.header.top}`,
+    );
+    assert.ok(
+      bus.card.top + bus.card.height <= first.header.top,
+      "bus card overlaps the first member",
+    );
+  });
+}
+
+for (const density of ["comfortable", "compact"]) {
+  test(`${density}: expanded bus card stays within the bus row`, async () => {
+    const { bus, names } = await measure(`density=${density}&busopen=1`);
+    assert.ok(
+      bus.card.top + bus.card.height <= names.Alice.header.top,
+      `expanded bus ends ${bus.card.top + bus.card.height}, member begins ${names.Alice.header.top}`,
+    );
+  });
+}
