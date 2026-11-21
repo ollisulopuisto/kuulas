@@ -6,7 +6,8 @@ import pytest
 
 from kuulas import messages
 from kuulas import music_report as module
-from kuulas.model import Clip, Media, Project, Track
+from kuulas.mixer import mix
+from kuulas.model import Bus, Clip, Media, Project, Track
 from kuulas.music_report import (
     MusicReportError,
     ReportRow,
@@ -442,3 +443,97 @@ def test_session_music_report_takes_a_range(tmp_path):
         assert exc_info.value.key == "error.music_report.bad_range"
     finally:
         s.close()
+
+
+@pytest.mark.parametrize(
+    ("music_solo", "music_mute", "speech_solo", "bus_muted", "expected_rows"),
+    [
+        (False, False, True, False, 0),
+        (False, True, False, False, 0),
+        (True, False, True, False, 1),
+        (True, False, True, True, 0),
+        (True, True, False, False, 1),
+        (False, False, False, True, 0),
+        (True, False, False, True, 0),
+        (False, False, False, False, 1),
+    ],
+)
+def test_report_music_audibility_matches_mixer(
+        music_solo, music_mute, speech_solo, bus_muted, expected_rows):
+    # Constant audio proves the report agrees with actual rendered sound,
+    # rather than copying its own mute/solo predicate into the assertion.
+    music = replace(
+        track("music", "music", [clip("bed", 0, 0, RATE)]),
+        solo=music_solo, mute=music_mute, bus="bus")
+    speech = replace(track("speech", "speech", []), solo=speech_solo)
+    project = state(
+        media_items=[media("m", "a" * 64,
+                           music_info={"title": "Bed", "artist": "Artist"})],
+        tracks=[music, speech], buses=(Bus("bus", "Music", mute=bus_muted),))
+    store = MemoryStore({"m": np.ones((2, RATE), dtype=np.float32) * 0.1})
+
+    assert bool(np.any(mix(project, store, 0, RATE))) == bool(expected_rows)
+    assert len(build_report(project, store)) == expected_rows
+
+
+@pytest.mark.parametrize(
+    ("speech_solo", "speech_mute", "music_solo", "bus_muted", "background"),
+    [
+        (True, True, True, False, True),
+        (False, False, True, False, False),
+        (False, False, False, True, False),
+        (False, False, False, False, True),
+    ],
+)
+def test_report_background_uses_audible_speech_only(
+        speech_solo, speech_mute, music_solo, bus_muted, background):
+    frames = 4 * RATE
+    speech = replace(
+        track("speech", "speech", [clip("voice", 0, 0, frames, media_id="s")]),
+        solo=speech_solo, mute=speech_mute, bus="speech-bus")
+    music = replace(track("music", "music", [clip("bed", RATE // 2, 0, RATE)]),
+                    solo=music_solo)
+    project = state(
+        media_items=[Media("s", "speech.wav", 1, frames, sha256="s" * 64),
+                     media("m", "a" * 64,
+                           music_info={"title": "Bed", "artist": "Artist"})],
+        tracks=[speech, music],
+        buses=(Bus("speech-bus", "Speech", mute=bus_muted),))
+    store = MemoryStore({"s": speech_then_silence(4)[None, :]})
+
+    speech_only = replace(project, tracks=(speech, replace(music, clips=())))
+    heard_speech = bool(np.any(mix(speech_only, store, RATE // 2, RATE)))
+    assert heard_speech is background
+    [row] = build_report(project, store)
+
+    assert row.background is heard_speech
+
+
+@pytest.mark.parametrize("bus_id", [None, "missing-bus"])
+def test_music_without_a_known_bus_routes_to_master(bus_id):
+    music = replace(track("music", "music", [clip("bed", 0, 0, RATE)]),
+                    bus=bus_id)
+    project = state(
+        media_items=[media("m", "a" * 64,
+                           music_info={"title": "Bed", "artist": "Artist"})],
+        tracks=[music], buses=(Bus("other", "Other", mute=True),))
+    store = MemoryStore({"m": np.ones((2, RATE), dtype=np.float32) * 0.1})
+    assert np.any(mix(project, store, 0, RATE))
+    assert len(build_report(project, store)) == 1
+
+
+def test_muted_speech_bus_does_not_hide_a_second_audible_speech_lane():
+    frames = 4 * RATE
+    audible = track("speech", "speech", [clip("voice", 0, 0, frames, media_id="s")])
+    muted = replace(audible, id="muted", bus="off")
+    music = track("music", "music", [clip("bed", RATE // 2, 0, RATE)])
+    project = state(
+        media_items=[Media("s", "speech.wav", 1, frames, sha256="s" * 64),
+                     media("m", "a" * 64,
+                           music_info={"title": "Bed", "artist": "Artist"})],
+        tracks=[muted, audible, music], buses=(Bus("off", "Off", mute=True),))
+    store = MemoryStore({"s": speech_then_silence(4)[None, :]})
+    speech_only = replace(project, tracks=(muted, audible))
+    assert np.any(mix(speech_only, store, RATE // 2, RATE))
+    [row] = build_report(project, store)
+    assert row.background

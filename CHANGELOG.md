@@ -2,6 +2,11 @@
 
 - **Fresh build of merged main.** Includes the redesigned track headers with hover flyout, live track reordering, block-leveling overview, full-window recording sync review, bus header and bus strip layout updates, and the contextual Help sidebar fix. Version bump only; no other code change.
 
+## [v26.11.21.1] - 2026-11-21
+
+### Fixed
+- Music reports follow the master mix's solo and mute routing. Music silenced by another solo or a muted bus is omitted; a muted-but-soloed music track is included. Background/featured classification uses only audible speech. Reports do not describe independent stem exports.
+
 ## [v26.11.8.1] - 2026-11-08
 
 - **Align recordings from a shared sound point.** Mark the same source frame in two recordings to move one clip into sync and record their shared timing in one undoable edit. Existing sync partners stay together, and destination clips follow normal overwrite behavior.

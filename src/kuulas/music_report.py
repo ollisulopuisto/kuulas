@@ -11,7 +11,7 @@ from __future__ import annotations
 import csv
 import html
 import io
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -83,6 +83,15 @@ def build_report(project: Project, store: Store,
     another track, otherwise *featured*. A row is missing its title or artist
     when the media has no tags for them.
     """
+    # Match mixer's routing: solo overrides track mute, but never a muted bus.
+    # Work on an immutable snapshot so both usage extraction and speech detection
+    # see what is heard without changing the user's stored mute/solo settings.
+    soloing = any(track.solo for track in project.tracks)
+    muted_buses = {bus.id for bus in project.buses if bus.mute}
+    project = replace(project, tracks=tuple(
+        replace(track, mute=(not track.solo if soloing else track.mute)
+                or track.bus in muted_buses)
+        for track in project.tracks))
     uses = extract(project)
     media_by_sha = {m.sha256: m for m in project.media}
     rate = project.rate
