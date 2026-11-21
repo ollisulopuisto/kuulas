@@ -31,3 +31,5 @@ SARIF artifacts. Inspect Analyze logs; a failed matrix job is UNKNOWN. Existing
 GitHub default-setup status was not readable, and is not claimed absent.
 
 Swift helpers are not analyzed in this Linux-only pilot; Swift CodeQL requires macOS.
+
+CodeQL debug reruns are refused before initialization because the upstream post-action can upload debug artifacts. Setup failures always leave an UNKNOWN baseline summary.
