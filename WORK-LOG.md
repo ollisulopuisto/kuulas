@@ -24,3 +24,7 @@ Patch the locked opentelemetry-api dependency without changing the editor. This 
 - Own review: lock diff and hashes checked, only the intended patch retained. Devin review requested separately.
 
 </details>
+
+## CI gate follow-up: deterministic read-only ingest test
+
+Ubuntu shard 2 failed twice because its 50 ms watcher can legitimately ingest the test result before the test sets read-only. Stop and join that session's watcher before manually producing/polling its result. Test-only change, no runtime behavior change. Run the complete background-transcription module and lint before CI.
