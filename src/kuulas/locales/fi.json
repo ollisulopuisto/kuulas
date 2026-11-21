@@ -3516,6 +3516,7 @@
   "ui.music_report.table_label": "Tässä leikkauksessa kuultu musiikki",
   "ui.music_report.empty": "Tässä leikkauksessa ei ole musiikkia",
   "ui.music_report.empty_no_tracks": "Musiikkiraitaa ei ole.",
+  "ui.music_report.empty_mix_muted": "Master-miksauksen solo- tai väylän mykistysasetus vaimentaa musiikin.",
   "ui.music_report.empty_muted": "Musiikkiraidat on mykistetty.",
   "ui.music_report.empty_no_clips": "Musiikkiraidoilla ei ole leikkeitä tai kaikki niiden leikkeet on mykistetty.",
   "ui.music_report.empty_silent": "Musiikki on hiljennetty (portilla tai raidan automaatiolla), joten sitä ei kuulu.",

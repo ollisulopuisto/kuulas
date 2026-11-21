@@ -1,3 +1,5 @@
+import csv
+import io
 import threading
 from dataclasses import replace
 
@@ -577,3 +579,24 @@ def test_solo_notice_only_when_solo_excludes_music(muted, bus_muted, span, expec
     assert bool(module.report_warnings(project, span)) is expected
     no_solo = replace(project, tracks=(project.tracks[0],))
     assert module.report_warnings(no_solo, span) == ()
+
+
+def test_warning_does_not_bridge_music_clip_gaps():
+    project = state(
+        media_items=[media("m", "a" * 64)],
+        tracks=[track("music", "music", [clip("a", 0, 0, RATE),
+                                         clip("b", 2 * RATE, RATE, RATE)]),
+                replace(track("solo", "speech", []), solo=True)])
+    assert module.report_warnings(project, (RATE + 10, 2 * RATE - 10)) == ()
+    assert module.report_warnings(project, (RATE - 10, RATE + 10))
+
+
+def test_csv_warning_preserves_header_and_rectangular_records():
+    notice = "Solo is active: some music is excluded from this report."
+    records = list(csv.reader(io.StringIO(render_csv((), warnings=(notice,))),
+                              delimiter=";"))
+    assert records[0][0].lstrip("\ufeff") == "Order"
+    assert records[0][1] == "Title"
+    assert len(records[1]) == len(records[0])
+    assert records[1][-1] == notice
+    assert not any(records[1][:-1])

@@ -19,6 +19,7 @@ from . import analysis
 from .messages import KuulasError, t
 from .mixer import Store
 from .model import Media, Project
+from .transcript import silent_tracks
 from .usage import extract
 
 _HEADER_KEYS = ("order", "title", "artist", "composer", "publisher", "isrc",
@@ -86,12 +87,9 @@ def build_report(project: Project, store: Store,
     # Match mixer's routing: solo overrides track mute, but never a muted bus.
     # Work on an immutable snapshot so both usage extraction and speech detection
     # see what is heard without changing the user's stored mute/solo settings.
-    soloing = any(track.solo for track in project.tracks)
-    muted_buses = {bus.id for bus in project.buses if bus.mute}
+    silent = silent_tracks(project)
     project = replace(project, tracks=tuple(
-        replace(track, mute=(not track.solo if soloing else track.mute)
-                or track.bus in muted_buses)
-        for track in project.tracks))
+        replace(track, mute=track.id in silent) for track in project.tracks))
     uses = extract(project)
     media_by_sha = {m.sha256: m for m in project.media}
     rate = project.rate
@@ -149,7 +147,7 @@ def report_warnings(project: Project, span: tuple[int, int] | None = None
         and not track.mute and track.bus not in muted_buses))
     if any(use.audible and (span is None or
            (use.timeline_from < span[1] and use.timeline_to > span[0]))
-           for use in extract(candidates)):
+           for use in extract(candidates, merge_gap=0)):
         return (t("music_report.solo_warning"),)
     return ()
 
@@ -187,8 +185,6 @@ def render_csv(rows: tuple[ReportRow, ...], *, warnings: tuple[str, ...] = ()) -
     out = io.StringIO()
     writer = csv.writer(out, delimiter=";", quoting=csv.QUOTE_MINIMAL,
                         lineterminator="\n")
-    for warning in warnings:
-        writer.writerow([_guard_formula(warning)])
     writer.writerow(_headers())
     for r in rows:
         writer.writerow([
@@ -205,6 +201,8 @@ def render_csv(rows: tuple[ReportRow, ...], *, warnings: tuple[str, ...] = ()) -
             _usage(r),
             _metadata(r),
         ])
+    for warning in warnings:
+        writer.writerow([""] * (len(_headers()) - 1) + [_guard_formula(warning)])
     return "\ufeff" + out.getvalue()
 
 

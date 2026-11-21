@@ -194,6 +194,30 @@ test("an empty report of a selection says the selection has no music, not that i
 
 test("copied reports preserve solo warnings even without rows", () => {
   const notice = "Solo is active: some music is excluded from this report.";
-  assert.equal(toTsv([], t, [notice]).split("\n")[0], notice);
-  assert.equal(toTsv([row()], t, [notice]).split("\n")[0], notice);
+  assert.equal(toTsv([], t, [notice]).split("\n").at(-1).split("\t").at(-1), notice);
+  assert.equal(toTsv([row()], t, [notice]).split("\n").at(-1).split("\t").at(-1), notice);
+});
+
+test("copied warning keeps column headings first and all records rectangular", () => {
+  const lines = toTsv([], t, ["Solo warning"])
+    .split("\n")
+    .map((line) => line.split("\t"));
+  assert.equal(lines[0][0], toTsv([], t).split("\t")[0]);
+  assert.equal(lines[1].length, lines[0].length);
+  assert.equal(lines[1].at(-1), "Solo warning");
+  assert.ok(lines[1].slice(0, -1).every((cell) => cell === ""));
+});
+
+test("empty reasons respect master solo and muted-bus routing", () => {
+  const music = track({ id: "m", bus: "b" });
+  for (const project of [
+    { tracks: [music, { id: "s", kind: "speech", solo: true }] },
+    { tracks: [music], buses: [{ id: "b", mute: true }] },
+  ]) {
+    assert.equal(emptyReasonKey(project), "ui.music_report.empty_mix_muted");
+  }
+  assert.equal(
+    emptyReasonKey({ tracks: [track({ solo: true, mute: true })] }),
+    "ui.music_report.empty_silent",
+  );
 });

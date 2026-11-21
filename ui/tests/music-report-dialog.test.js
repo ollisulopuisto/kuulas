@@ -74,7 +74,7 @@ test("solo notice survives an empty report and copy, and clears on reload", asyn
   const copy = dialog.element.all().find((n) => n.dataset.icon === "copy");
   assert.equal(copy.disabled, false);
   copy.listeners.click[0]();
-  assert.equal(copied.split("\n")[0], notice);
+  assert.equal(copied.split("\n").at(-1).split("\t").at(-1), notice);
   answer = { rows: [] };
   await dialog.open();
   assert.equal(node.hidden, true);

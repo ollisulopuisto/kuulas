@@ -3516,6 +3516,7 @@
   "ui.music_report.table_label": "Music heard in this edit",
   "ui.music_report.empty": "No music in this edit",
   "ui.music_report.empty_no_tracks": "There is no music track.",
+  "ui.music_report.empty_mix_muted": "The music is silenced by the master mix's solo or bus mute settings.",
   "ui.music_report.empty_muted": "The music tracks are muted.",
   "ui.music_report.empty_no_clips": "The music tracks have no clips, or every clip on them is muted.",
   "ui.music_report.empty_silent": "The music is silenced (by a gate or by the track's automation), so it is not heard.",

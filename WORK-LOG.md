@@ -32,3 +32,17 @@ warning is readable beneath scope and above summary with the real token/style
 sheets. Initial smoke harness lacked tokens and plural translation support;
 corrected harness, no production workaround. Screenshots retained for review.
 Ruff passes; Biome has no errors (24 existing warnings).
+
+Devin follow-up: reproduced the selection-in-a-merged-gap warning and displaced
+CSV/TSV headings, then fixed both. Warning detection uses unmerged usage ranges.
+CSV/TSV keep the established header first and put one rectangular warning-only
+record last, in the metadata column; its order and all music fields stay blank.
+App-only notes recovered: reused transcript.silent_tracks instead of duplicating
+master routing; empty reasons now use the existing export routing helper and
+name solo/bus silence rather than falsely blaming gates; removed the unsupported
+changelog subheading rather than expanding the Markdown renderer.
+Focused backend: 186 pass. Full UI: 4,003 pass; Ruff clean, Biome no errors.
+Actual styled Chromium smoke repeated for empty/populated reports and copy/reset.
+Mac shard c00e438 failed the pre-existing engine-stretch p99 timing assertion
+(7.23 ms vs 3.44 ms); report tests and all other jobs passed. No test was weakened,
+no old-head rerun requested; this fix push will get fresh required CI.
