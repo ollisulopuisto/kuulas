@@ -1467,8 +1467,7 @@ def create_app(session, engine, *, language: str | None = None,
             return HTMLResponse(content=content, headers={
                 "Content-Disposition": export_names.disposition(
                     session.download_name("music-report.html"))})
-        rows = session.music_report(format="json", span=span)
-        return JSONResponse({"rows": rows})
+        return JSONResponse(session.music_report(format="document", span=span))
 
     @app.get("/api/subtitles")
     def get_subtitles(format: str):

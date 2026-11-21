@@ -29,6 +29,10 @@ Milestone status was reviewed on 2026-11-07; counts include owner confirmation
 items and are summarized from the package statuses below. WP28 Focus Mode is
 complete; it is not the next implementation package.
 
+WP25 correctness follow-up (26.11.21.1): music reports now apply master-mix
+solo and bus-mute routing to music inclusion and speech classification. This
+does not complete the remaining all-edits/export-alongside work.
+
 ## Current owner checks
 
 - Finish the outstanding M1 checks in [docs/M1-VERIFY.md](docs/M1-VERIFY.md).

@@ -1,3 +1,5 @@
+import { silentTracks } from "./export-dialog-model.js";
+
 // File > Music report… (WP25): the pure parts of the dialog. The server builds the report
 // (src/kuulas/music_report.py, GET /api/music-report); this file only lays it out: the preview
 // rows, the summary, the warnings, the tab-separated copy and the reason an empty report is
@@ -114,11 +116,21 @@ const clean = (text) => {
   return /^[=+\-@]/.test(flat) ? `'${flat}` : flat;
 };
 
-/** The whole report as tab-separated text, header first, ready to paste into a spreadsheet. */
-export function toTsv(rows, t) {
+/** The whole report as tab-separated text, header first, ready for a spreadsheet. */
+export function toTsv(rows, t, warnings = []) {
   const head = COPY_FIELDS.map(([, header]) => headerText(header, t));
   const lines = rows.map((row) => COPY_FIELDS.map(([key]) => clean(cellOf(row, key, t, false))));
-  return [head, ...lines].map((cells) => cells.join("\t")).join("\n");
+  if (warnings.length) {
+    head.push(headerText("metadata", t));
+    for (const line of lines) line.push("");
+  }
+  return [
+    head,
+    ...lines,
+    ...warnings.map((note) => [...Array(head.length - 1).fill(""), clean(note)]),
+  ]
+    .map((cells) => cells.join("\t"))
+    .join("\n");
 }
 
 /**
@@ -130,8 +142,15 @@ export function emptyReasonKey(project, onlySelection = false) {
   const music = (project?.tracks ?? []).filter((track) => track.kind === "music");
   if (music.length === 0) return "ui.music_report.empty_no_tracks";
   const live = (track) => (track.clips ?? []).some((clip) => !clip.muted);
+  const silent = new Set(silentTracks(project).map((track) => track.id));
+  const liveMusic = music.filter(live);
+  if (liveMusic.length && liveMusic.every((track) => silent.has(track.id))) {
+    return liveMusic.every((track) => track.mute)
+      ? "ui.music_report.empty_muted"
+      : "ui.music_report.empty_mix_muted";
+  }
   // Live music that is not heard in the selection's span: the selection is why it is empty.
-  if (music.some((track) => !track.mute && live(track))) {
+  if (music.some((track) => !silent.has(track.id) && live(track))) {
     return onlySelection ? "ui.music_report.empty_selection" : "ui.music_report.empty_silent";
   }
   if (music.some((track) => track.mute && live(track))) return "ui.music_report.empty_muted";
