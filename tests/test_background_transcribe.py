@@ -196,6 +196,11 @@ def test_restart_after_a_conflict_replaces_the_newer_transcript(session, monkeyp
 
 
 def test_a_read_only_project_does_not_ingest(session, monkeypatch):
+    # This test owns the poll. Otherwise the 50 ms watcher may ingest a ready
+    # result before we switch to read-only, which is valid but breaks this test.
+    session._watch_stop.set()
+    session._watcher.join(timeout=5)
+    assert not session._watcher.is_alive()
     hold_worker(monkeypatch)
     (job_id,) = session.transcribe(ids(session), local_engine="orukeet")
     run_job(bgjobs.job_file(session.package.path, job_id), local=fake_local)
