@@ -120,6 +120,10 @@ const clean = (text) => {
 export function toTsv(rows, t, warnings = []) {
   const head = COPY_FIELDS.map(([, header]) => headerText(header, t));
   const lines = rows.map((row) => COPY_FIELDS.map(([key]) => clean(cellOf(row, key, t, false))));
+  if (warnings.length) {
+    head.push(headerText("metadata", t));
+    for (const line of lines) line.push("");
+  }
   return [
     head,
     ...lines,

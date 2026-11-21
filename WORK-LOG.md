@@ -46,3 +46,16 @@ Actual styled Chromium smoke repeated for empty/populated reports and copy/reset
 Mac shard c00e438 failed the pre-existing engine-stretch p99 timing assertion
 (7.23 ms vs 3.44 ms); report tests and all other jobs passed. No test was weakened,
 no old-head rerun requested; this fix push will get fresh required CI.
+
+## 2026-11-21: Free-only security pilot
+
+Review: Instinct, branch `agent/security-pilot-free`, isolated security-pilot worktree. Adds report-only, pinned scanners and weekly staggered public-hosted runs. See `docs/security-pilot.md` for coverage, output and limits. No app behavior/version change, fixes, releases, private CI, or merges.
+
+Security pilot review follow-up: include merge-resolution patches, tolerate null RustSec advisory warnings, fix native Go scan tags, and conform to repository lint. Added two regressions (both failed against the old implementation). CodeQL pin resolves in hosted CI; no change based solely on an external 404 claim.
+
+Further Devin follow-up: copied TSV did not include CSV's Metadata column, so a
+warning in its final cell was under Use. Added a failing header-aware regression.
+When warnings exist, TSV now appends a localized Metadata column, pads music rows
+with empty cells there and leaves the warning row's Use cell empty. No-warning
+TSV remains unchanged. Incoming main conflict was only independent WORK-LOG.md
+additions; kept both histories. Security-pilot files from main were not modified.

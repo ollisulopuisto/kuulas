@@ -221,3 +221,16 @@ test("empty reasons respect master solo and muted-bus routing", () => {
     "ui.music_report.empty_silent",
   );
 });
+
+test("copied solo warning has a Metadata header, not a music classification", () => {
+  const lines = toTsv([row()], t, ["Solo warning"])
+    .split("\n")
+    .map((line) => line.split("\t"));
+  const metadata = lines[0].indexOf("music_report.header.metadata");
+  const use = lines[0].indexOf("music_report.header.usage");
+  assert.ok(metadata >= 0);
+  assert.equal(lines[1][metadata], "");
+  assert.equal(lines[2][metadata], "Solo warning");
+  assert.equal(lines[2][use], "");
+  assert.ok(lines.every((cells) => cells.length === lines[0].length));
+});
