@@ -84,3 +84,11 @@ Ubuntu shard 2 failed twice because its 50 ms watcher can legitimately ingest th
 
 Main sync: retained newer dependency-security update and its transcription
 fixture fix; resolved only work-log text. Fresh current-head checks required.
+
+Devin latest-head follow-up: the empty-selection explanation must not blame a
+muted bus or solo when that music lies outside the selected span. Added failing
+regression, keep selection explanation neutral (whole-edit routing explanations
+unchanged). CSV's warning-only record is intentionally not a music use: consumers
+count numbered records, not every post-header record. Documented this distinction.
+Full UI suite after selection-reason fix: 4,005 passed. Ruff passes; Biome
+has no errors, 24 existing warnings. Styled dialog smoke repeated successfully.

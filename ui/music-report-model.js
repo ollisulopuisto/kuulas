@@ -142,6 +142,9 @@ export function emptyReasonKey(project, onlySelection = false) {
   const music = (project?.tracks ?? []).filter((track) => track.kind === "music");
   if (music.length === 0) return "ui.music_report.empty_no_tracks";
   const live = (track) => (track.clips ?? []).some((clip) => !clip.muted);
+  // Without the selected frame range this helper cannot attribute silence to
+  // routing: the muted music may be entirely elsewhere in the edit.
+  if (onlySelection && music.some(live)) return "ui.music_report.empty_selection";
   const silent = new Set(silentTracks(project).map((track) => track.id));
   const liveMusic = music.filter(live);
   if (liveMusic.length && liveMusic.every((track) => silent.has(track.id))) {

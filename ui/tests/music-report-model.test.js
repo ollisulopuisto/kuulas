@@ -184,10 +184,10 @@ test("the selection line names the span, and says tracks do not count", () => {
 test("an empty report of a selection says the selection has no music, not that it is silenced", () => {
   assert.equal(emptyReasonKey({ tracks: [track()] }, true), "ui.music_report.empty_selection");
   assert.equal(emptyReasonKey({ tracks: [track()] }, false), "ui.music_report.empty_silent");
-  // The edit's own reasons still come first.
+  // Selection text stays neutral even when music elsewhere is muted.
   assert.equal(
     emptyReasonKey({ tracks: [track({ mute: true })] }, true),
-    "ui.music_report.empty_muted",
+    "ui.music_report.empty_selection",
   );
   assert.equal(emptyReasonKey(null, true), "ui.music_report.empty_no_tracks");
 });
@@ -233,4 +233,13 @@ test("copied solo warning has a Metadata header, not a music classification", ()
   assert.equal(lines[2][metadata], "Solo warning");
   assert.equal(lines[2][use], "");
   assert.ok(lines.every((cells) => cells.length === lines[0].length));
+});
+
+test("a selection does not blame routing of music elsewhere in the edit", () => {
+  const project = {
+    tracks: [track({ bus: "b", clips: [{ start: 0, length: 10 }] })],
+    buses: [{ id: "b", mute: true }],
+  };
+  assert.equal(emptyReasonKey(project, true), "ui.music_report.empty_selection");
+  assert.equal(emptyReasonKey(project), "ui.music_report.empty_mix_muted");
 });

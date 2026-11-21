@@ -179,6 +179,10 @@ def _guard_formula(value: str) -> str:
 def render_csv(rows: tuple[ReportRow, ...], *, warnings: tuple[str, ...] = ()) -> str:
     """Semicolon-separated UTF-8 CSV, with Excel's UTF-8 signature.
 
+    The header stays first. Optional report warnings follow all music rows as
+    unnumbered, rectangular records with text only in the Metadata column.
+    Count numbered records when counting music uses, not every CSV record.
+
     Cells starting with '=', '+', '-', or '@' are prefixed with a single quote
     to prevent spreadsheet formula injection in applications like Excel.
     """
