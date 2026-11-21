@@ -191,3 +191,9 @@ test("an empty report of a selection says the selection has no music, not that i
   );
   assert.equal(emptyReasonKey(null, true), "ui.music_report.empty_no_tracks");
 });
+
+test("copied reports preserve solo warnings even without rows", () => {
+  const notice = "Solo is active: some music is excluded from this report.";
+  assert.equal(toTsv([], t, [notice]).split("\n")[0], notice);
+  assert.equal(toTsv([row()], t, [notice]).split("\n")[0], notice);
+});

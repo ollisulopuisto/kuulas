@@ -736,6 +736,7 @@
   "export.processing.dry": "dry",
   "export.processing.as_heard": "as heard",
   "history.export": "v{n} exported, {what}",
+  "music_report.solo_warning": "Solo is active: some music is excluded from this report.",
   "music_report.title": "Music report",
   "music_report.html_lang": "en",
   "music_report.header.order": "Order",

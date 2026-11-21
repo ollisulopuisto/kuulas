@@ -114,11 +114,13 @@ const clean = (text) => {
   return /^[=+\-@]/.test(flat) ? `'${flat}` : flat;
 };
 
-/** The whole report as tab-separated text, header first, ready to paste into a spreadsheet. */
-export function toTsv(rows, t) {
+/** The whole report as tab-separated text, warning then header, ready for a spreadsheet. */
+export function toTsv(rows, t, warnings = []) {
   const head = COPY_FIELDS.map(([, header]) => headerText(header, t));
   const lines = rows.map((row) => COPY_FIELDS.map(([key]) => clean(cellOf(row, key, t, false))));
-  return [head, ...lines].map((cells) => cells.join("\t")).join("\n");
+  return [...warnings.map((note) => [clean(note)]), head, ...lines]
+    .map((cells) => cells.join("\t"))
+    .join("\n");
 }
 
 /**

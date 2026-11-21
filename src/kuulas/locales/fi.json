@@ -732,6 +732,7 @@
   "export.processing.dry": "kuiva",
   "export.processing.as_heard": "kuultu",
   "history.export": "v{n} viety, {what}",
+  "music_report.solo_warning": "Solo on käytössä: osa musiikista jää pois tästä raportista.",
   "music_report.title": "Musiikkiraportti",
   "music_report.html_lang": "fi",
   "music_report.header.order": "Järjestys",

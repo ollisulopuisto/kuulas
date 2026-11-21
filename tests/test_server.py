@@ -4,6 +4,7 @@ import inspect
 import json
 import socket
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +13,7 @@ import soundfile as sf
 import uvicorn
 from fastapi.testclient import TestClient
 from test_history import heavy_hour, register
+from test_music_report import clip, media, state, track
 
 from kuulas import cli, messages, plugins, transcribe
 from kuulas import edit_points as ep
@@ -1523,3 +1525,19 @@ class TestLiveTranscriptEndpoint:
             r = c.post("/api/record/start", json={"live_transcription": True})
             assert r.status_code == 200
             assert recorder.kwargs["live_transcription"] is True
+
+
+def test_solo_music_warning_is_in_api_and_downloads(client, session, monkeypatch):
+    project = state(
+        media_items=[media("m", "a" * 64)],
+        tracks=[track("music", "music", [clip("bed", 0, 0, RATE)]),
+                replace(track("solo", "speech", []), solo=True)])
+    monkeypatch.setattr(type(session.history), "state", property(lambda self: project))
+    notice = "Solo is active: some music is excluded from this report."
+    assert client.get("/api/music-report").json() == {"rows": [], "warnings": [notice]}
+    for format in ("csv", "html"):
+        response = client.get(f"/api/music-report?format={format}")
+        assert response.status_code == 200
+        assert notice in response.text
+    assert client.get(f"/api/music-report?start={RATE * 2}&end={RATE * 3}").json() == {
+        "rows": []}

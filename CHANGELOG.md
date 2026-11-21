@@ -1,7 +1,7 @@
 ## [v26.11.21.1] - 2026-11-21
 
 ### Fixed
-- Music reports follow the master mix's solo and mute routing. Music silenced by another solo or a muted bus is omitted; a muted-but-soloed music track is included. Background/featured classification uses only audible speech. Reports do not describe independent stem exports.
+- Music reports follow the master mix's solo and mute routing. Music silenced by another solo or a muted bus is omitted; a muted-but-soloed music track is included. Background/featured classification uses only audible speech. Reports do not describe independent stem exports. When solo excludes music, the dialog, copied table and CSV/HTML exports carry a visible warning, including empty reports.
 
 
 ## [v26.11.20.1] - 2026-11-20

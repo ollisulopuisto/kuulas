@@ -136,6 +136,24 @@ def build_report(project: Project, store: Store,
     return tuple(rows)
 
 
+def report_warnings(project: Project, span: tuple[int, int] | None = None
+                    ) -> tuple[str, ...]:
+    """Warn only when solo removes otherwise audible music in the report span."""
+    if not any(track.solo for track in project.tracks):
+        return ()
+    solo_tracks = {track.id for track in project.tracks if track.solo}
+    muted_buses = {bus.id for bus in project.buses if bus.mute}
+    candidates = replace(project, tracks=tuple(
+        track for track in project.tracks
+        if track.kind == "music" and track.id not in solo_tracks
+        and not track.mute and track.bus not in muted_buses))
+    if any(use.audible and (span is None or
+           (use.timeline_from < span[1] and use.timeline_to > span[0]))
+           for use in extract(candidates)):
+        return (t("music_report.solo_warning"),)
+    return ()
+
+
 def _headers() -> tuple[str, ...]:
     return tuple(t(f"music_report.header.{key}") for key in _HEADER_KEYS)
 
@@ -160,7 +178,7 @@ def _guard_formula(value: str) -> str:
     return value
 
 
-def render_csv(rows: tuple[ReportRow, ...]) -> str:
+def render_csv(rows: tuple[ReportRow, ...], *, warnings: tuple[str, ...] = ()) -> str:
     """Semicolon-separated UTF-8 CSV, with Excel's UTF-8 signature.
 
     Cells starting with '=', '+', '-', or '@' are prefixed with a single quote
@@ -169,6 +187,8 @@ def render_csv(rows: tuple[ReportRow, ...]) -> str:
     out = io.StringIO()
     writer = csv.writer(out, delimiter=";", quoting=csv.QUOTE_MINIMAL,
                         lineterminator="\n")
+    for warning in warnings:
+        writer.writerow([_guard_formula(warning)])
     writer.writerow(_headers())
     for r in rows:
         writer.writerow([
@@ -189,7 +209,7 @@ def render_csv(rows: tuple[ReportRow, ...]) -> str:
 
 
 def render_html(rows: tuple[ReportRow, ...],
-                *, title: str | None = None) -> str:
+                *, title: str | None = None, warnings: tuple[str, ...] = ()) -> str:
     """A printable HTML table of the report rows."""
     title = title or t("music_report.title")
     language = t("music_report.html_lang")
@@ -197,6 +217,7 @@ def render_html(rows: tuple[ReportRow, ...],
     def cell(text: str) -> str:
         return f"<td>{html.escape(str(text))}</td>"
 
+    notices = "".join(f'<p role="note">{html.escape(note)}</p>' for note in warnings)
     head = "".join(f"<th>{html.escape(h)}</th>" for h in _headers())
     body = "".join(
         "<tr>" + "".join(cell(v) for v in (
@@ -210,7 +231,7 @@ def render_html(rows: tuple[ReportRow, ...],
         f"<title>{html.escape(title)}</title>"
         "<style>table{border-collapse:collapse}th,td{border:1px solid #333;"
         "padding:4px 8px;text-align:left}</style></head>"
-        f"<body><h1>{html.escape(title)}</h1>"
+        f"<body><h1>{html.escape(title)}</h1>{notices}"
         f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody>"
         "</table></body></html>"
     )

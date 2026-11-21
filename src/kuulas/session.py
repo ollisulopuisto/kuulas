@@ -2257,12 +2257,13 @@ class Session(SyncSession):
 
     def music_report(self, *, format: str = "rows", title: str | None = None,
                      span: tuple[int, int] | None = None
-                     ) -> tuple[Any, ...] | str | list[dict]:
+                     ) -> tuple[Any, ...] | str | list[dict] | dict:
         """Royalty music report (WP25): every audible music use in this edit.
 
         ``format``:
         - ``"rows"`` (default): tuple of :class:`ReportRow` dataclasses.
-        - ``"json"``: list of row dicts.
+        - ``"json"``: list of row dicts (legacy row-only format).
+        - ``"document"``: row dicts plus any report-level warnings.
         - ``"csv"``: semicolon-separated UTF-8 string with BOM.
         - ``"html"``: printable HTML document string.
 
@@ -2271,7 +2272,7 @@ class Session(SyncSession):
         if span is not None and not (span[0] >= 0 and span[1] > span[0]):
             raise music_report_module.MusicReportError(
                 "error.music_report.bad_range", range=f"{span[0]}-{span[1]}")
-        if format not in ("rows", "json", "csv", "html"):
+        if format not in ("rows", "json", "document", "csv", "html"):
             raise music_report_module.MusicReportError("error.music_report.bad_format",
                                                        format=format)
         # The state is immutable, so a snapshot is enough: the speech analysis
@@ -2283,9 +2284,15 @@ class Session(SyncSession):
             return rows
         if format == "json":
             return [asdict(r) for r in rows]
+        warnings = music_report_module.report_warnings(state, span)
+        if format == "document":
+            result = {"rows": [asdict(r) for r in rows]}
+            if warnings:
+                result["warnings"] = list(warnings)
+            return result
         if format == "csv":
-            return music_report_module.render_csv(rows)
-        return music_report_module.render_html(rows, title=title)
+            return music_report_module.render_csv(rows, warnings=warnings)
+        return music_report_module.render_html(rows, title=title, warnings=warnings)
 
     def subtitles(self, format: str) -> str:
         """Export timeline transcript as subtitles text (SRT or WebVTT).

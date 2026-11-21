@@ -537,3 +537,43 @@ def test_muted_speech_bus_does_not_hide_a_second_audible_speech_lane():
     assert np.any(mix(speech_only, store, RATE // 2, RATE))
     [row] = build_report(project, store)
     assert row.background
+
+
+@pytest.mark.parametrize("format", ["document", "csv", "html"])
+def test_solo_exclusion_notice_travels_with_even_an_empty_report(
+        tmp_path, monkeypatch, format):
+    project = state(
+        media_items=[media("m", "a" * 64,
+                           music_info={"title": "Bed", "artist": "Artist"})],
+        tracks=[track("music", "music", [clip("bed", 0, 0, RATE)]),
+                replace(track("solo", "speech", []), solo=True)])
+    session = Session(tmp_path / "Solo.kuulas")
+    try:
+        monkeypatch.setattr(type(session.history), "state",
+                            property(lambda self: project))
+        result = session.music_report(format=format)
+        notice = "Solo is active: some music is excluded from this report."
+        if format == "document":
+            assert result == {"rows": [], "warnings": [notice]}
+        else:
+            assert notice in result
+    finally:
+        session.close()
+
+
+@pytest.mark.parametrize(("muted", "bus_muted", "span", "expected"), [
+    (False, False, None, True),
+    (True, False, None, False),
+    (False, True, None, False),
+    (False, False, (2 * RATE, 3 * RATE), False),
+])
+def test_solo_notice_only_when_solo_excludes_music(muted, bus_muted, span, expected):
+    project = state(
+        media_items=[media("m", "a" * 64)],
+        tracks=[replace(track("music", "music", [clip("bed", 0, 0, RATE)]),
+                        mute=muted, bus="bus"),
+                replace(track("solo", "speech", []), solo=True)],
+        buses=(Bus("bus", "Bus", mute=bus_muted),))
+    assert bool(module.report_warnings(project, span)) is expected
+    no_solo = replace(project, tracks=(project.tracks[0],))
+    assert module.report_warnings(no_solo, span) == ()
