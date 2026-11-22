@@ -1,3 +1,5 @@
+import csv
+import io
 import threading
 from dataclasses import replace
 
@@ -6,7 +8,8 @@ import pytest
 
 from kuulas import messages
 from kuulas import music_report as module
-from kuulas.model import Clip, Media, Project, Track
+from kuulas.mixer import mix
+from kuulas.model import Bus, Clip, Media, Project, Track
 from kuulas.music_report import (
     MusicReportError,
     ReportRow,
@@ -442,3 +445,158 @@ def test_session_music_report_takes_a_range(tmp_path):
         assert exc_info.value.key == "error.music_report.bad_range"
     finally:
         s.close()
+
+
+@pytest.mark.parametrize(
+    ("music_solo", "music_mute", "speech_solo", "bus_muted", "expected_rows"),
+    [
+        (False, False, True, False, 0),
+        (False, True, False, False, 0),
+        (True, False, True, False, 1),
+        (True, False, True, True, 0),
+        (True, True, False, False, 1),
+        (False, False, False, True, 0),
+        (True, False, False, True, 0),
+        (False, False, False, False, 1),
+    ],
+)
+def test_report_music_audibility_matches_mixer(
+        music_solo, music_mute, speech_solo, bus_muted, expected_rows):
+    # Constant audio proves the report agrees with actual rendered sound,
+    # rather than copying its own mute/solo predicate into the assertion.
+    music = replace(
+        track("music", "music", [clip("bed", 0, 0, RATE)]),
+        solo=music_solo, mute=music_mute, bus="bus")
+    speech = replace(track("speech", "speech", []), solo=speech_solo)
+    project = state(
+        media_items=[media("m", "a" * 64,
+                           music_info={"title": "Bed", "artist": "Artist"})],
+        tracks=[music, speech], buses=(Bus("bus", "Music", mute=bus_muted),))
+    store = MemoryStore({"m": np.ones((2, RATE), dtype=np.float32) * 0.1})
+
+    assert bool(np.any(mix(project, store, 0, RATE))) == bool(expected_rows)
+    assert len(build_report(project, store)) == expected_rows
+
+
+@pytest.mark.parametrize(
+    ("speech_solo", "speech_mute", "music_solo", "bus_muted", "background"),
+    [
+        (True, True, True, False, True),
+        (False, False, True, False, False),
+        (False, False, False, True, False),
+        (False, False, False, False, True),
+    ],
+)
+def test_report_background_uses_audible_speech_only(
+        speech_solo, speech_mute, music_solo, bus_muted, background):
+    frames = 4 * RATE
+    speech = replace(
+        track("speech", "speech", [clip("voice", 0, 0, frames, media_id="s")]),
+        solo=speech_solo, mute=speech_mute, bus="speech-bus")
+    music = replace(track("music", "music", [clip("bed", RATE // 2, 0, RATE)]),
+                    solo=music_solo)
+    project = state(
+        media_items=[Media("s", "speech.wav", 1, frames, sha256="s" * 64),
+                     media("m", "a" * 64,
+                           music_info={"title": "Bed", "artist": "Artist"})],
+        tracks=[speech, music],
+        buses=(Bus("speech-bus", "Speech", mute=bus_muted),))
+    store = MemoryStore({"s": speech_then_silence(4)[None, :]})
+
+    speech_only = replace(project, tracks=(speech, replace(music, clips=())))
+    heard_speech = bool(np.any(mix(speech_only, store, RATE // 2, RATE)))
+    assert heard_speech is background
+    [row] = build_report(project, store)
+
+    assert row.background is heard_speech
+
+
+@pytest.mark.parametrize("bus_id", [None, "missing-bus"])
+def test_music_without_a_known_bus_routes_to_master(bus_id):
+    music = replace(track("music", "music", [clip("bed", 0, 0, RATE)]),
+                    bus=bus_id)
+    project = state(
+        media_items=[media("m", "a" * 64,
+                           music_info={"title": "Bed", "artist": "Artist"})],
+        tracks=[music], buses=(Bus("other", "Other", mute=True),))
+    store = MemoryStore({"m": np.ones((2, RATE), dtype=np.float32) * 0.1})
+    assert np.any(mix(project, store, 0, RATE))
+    assert len(build_report(project, store)) == 1
+
+
+def test_muted_speech_bus_does_not_hide_a_second_audible_speech_lane():
+    frames = 4 * RATE
+    audible = track("speech", "speech", [clip("voice", 0, 0, frames, media_id="s")])
+    muted = replace(audible, id="muted", bus="off")
+    music = track("music", "music", [clip("bed", RATE // 2, 0, RATE)])
+    project = state(
+        media_items=[Media("s", "speech.wav", 1, frames, sha256="s" * 64),
+                     media("m", "a" * 64,
+                           music_info={"title": "Bed", "artist": "Artist"})],
+        tracks=[muted, audible, music], buses=(Bus("off", "Off", mute=True),))
+    store = MemoryStore({"s": speech_then_silence(4)[None, :]})
+    speech_only = replace(project, tracks=(muted, audible))
+    assert np.any(mix(speech_only, store, RATE // 2, RATE))
+    [row] = build_report(project, store)
+    assert row.background
+
+
+@pytest.mark.parametrize("format", ["document", "csv", "html"])
+def test_solo_exclusion_notice_travels_with_even_an_empty_report(
+        tmp_path, monkeypatch, format):
+    project = state(
+        media_items=[media("m", "a" * 64,
+                           music_info={"title": "Bed", "artist": "Artist"})],
+        tracks=[track("music", "music", [clip("bed", 0, 0, RATE)]),
+                replace(track("solo", "speech", []), solo=True)])
+    session = Session(tmp_path / "Solo.kuulas")
+    try:
+        monkeypatch.setattr(type(session.history), "state",
+                            property(lambda self: project))
+        result = session.music_report(format=format)
+        notice = "Solo is active: some music is excluded from this report."
+        if format == "document":
+            assert result == {"rows": [], "warnings": [notice]}
+        else:
+            assert notice in result
+    finally:
+        session.close()
+
+
+@pytest.mark.parametrize(("muted", "bus_muted", "span", "expected"), [
+    (False, False, None, True),
+    (True, False, None, False),
+    (False, True, None, False),
+    (False, False, (2 * RATE, 3 * RATE), False),
+])
+def test_solo_notice_only_when_solo_excludes_music(muted, bus_muted, span, expected):
+    project = state(
+        media_items=[media("m", "a" * 64)],
+        tracks=[replace(track("music", "music", [clip("bed", 0, 0, RATE)]),
+                        mute=muted, bus="bus"),
+                replace(track("solo", "speech", []), solo=True)],
+        buses=(Bus("bus", "Bus", mute=bus_muted),))
+    assert bool(module.report_warnings(project, span)) is expected
+    no_solo = replace(project, tracks=(project.tracks[0],))
+    assert module.report_warnings(no_solo, span) == ()
+
+
+def test_warning_does_not_bridge_music_clip_gaps():
+    project = state(
+        media_items=[media("m", "a" * 64)],
+        tracks=[track("music", "music", [clip("a", 0, 0, RATE),
+                                         clip("b", 2 * RATE, RATE, RATE)]),
+                replace(track("solo", "speech", []), solo=True)])
+    assert module.report_warnings(project, (RATE + 10, 2 * RATE - 10)) == ()
+    assert module.report_warnings(project, (RATE - 10, RATE + 10))
+
+
+def test_csv_warning_preserves_header_and_rectangular_records():
+    notice = "Solo is active: some music is excluded from this report."
+    records = list(csv.reader(io.StringIO(render_csv((), warnings=(notice,))),
+                              delimiter=";"))
+    assert records[0][0].lstrip("\ufeff") == "Order"
+    assert records[0][1] == "Title"
+    assert len(records[1]) == len(records[0])
+    assert records[1][-1] == notice
+    assert not any(records[1][:-1])

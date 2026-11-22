@@ -38,6 +38,9 @@ export function createMusicReportDialog({ api, t, getProject, copyText, saveFile
   const heading = el("h2", "", t("ui.music_report.title"));
   heading.id = "music-report-title";
   const scope = el("p", "form-note", t("ui.music_report.scope"));
+  const reportNotice = el("p", "music-report-warnings");
+  reportNotice.setAttribute("role", "note");
+  reportNotice.hidden = true;
   // "Only the selection" (as the export dialogs): a line with the span, and the box.
   const onlyBox = el("input");
   onlyBox.type = "checkbox";
@@ -73,11 +76,12 @@ export function createMusicReportDialog({ api, t, getProject, copyText, saveFile
     return b;
   };
   let rows = [];
+  let reportWarnings = [];
   let selection = null;
   let rate = 48000;
   // The span the report covers: the selection's while the box is ticked, else the whole edit.
   const span = () => (selection && onlyBox.checked ? [...selection.range] : null);
-  const copy = button("ui.music_report.copy", () => void copyText(toTsv(rows, t)));
+  const copy = button("ui.music_report.copy", () => void copyText(toTsv(rows, t, reportWarnings)));
   const saveCsv = button("ui.music_report.save_csv", () => void saveFile("csv", span()));
   const saveHtml = button("ui.music_report.save_html", () => void saveFile("html", span()));
   const close = button("ui.music_report.close", () => dialog.close(), "primary");
@@ -90,7 +94,17 @@ export function createMusicReportDialog({ api, t, getProject, copyText, saveFile
   // Copy and Save keep the dialog open: the left edge; Close (the primary) last.
   for (const b of [copy, saveCsv, saveHtml]) b.classList.add("footer-start");
   buttons.append(copy, saveCsv, saveHtml, close);
-  dialog.append(heading, scope, selectionRow, status, warnings, error, scroller, buttons);
+  dialog.append(
+    heading,
+    scope,
+    reportNotice,
+    selectionRow,
+    status,
+    warnings,
+    error,
+    scroller,
+    buttons,
+  );
   document.body.append(dialog);
   enhanceDialog(dialog, { t });
 
@@ -136,13 +150,16 @@ export function createMusicReportDialog({ api, t, getProject, copyText, saveFile
 
   function render(answer) {
     rows = answer.rows ?? [];
+    reportWarnings = answer.warnings ?? [];
+    reportNotice.textContent = reportWarnings.join(" ");
+    reportNotice.hidden = reportWarnings.length === 0;
     error.hidden = true;
     if (rows.length === 0) {
       status.textContent = t("ui.music_report.empty");
       const why = el("p", "form-note", t(emptyReasonKey(getProject(), span() !== null)));
       scroller.replaceChildren(why);
       warningsView([]);
-      setEnabled(false);
+      setEnabled(reportWarnings.length > 0);
       return;
     }
     const sum = summaryOf(rows);
@@ -163,6 +180,9 @@ export function createMusicReportDialog({ api, t, getProject, copyText, saveFile
     round += 1;
     const mine = round;
     rows = [];
+    reportWarnings = [];
+    reportNotice.textContent = "";
+    reportNotice.hidden = true;
     selectionRow.hidden = !selection;
     selectionHelp.textContent = selectionLine(selection, onlyBox.checked, rate, t);
     status.textContent = t("ui.music_report.loading");
