@@ -28,7 +28,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           enable-cache: false
       - run: uv run --no-project --with pyyaml python -m unittest discover -s scripts/tests -p test_draft_release_workflow.py -v
@@ -116,7 +116,7 @@ jobs:
         with:
           repository: ollisulopuisto/podcast
           path: podcast
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
@@ -216,7 +216,7 @@ jobs:
         with:
           repository: ollisulopuisto/podcast
           path: podcast
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - uses: actions/setup-node@v7
         with:
           node-version: "24"
@@ -312,7 +312,7 @@ jobs:
         with:
           repository: ollisulopuisto/podcast
           path: podcast
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - run: uv sync
       # Audio decoding tests need ffmpeg and libsndfile/PortAudio, as in the full suites.
       - name: ffmpeg and audio libraries (Linux)
@@ -360,7 +360,7 @@ jobs:
         with:
           repository: ollisulopuisto/podcast
           path: podcast
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - run: uv sync
       - run: uv run ruff check .
 

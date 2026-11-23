@@ -52,15 +52,27 @@ def build(tmp_path):
     return s
 
 
-@pytest.fixture
-def session(tmp_path):
+@pytest.fixture(params=[False, True], ids=["import-order", "reverse-library-order"])
+def session(tmp_path, request):
     s = build(tmp_path)
+    # A library can list files differently from the import request. Exercise
+    # both orders on every workflow test instead of relying on clock precision.
+    names = ("Maija.wav", "Olli.wav") if request.param else ("Olli.wav", "Maija.wav")
+    for index, name in enumerate(names):
+        s.history.db.execute("update media set added_utc=? where name=?",
+                             (f"2026-01-01T00:00:0{index}Z", name))
+    s.history.db.commit()
+    s.history._composed = None
     yield s
     s.close()
 
 
 def ids(session):
-    return [m.id for m in session.state.media]
+    # The media library is ordered by timestamp and then content ID, not by
+    # import order. Resolve the fixture's names instead, including when two
+    # imports have the same timestamp on a fast filesystem.
+    by_name = {m.name: m.id for m in session.state.media}
+    return [by_name[name] for name in ("Olli.wav", "Maija.wav")]
 
 
 def wait(check, timeout=5):
