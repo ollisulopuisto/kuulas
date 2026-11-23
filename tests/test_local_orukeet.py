@@ -112,3 +112,81 @@ def test_explicit_low_memory_override_reaches_native_worker(model, monkeypatch, 
     assert transcribe.local(make_audio(tmp_path / "speech.wav"),
                             allow_low_memory=True) == []
     assert called == [True]
+
+
+@pytest.mark.parametrize("rate", [16_000, 48_000])
+def test_long_recording_stays_in_30_second_cores_with_bounded_context(
+    model, monkeypatch, tmp_path, rate
+):
+    """Pin the allocation boundary without loading Orukeet or a Metal device.
+
+    A 65-second take has three cores. Adjacent calls share context, but a
+    boundary word belongs only to the core containing its midpoint.
+    """
+    assert transcribe._LOCAL_CHUNK_S == 30
+    assert transcribe._LOCAL_CONTEXT_S == 1
+    audio = tmp_path / "long-stereo.wav"
+    sf.write(audio, np.zeros((65 * rate, 2), dtype=np.float32), rate)
+    monkeypatch.setattr(live_engine, "read_receipt", lambda: {"fixture": True})
+    calls, closed, reports, seeks, reads = [], [], [], [], []
+    sound_file = sf.SoundFile
+
+    class RecordingAudio:
+        def __enter__(self):
+            self.audio = sound_file(audio)
+            self.samplerate = self.audio.samplerate
+            return self
+
+        def __exit__(self, *_):
+            self.audio.close()
+
+        def __len__(self):
+            return len(self.audio)
+
+        def seek(self, frame):
+            seeks.append(frame)
+            return self.audio.seek(frame)
+
+        def read(self, frames, **kwargs):
+            reads.append(frames)
+            return self.audio.read(frames, **kwargs)
+
+    monkeypatch.setattr(sf, "SoundFile", lambda _: RecordingAudio())
+    output = [
+        [{"word": "first", "start": 0.2, "end": 0.4},
+         {"word": "boundary-30", "start": 29.8, "end": 30.2}],
+        [{"word": "left-context", "start": 0.1, "end": 0.3},
+         {"word": "boundary-30", "start": 0.8, "end": 1.2},
+         {"word": "boundary-60", "start": 30.8, "end": 31.2}],
+        [{"word": "left-context", "start": 0.1, "end": 0.3},
+         {"word": "boundary-60", "start": 0.8, "end": 1.2},
+         {"word": "last", "start": 5.5, "end": 5.9},
+         {"word": "outside-end", "start": 5.9, "end": 6.1}],
+    ]
+
+    class Engine:
+        def __call__(self, samples, actual_rate):
+            assert actual_rate == rate
+            assert samples.ndim == 1
+            assert samples.dtype == np.float32
+            assert len(samples) <= 32 * rate
+            calls.append(len(samples))
+            return output[len(calls) - 1]
+
+        def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(live_engine, "warm_engine_factory", lambda _: Engine())
+    words = transcribe.local(audio, progress=reports.append)
+
+    # First/last context is clipped to the file, interior context is 1 s/side.
+    assert calls == reads == [31 * rate, 32 * rate, 6 * rate]
+    assert seeks == [0, 29 * rate, 59 * rate]
+    assert [word["w"] for word in words] == [
+        "first", "boundary-30", "boundary-60", "last"]
+    assert [(word["s"], word["e"]) for word in words] == [
+        (round(start * FLICKS), round(end * FLICKS))
+        for start, end in [(0.2, 0.4), (29.8, 30.2), (59.8, 60.2), (64.5, 64.9)]
+    ]
+    assert reports == [30 / 65, 60 / 65, 1.0]
+    assert closed == [True]
