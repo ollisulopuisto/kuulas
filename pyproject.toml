@@ -36,7 +36,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Local Whisper inference plus Podcast's isolated CTC word-alignment process.
-transcribe = ["faster-whisper==1.2.1", "torch==2.13.0", "torchaudio==2.11.1"]
+transcribe = ["av<19", "faster-whisper==1.2.1", "torch==2.13.0", "torchaudio==2.11.1"]
 # The native window (WP15): system web view, native file dialogs and menu.
 # Not in the base dependencies: Linux needs system WebKit packages for it.
 desktop = ["pywebview>=5"]
