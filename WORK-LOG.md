@@ -108,3 +108,9 @@ pass, no skips; focused97 pass. Changed-file Biome and git diff checks pass.
 No Python runtime change; Python suites, hardware and native Mac routing/pixels
 not checked locally. This does not fix the separate typing-dispatch/Viewer-menu
 audit findings. No workflow changes, no merge, native CI remains required.
+
+CI follow-up: both Mac Python shards caught stale generated docs/KEYS.md,
+test_keys_doc_is_up_to_date and test_every_doc_key_is_in_keymap. Regenerated
+from canonical DEFAULT_KEYMAP (two changed cells, no handwritten workaround).
+All three key-doc regression functions pass locally using stdlib harness;
+no pytest/full-Python claim. Fresh CI on corrected head required.
