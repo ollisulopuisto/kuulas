@@ -1,5 +1,6 @@
 """Focused workflow guards. Run with Python + PyYAML, no macOS or side effects."""
 
+import fnmatch
 import pathlib
 import subprocess
 import tempfile
@@ -21,6 +22,28 @@ class DraftReleaseTests(unittest.TestCase):
             "jobs"
         ]
         self.draft = self.jobs["draft-release"]
+
+    def test_generated_release_tags_do_not_start_another_build(self):
+        workflow = yaml.safe_load((ROOT / ".github/workflows/dmg.yml").read_text())
+        # PyYAML's YAML 1.1 loader treats the GitHub Actions key `on` as True.
+        triggers = workflow.get("on", workflow.get(True))
+        patterns = triggers["push"]["tags"]
+
+        def matches(tag):
+            selected = False
+            for pattern in patterns:
+                negative = pattern.startswith("!")
+                if fnmatch.fnmatchcase(tag, pattern[1:] if negative else pattern):
+                    selected = not negative
+            return selected
+
+        require(matches("v26.11.25.2"))
+        require(matches("v26.11.25.2-rc.1"))
+        require(not matches("v26.11.25.2-test.45667833406.1"))
+        require(not matches("v26.11.25.1-test.45591603824.1"))
+        require(not matches("main"))
+        require("workflow_dispatch" in triggers)
+        require("draft_release" in triggers["workflow_dispatch"]["inputs"])
 
     def test_exclusive_selection_and_arm64_runner(self):
         require("!(github.event_name" in self.jobs["dmg"]["if"])
