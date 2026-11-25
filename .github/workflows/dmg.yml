@@ -20,7 +20,11 @@ on:
         type: string
         required: false
   push:
-    tags: ["v*"]
+    tags:
+      - "v*"
+      # Manual draft releases already contain their signed/notarized DMG.
+      # Publishing one creates this tag; do not rebuild or recreate its release.
+      - "!v*-test.*"
 
 permissions:
   contents: write   # the release step needs it; nothing else is written
