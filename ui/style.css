@@ -2415,6 +2415,19 @@ input[type="text"] {
   text-align: left;
   cursor: default;
 }
+/* Keep the shortcut in its own first-line column, even when a translated label wraps. */
+.menu-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: start;
+}
+.menu-item > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.menu-item > kbd {
+  align-self: start;
+}
 .menu-title {
   width: auto;
 }
