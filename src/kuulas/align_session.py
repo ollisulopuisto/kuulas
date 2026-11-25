@@ -7,13 +7,13 @@ from .messages import t
 class SyncSession:
     _sync_review = None
 
-    def sync_begin(self, track_ids):
+    def sync_begin(self, track_ids, clip_ids=None):
         with self.lock:
             self._check_not_recording()
             self.history._check_writable()
             if self._sync_review is not None:
                 fail('active')
-            self._sync_review = Review(self.state, track_ids)
+            self._sync_review = Review(self.state, track_ids, clip_ids)
             return self._sync_review.view()
 
     def _sync_get(self, review_id):
@@ -74,11 +74,13 @@ class SyncSession:
             review.analysis_serial = serial
             revision = review.revision
             snapshot, tracks = review.project, list(review.track_ids)
+            chosen = None if review.clip_ids is None else sorted(review.clip_ids)
 
         def run(progress):
             progress(0, '', True)
             result = offload.call('automatic_sync_tracks',snapshot,self.store,
-                                  tracks,method,cancel=progress.cancelled_event)
+                                  tracks,method,chosen,
+                                  cancel=progress.cancelled_event)
             with self.lock:
                 current = self._sync_review
                 if (current is review and current.analysis_serial == serial

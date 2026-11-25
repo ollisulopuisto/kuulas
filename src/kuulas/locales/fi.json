@@ -3743,6 +3743,8 @@
   "job.automatic_sync": "Analysoidaan raitojen tahdistusta",
   "ui.sync_review.title": "Tahdistustila",
   "ui.sync_review.intro": "Vain ajoituksen esikatselu. Hyväksy siirtää palat yhdellä kumouksella.",
+  "ui.sync_review.subset": "Vain valitut {count} palaa tahdistetaan. Himmennetyt palat pysyvät paikoillaan.",
+  "ui.sync_review.whole_tracks": "Koko raidat sen sijaan",
   "ui.sync_review.pieces": "Järjestä tiedostot ensin osallistujien raidoille. Raidan siirto säilyttää palojen järjestyksen ja välit.",
   "ui.sync_review.cancel": "Peru tahdistus",
   "ui.sync_review.apply": "Hyväksy · yksi kumous",

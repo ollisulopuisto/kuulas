@@ -11,6 +11,22 @@ export function selectedTrackIds(state) {
     .map((track) => track.id);
 }
 
+/**
+ * The pieces a review is limited to, or null for the whole tracks. When the selected pieces leave
+ * other pieces of the same tracks out (two sets of files recorded separately), only the selected
+ * ones are measured and moved; a track chosen without any selected piece, or a selection that covers
+ * every piece, means the whole tracks, as before.
+ */
+export function selectedClipIds(state) {
+  const ids = new Set(selectedTrackIds(state));
+  const chosen = (state.project?.tracks ?? []).filter((track) => ids.has(track.id));
+  const picked = new Set(state.selection ?? []);
+  const lists = chosen.map((track) => track.clips.filter((clip) => picked.has(clip.id)));
+  if (lists.some((list) => list.length === 0)) return null;
+  if (lists.every((list, i) => list.length === chosen[i].clips.length)) return null;
+  return lists.flat().map((clip) => clip.id);
+}
+
 export function moveRequest(review, track, clip, delta, scope) {
   return {
     id: review.id,

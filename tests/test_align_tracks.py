@@ -148,3 +148,60 @@ def test_sync_corrupt_envelope_cache_recomputes(tmp_path):
     assert result['tracks'][0]['status']=='proposal'
     assert len(store.reads)>reads
     assert store.budget.used<=store.budget.limit
+
+
+def _two_session_project(tmp_path):
+    """One reference and a guest track with two pieces that lie at different offsets from
+    it, as two separately recorded sets of files do. Pieces are long enough for the
+    measurement to find three independent points (10 s apart) in each."""
+    rate=8000
+    levels=np.random.default_rng(4).uniform(.05,.8,150*1000)
+    ref=np.repeat(levels,8)[None,:].astype(np.float32)
+    candidate=ref[:,rate*2:]
+    store=Store(tmp_path,{"ref":ref,"candidate":candidate})
+    project=Project(
+        rate=rate,
+        media=(Media("ref","ref",1,ref.shape[1]),
+               Media("candidate","candidate",1,candidate.shape[1])),
+        tracks=(Track("top","Top",clips=(Clip("a","ref",rate,0,ref.shape[1]),)),
+                Track("below","Below",clips=(
+                    Clip("b1","candidate",0,0,60*rate),
+                    # Its source lies 80 s into the file; it sits 82 s into the
+                    # timeline, so it is 2 s nearer the reference than the first piece.
+                    Clip("b2","candidate",82*rate,80*rate,60*rate)))))
+    return project,store
+
+
+def test_only_the_chosen_pieces_are_measured(tmp_path):
+    p,store=_two_session_project(tmp_path)
+    assert analyze_tracks(p,store,['top','below'],'sound')['tracks'][0]['status']==(
+        'pieces_disagree')
+    first=analyze_tracks(p,store,['top','below'],'sound',clip_ids=['a','b1'])['tracks'][0]
+    assert first['status']=='proposal'
+    assert first['delta']==pytest.approx(3.,abs=.005)
+    second=analyze_tracks(p,store,['top','below'],'sound',clip_ids=['a','b2'])['tracks'][0]
+    assert second['status']=='proposal'
+    assert second['delta']==pytest.approx(1.,abs=.005)
+
+
+def test_reference_pieces_outside_the_choice_are_ignored(tmp_path):
+    p,store=_two_session_project(tmp_path)
+    anchor=p.tracks[0].clips[0]
+    rate=p.rate
+    pieces=(replace(anchor,id='a1',length=70*rate),
+            # The same recording again, placed 100 s later: the guest matches it too, at
+            # another offset, so with both reference pieces the answer is not unique.
+            replace(anchor,id='a2',start=anchor.start+100*rate,offset=0,length=70*rate))
+    p=replace(p,tracks=(replace(p.tracks[0],clips=pieces),p.tracks[1]))
+    assert analyze_tracks(p,store,['top','below'],'sound',
+                          clip_ids=['a1','a2','b1'])['tracks'][0]['status']!='proposal'
+    row=analyze_tracks(p,store,['top','below'],'sound',clip_ids=['a1','b1'])['tracks'][0]
+    assert row['status']=='proposal'
+    assert row['delta']==pytest.approx(3.,abs=.005)
+
+
+def test_a_track_with_none_of_the_chosen_pieces_is_refused(tmp_path):
+    from kuulas.align_errors import SyncError  # noqa: PLC0415
+    p,store=_two_session_project(tmp_path)
+    with pytest.raises(SyncError):
+        analyze_tracks(p,store,['top','below'],'sound',clip_ids=['a'])

@@ -2,7 +2,13 @@
 // Every change is acknowledged by the server before another move or audition.
 import * as api from "./api.js";
 import { frameToTime } from "./format.js";
-import { auditionRange, moveRequest, selectedTrackIds, timingStatus } from "./sync-review-model.js";
+import {
+  auditionRange,
+  moveRequest,
+  selectedClipIds,
+  selectedTrackIds,
+  timingStatus,
+} from "./sync-review-model.js";
 import { createTileStore } from "./tiles.js";
 import { columnsFromTiles, pickLevel, waveformColumns } from "./waveform.js";
 
@@ -43,8 +49,17 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
             body: JSON.stringify(body),
           },
     );
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error?.text ?? response.statusText);
+    // An answer that is not JSON must not reach the user as the browser's own words. (A JSON
+    // `null` is a real answer: no review is open.)
+    let result;
+    let readable = true;
+    try {
+      result = await response.json();
+    } catch {
+      readable = false;
+    }
+    if (!response.ok) throw new Error(result?.error?.text ?? response.statusText);
+    if (!readable) throw new Error(`/api/sync-review${path}: ${response.status}`);
     return result;
   };
   const text = (key, params) => t(`ui.sync_review.${key}`, params);
@@ -242,7 +257,12 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
         const x = xOf(clip.start),
           w = clip.length / scale;
         if (x + w < 185 || x > width) continue;
-        const group = svgNode("g", { "data-track": track.id }, svg);
+        const left = !takesPart(clip);
+        const group = svgNode(
+          "g",
+          { "data-track": track.id, ...(left ? { "data-left-out": "" } : {}) },
+          svg,
+        );
         const rect = svgNode(
           "rect",
           {
@@ -251,7 +271,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
             width: Math.max(1, Math.min(width, x + w) - Math.max(185, x)),
             height: 75,
             rx: 4,
-            class: clip.id === selected ? "sync-clip selected" : "sync-clip",
+            class: `${clip.id === selected ? "sync-clip selected" : "sync-clip"}${left ? " left-out" : ""}`,
             tabindex: 0,
             role: "button",
             "aria-label": `${track.name}: ${clip.name || clip.id}`,
@@ -268,6 +288,11 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
         });
         rect.addEventListener("pointerdown", (event) => {
           if (busy) return;
+          if (left) {
+            // Not part of this review: it stays where it is; a click only moves the cursor.
+            void perform(() => seek(valueAt(event)));
+            return;
+          }
           if (track.id === review.anchor) {
             void perform(() => seek(valueAt(event)));
             return;
@@ -285,7 +310,7 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
             const groups =
               scope === "track"
                 ? [...svg.querySelectorAll("g[data-track]")].filter(
-                    (g) => g.dataset.track === track.id,
+                    (g) => g.dataset.track === track.id && !("leftOut" in g.dataset),
                   )
                 : [group];
             for (const item of groups) item.setAttribute("transform", `translate(${dx},0)`);
@@ -333,6 +358,11 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
     const title = element("div", "", banner);
     element("h1", text("title"), title);
     element("p", text("intro"), title);
+    if (review.clips) {
+      const note = element("p", text("subset", { count: review.clips.length }), title);
+      note.className = "sync-review-subset";
+      button("whole_tracks", wholeTracks, title);
+    }
     button("cancel", () => close(false), banner);
     const accept = button("apply", () => close(true), banner);
     accept.className = "button primary";
@@ -479,6 +509,24 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
       controls,
     );
   }
+  // Begin a review of the selected tracks: only `clips` when some pieces were chosen, else all.
+  const begin = (clips) =>
+    request("", {
+      tracks: selectedTrackIds(getState()),
+      ...(clips ? { clips } : {}),
+    });
+  const takesPart = (clip) => !review.clips || review.clips.includes(clip.id);
+  const firstPiece = () =>
+    review.project.tracks
+      .filter((tr) => review.tracks.includes(tr.id) && tr.id !== review.anchor)
+      .flatMap((tr) => tr.clips)
+      .find(takesPart)?.id ?? null;
+  // "Whole tracks instead": start the review again without the choice of pieces.
+  async function wholeTracks() {
+    await request("/cancel", { id: review.id });
+    review = await begin(null);
+    selected = firstPiece();
+  }
   async function measure() {
     const result = await request("/measure", { id: review.id, method });
     job = result.jobs[0];
@@ -555,13 +603,9 @@ export function createSyncReview({ t, getState, refresh, notice, doc = document 
       if (review) return;
       previousFocus = doc.activeElement;
       try {
-        review =
-          (await request("")) ?? (await request("", { tracks: selectedTrackIds(getState()) }));
+        review = (await request("")) ?? (await begin(selectedClipIds(getState())));
         frame = Math.min(getState().playhead ?? 0, length() - 1);
-        selected =
-          review.project.tracks.find(
-            (tr) => review.tracks.includes(tr.id) && tr.id !== review.anchor,
-          )?.clips[0]?.id ?? null;
+        selected = firstPiece();
         root = element("section", "", doc.body);
         root.className = "sync-review";
         root.tabIndex = -1;

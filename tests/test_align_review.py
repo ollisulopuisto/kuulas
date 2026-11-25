@@ -153,3 +153,40 @@ def test_legacy_gate_preview_pcm_follows_moved_source(monkeypatch):
         np.testing.assert_allclose(engine._render(1024),new[:,5000:6024].T,atol=1e-6)
     finally:
         engine.close()
+
+
+def two_sets():
+    return Project(rate=48000, media=(Media('m','m',1,960000),), tracks=(
+        Track('a','Anchor',clips=(Clip('a1','m',0,0,48000),
+                                  Clip('a2','m',480000,480000,48000))),
+        Track('b','Guest',clips=(Clip('b1','m',48000,0,48000),
+                                Clip('b2','m',528000,480000,48000)))))
+
+
+def test_a_review_can_be_limited_to_some_pieces():
+    r = Review(two_sets(),['a','b'],['a1','b1'])
+    assert r.clip_ids == frozenset({'a1','b1'})
+    r.move('b',4800)
+    assert r.offsets == {'a1':0,'a2':0,'b1':4800,'b2':0}
+    assert [c.start for c in r.preview().tracks[1].clips] == [52800,528000]
+    assert r.view()['clips'] == ['a1','b1']
+    assert Review(two_sets(),['a','b']).view()['clips'] is None
+
+
+def test_a_piece_outside_the_choice_cannot_be_moved():
+    r = Review(two_sets(),['a','b'],['a1','b1'])
+    with pytest.raises(SyncError):
+        r.move('b',100,'b2')
+    assert r.offsets['b2'] == 0
+
+
+def test_every_track_needs_a_chosen_piece():
+    for chosen in (['a1'],['a1','zz'],[]):
+        with pytest.raises(SyncError):
+            Review(two_sets(),['a','b'],chosen)
+
+
+def test_a_suggestion_moves_only_the_chosen_pieces():
+    r = Review(two_sets(),['a','b'],['a1','b1'])
+    r.set_result({'snapshot':r.key,'tracks':[{'track':'b','status':'proposal','delta':.1}]})
+    assert r.offsets == {'a1':0,'a2':0,'b1':4800,'b2':0}

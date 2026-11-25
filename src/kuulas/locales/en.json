@@ -3743,6 +3743,8 @@
   "job.automatic_sync": "Analyzing track sync",
   "ui.sync_review.title": "Sync mode",
   "ui.sync_review.intro": "Timing preview only. Accept applies all moves in one undo step.",
+  "ui.sync_review.subset": "Only the {count} selected pieces are synced. The dimmed pieces stay where they are.",
+  "ui.sync_review.whole_tracks": "Whole tracks instead",
   "ui.sync_review.pieces": "Arrange the files on each participant track first. Track moves preserve their order and gaps.",
   "ui.sync_review.cancel": "Cancel sync",
   "ui.sync_review.apply": "Accept · one undo",
