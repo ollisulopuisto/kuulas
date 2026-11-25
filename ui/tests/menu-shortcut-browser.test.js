@@ -72,3 +72,11 @@ test("Finnish long label keeps shortcut on the first line in a shared right colu
   }
   assert.ok(Math.abs(rows[0].keyRight - rows[1].keyRight) < 1);
 });
+
+test("A one-line item keeps its label vertically centered in the row", async () => {
+  const rows = await measure("");
+  const one = rows[1];
+  const above = one.labelTop - one.rowTop;
+  const below = one.rowBottom - one.labelBottom;
+  assert.ok(Math.abs(above - below) < 2, JSON.stringify(one));
+});

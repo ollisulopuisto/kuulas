@@ -2420,6 +2420,9 @@ input[type="text"] {
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
   align-items: start;
+  /* Top-aligned columns need the row's vertical centering as padding, or a one-line
+     item sits at the top of its control-height row. */
+  padding-block: calc((var(--control-h) - 1lh) / 2);
 }
 .menu-item > span:first-child {
   min-width: 0;

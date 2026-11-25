@@ -33,6 +33,9 @@ const rows = [...document.querySelectorAll(".menu-item")].map((button) => {
     keyTop: key.top,
     keyRight: key.right,
     rowRight: button.getBoundingClientRect().right,
+    rowTop: button.getBoundingClientRect().top,
+    rowBottom: button.getBoundingClientRect().bottom,
+    labelBottom: label.bottom,
   };
 });
 document.getElementById("result").textContent = JSON.stringify(rows);
