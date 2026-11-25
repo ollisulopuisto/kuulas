@@ -2,6 +2,8 @@
 
 - **Sync mode can sync only some of the pieces.** When a session has two sets of files recorded separately (the same participants twice, so each track holds a piece from each set), they lie at different offsets from the reference and one answer for the whole track cannot be right. Select the pieces of one set (for example Olli 1, Karde 1 and Panu 1) and open Sync mode: only those pieces are measured and moved, the others are dimmed and stay where they are, and a note says how many pieces take part. "Whole tracks instead" starts the review again the old way. With no selection, or every piece selected, nothing changes. Also, a Sync mode answer that is not JSON now says which request failed instead of the browser's own text. Not tried on a real session.
 
+- **The default local transcription engine is decided in one place.** A new transcription request that names no engine (a script, an agent) uses Whisper, as before; a job file written before the engine selector existed, with no engine in it, is still run as Orukeet, as before. The two answers now live together in `kuulas/local_engines.py` and the server route, `Session.transcribe`, the agent tools and the worker all read them, with a test that fails if they drift apart. The page leaves the choice to the server when it names no engine. Nothing changes for jobs you start from the buttons.
+
 ## [v26.11.25.2] - 2026-11-25
 
 - **An unreadable server answer now says which request it was.** When the server answered with something that is not JSON, Safari showed its own text, "The string did not match the expected pattern.", with no hint of the cause. The notice now names the request and the HTTP status, so the failing call can be found (for example when Cmd+X leaves nothing on the Clipboard).
