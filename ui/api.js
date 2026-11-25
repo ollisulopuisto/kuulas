@@ -2,11 +2,15 @@
 // throws an Error whose message is the server's own text in the UI language
 // (the server picks it from Accept-Language, which the browser sends).
 
+import { t } from "./i18n.js";
+
 export class ApiError extends Error {
-  constructor(message, status, body) {
+  constructor(message, status, body, extra = {}) {
     super(message);
     this.status = status;
     this.body = body;
+    // `path` and `code` are set when the answer itself was bad (not JSON), so the notice can say which request.
+    Object.assign(this, extra);
   }
 }
 
@@ -23,7 +27,22 @@ async function request(path, options = {}) {
   return response;
 }
 
-const json = async (path, options) => (await request(path, options)).json();
+// An answer that is not JSON (an empty body, an error page) would otherwise reach the user as the
+// browser's own words, Safari's "The string did not match the expected pattern.": name the request.
+async function parsed(path, response) {
+  try {
+    return await response.json();
+  } catch {
+    throw new ApiError(
+      t("ui.error.bad_answer", { path, status: response.status }),
+      response.status,
+      null,
+      { path, code: "bad_json" },
+    );
+  }
+}
+
+const json = async (path, options) => parsed(path, await request(path, options));
 const post = (path, body) => json(path, { method: "POST", body: JSON.stringify(body) });
 
 export const getState = () => json("/api/state");

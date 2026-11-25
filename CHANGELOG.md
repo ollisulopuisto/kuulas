@@ -1,3 +1,7 @@
+## [Unreleased]
+
+- **An unreadable server answer now says which request it was.** When the server answered with something that is not JSON, Safari showed its own text, "The string did not match the expected pattern.", with no hint of the cause. The notice now names the request and the HTTP status, so the failing call can be found (for example when Cmd+X leaves nothing on the Clipboard).
+
 ## [v26.11.25.1] - 2026-11-25
 
 - On Mac, Part versions uses Shift-Command-H and mute keeps plain M. Option-Command-H and Option-Command-M are left to Hide Others and Minimize All Windows. Explicit saved key overrides and other-platform defaults are unchanged.
