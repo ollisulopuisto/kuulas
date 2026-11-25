@@ -58,7 +58,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "history.part_versions",
-    keys: { mac: "Alt+Mod+H", other: "Alt+Mod+H" },
+    keys: { mac: "Shift+Mod+H", other: "Alt+Mod+H" },
     context: "global",
     labelKey: "cmd.history.part_versions",
   },
@@ -983,7 +983,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "clip.mute",
-    keys: { mac: ["M", "Alt+Mod+M"], other: ["M", "Alt+Mod+M"] },
+    keys: { mac: ["M"], other: ["M", "Alt+Mod+M"] },
     context: "global",
     labelKey: "cmd.clip.mute",
   },
