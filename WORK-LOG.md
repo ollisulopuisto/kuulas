@@ -92,3 +92,19 @@ unchanged). CSV's warning-only record is intentionally not a music use: consumer
 count numbered records, not every post-header record. Documented this distinction.
 Full UI suite after selection-reason fix: 4,005 passed. Ruff passes; Biome
 has no errors, 24 existing warnings. Styled dialog smoke repeated successfully.
+
+## 2026-11-25: A2 Mac system shortcut defaults
+
+Branch fix/mac-system-shortcuts, based on current fork main03fb1589. Inspected
+main, open/recent PRs and all branches for duplicate shortcut work, none found.
+Approved A2: history.part_versions moves from Option-Command-H to
+Shift-Command-H; clip.mute drops only its Option-Command-M Mac alias and keeps M.
+Shared DEFAULT_KEYMAP continues to drive dispatch, hints and palette. Other
+platforms and explicit saved overrides stay unchanged. Version26.11.25.1.
+Own adversarial review RAN: traced resolveKeymap override merge, exact modifier
+matching, context collisions, command hints and native menu dispatch. No open
+findings. New default test fails on old source, passes after fix. Full UI4008
+pass, no skips; focused97 pass. Changed-file Biome and git diff checks pass.
+No Python runtime change; Python suites, hardware and native Mac routing/pixels
+not checked locally. This does not fix the separate typing-dispatch/Viewer-menu
+audit findings. No workflow changes, no merge, native CI remains required.
