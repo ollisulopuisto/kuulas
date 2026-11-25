@@ -51,6 +51,7 @@ import {
   gainGrab,
   gainLineHit,
   gainLineVisible,
+  visibleFadeSide,
 } from "./gain-drag.js";
 import { gatePixelRuns } from "./gate.js";
 import {
@@ -208,7 +209,7 @@ export function createTimeline({
   let tweakSession = null; // a gain line or fade handle being dragged
   let markerSession = null; // a marker flag being dragged along the ruler (owner, 2026-11-01)
   let markerRenameInput = null;
-  let hoverClipId = null; // the clip under the pointer: its fade handles show
+  let hoverFade = null; // only the fade grip near the pointer
   let hoverEdge = null; // the trim edge under the pointer: its handle shows (drag-handle.js)
   let altTargetClip = null; // clip targeted for direct mute with Alt held
   let lastPointerHit = null;
@@ -963,8 +964,13 @@ export function createTimeline({
       // The gain line only where it says something: not 0 dB, an envelope, or selected.
       if (row.height >= 40 && gainLineVisible(clip, selected || Object.hasOwn(clipOvers, clip.id)))
         drawGain(state, track, clip, left, right, top, row.height);
-      if (row.height >= 40 && (selected || clip.id === hoverClipId))
-        drawFadeHandles(clip, { left, right, zoom: state.zoom }, { top, y, h });
+      if (row.height >= 40)
+        drawFadeHandles(
+          clip,
+          { left, right, zoom: state.zoom },
+          { top, y, h },
+          visibleFadeSide(clip.id, hoverFade, tweakSession),
+        );
       if (hoverEdge?.clipId === clip.id)
         drawTrimHandle(hoverEdge.edge === "end" ? right : left, y, h);
       if (siblings.has(clip.id)) drawSiblingMarks(left, y, w, h);
@@ -1736,7 +1742,7 @@ export function createTimeline({
 
   // Fade handles (WP6): the grip pill at the end of each fade, with the fade's shape as a line from
   // the clip's bottom corner while a fade is set.
-  function drawFadeHandles(clip, frame, box) {
+  function drawFadeHandles(clip, frame, box, visibleSide) {
     const handles = fadeHandles(clip, frame);
     overlay.strokeStyle = theme.gain;
     overlay.lineWidth = 1;
@@ -1748,7 +1754,7 @@ export function createTimeline({
         overlay.lineTo(shape[1][0], shape[1][1]);
         overlay.stroke();
       }
-      drawGripPill(handles[side].x, box.top + handles[side].y);
+      if (side === visibleSide) drawGripPill(handles[side].x, box.top + handles[side].y);
     }
   }
 
@@ -2117,9 +2123,11 @@ export function createTimeline({
       hoverEdge = nextHoverEdge;
       requestOverlay();
     }
-    const hovered = hit.row?.kind === "track" ? (hit.clip?.id ?? null) : null;
-    if (hovered !== hoverClipId) {
-      hoverClipId = hovered;
+    const fadeZone = tweakZone(hit, event, state.selection);
+    const nextFade =
+      fadeZone?.kind === "fade" ? { clipId: hit.clip.id, edge: fadeZone.side } : null;
+    if (!sameHandle(nextFade, hoverFade)) {
+      hoverFade = nextFade;
       requestOverlay();
     }
     let cursor = hit.clip && hit.edge && hit.row?.kind === "track" ? "ew-resize" : "";
@@ -2181,8 +2189,8 @@ export function createTimeline({
       actions.hint?.("");
       requestOverlay();
     }
-    if (hoverClipId !== null && !tweakSession) {
-      hoverClipId = null;
+    if (hoverFade !== null && !tweakSession) {
+      hoverFade = null;
       requestOverlay();
     }
     if (hoverEdge !== null) {
