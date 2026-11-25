@@ -1405,11 +1405,11 @@ def test_no_engine_factory_no_live_transcript(session, recorder):
         rs.close()
 
 
-def _live_rs(session, recorder, published=None):
+def _live_rs(session, recorder, published=None, watch=True):
     return RecordSession(
         session, published if published is not None else Published(),
         connect=lambda: RecorderClient.connect(recorder.socket_path, timeout=20),
-        spawn=no_spawn, retry_s=0.1,
+        spawn=no_spawn, retry_s=0.1, watch=watch,
         live_engine_factory=lambda: (lambda audio, rate: []))
 
 
@@ -1511,11 +1511,15 @@ def test_live_start_after_the_take_ended_makes_no_runner(session, recorder):
 
 def test_live_start_keeps_the_cached_status_when_the_recheck_cannot_reach_the_recorder(
         session, recorder):
-    rs = _live_rs(session, recorder)
+    # No watcher thread: it asks the recorder for "status" too, and once that fails (as
+    # this test makes it fail) it answers with idle and replaces the cache, which is what
+    # this test says must not happen. One real status read fills the cache instead.
+    rs = _live_rs(session, recorder, watch=False)
     try:
         view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
                         track_id=None, name="Olli", at=0, live_transcription=True)
         rs._live_enabled = True
+        rs.status()
         cached = dict(rs._status)
         assert rs._recording(cached)
         assert rs._ours(cached)
@@ -1528,9 +1532,8 @@ def test_live_start_keeps_the_cached_status_when_the_recheck_cannot_reach_the_re
 
         rs._command = flaky
         rs._live_start(view)
-        # Not replaced by idle: meters keep running. The poller advances
-        # position_frames between the copy and this check, so leave it out.
-        assert {**rs._status, "position_frames": 0} == {**cached, "position_frames": 0}
+        # Not replaced by idle: meters keep running.
+        assert rs._status == cached
         assert rs._live_runner is not None  # the take is still ours: the worker starts
     finally:
         rs._command = real
