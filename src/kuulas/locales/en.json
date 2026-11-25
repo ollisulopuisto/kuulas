@@ -541,6 +541,7 @@
   "ui.focus.inspector": "Inspector",
   "ui.focus.history": "History",
   "ui.error.title": "Something went wrong",
+  "ui.error.bad_answer": "The answer to {path} could not be read (HTTP {status}). Please report this with the time it happened.",
   "ui.import.failed": "Could not import the selected audio files.",
   "ui.import.success": {
     "one": "Imported {count} audio file.",

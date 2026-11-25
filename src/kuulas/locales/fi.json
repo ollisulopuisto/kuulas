@@ -536,6 +536,7 @@
   "ui.focus.transcript": "Litteraatti",
   "ui.focus.inspector": "Tarkastin",
   "ui.focus.history": "Historia",
+  "ui.error.bad_answer": "Vastausta osoitteeseen {path} ei voitu lukea (HTTP {status}). Ilmoita tästä ja kerro, milloin se tapahtui.",
   "ui.error.title": "Jokin meni pieleen",
   "ui.import.failed": "Valittuja äänitiedostoja ei voitu tuoda.",
   "ui.import.success": {
