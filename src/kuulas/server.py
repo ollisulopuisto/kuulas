@@ -58,6 +58,7 @@ from . import (
     export,
     export_formats,
     export_names,
+    local_engines,
     local_models,
     logsetup,
     messages,
@@ -325,7 +326,7 @@ class TranscribeBody(BaseModel):
     model: str | None = None
     language: str | None = None
     backend: str = "local"
-    local_engine: str = "whisper"
+    local_engine: str = local_engines.DEFAULT
     force: bool = False  # transcribe even recordings used only on music tracks
 
 
@@ -1665,7 +1666,7 @@ def create_app(session, engine, *, language: str | None = None,
             raise BadRequestError("error.server.bad_request", detail="media_ids")
         if body.backend not in {"local", "colab"}:
             raise BadRequestError("error.server.bad_request", detail="backend")
-        if body.local_engine not in {"whisper", "orukeet"}:
+        if body.local_engine not in local_engines.ENGINES:
             raise BadRequestError("error.server.bad_request", detail="local_engine")
         if body.backend == "colab" and not colab_signin.signed_in():
             # The sign-in is interactive; a detached worker could only hang on it.

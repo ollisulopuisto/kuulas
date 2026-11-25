@@ -100,6 +100,15 @@
   stroke: var(--border);
   cursor: ew-resize;
 }
+.sync-review-lanes g[data-left-out] {
+  opacity: 0.35;
+}
+.sync-review-lanes .sync-clip.left-out {
+  cursor: default;
+}
+.sync-review-subset {
+  color: var(--text-muted);
+}
 .sync-review-lanes .sync-clip.selected {
   fill: var(--accent-subtle);
   stroke: var(--accent);

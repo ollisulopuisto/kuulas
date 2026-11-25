@@ -7,7 +7,7 @@ ranking heuristics, not confidence probabilities, and always need human review.
 from __future__ import annotations
 
 import math
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 import numpy as np
 from speechmix import grid
@@ -79,13 +79,21 @@ def gap_options(reference, candidate, ref_valid, cand_valid):
     return out
 
 
-def analyze_tracks(project, store, track_ids, method='auto'):
+def analyze_tracks(project, store, track_ids, method='auto', clip_ids=None):
+    """``clip_ids``: measure only these pieces (two sets of files recorded separately lie
+    at different offsets and cannot share one answer); None: every piece of the tracks."""
     if method not in ('auto','sound','gaps'):
         fail('method')
     tracks=[t for t in project.tracks if t.id in set(track_ids)]
     if (len(tracks)!=len(track_ids) or not 2<=len(tracks)<=32
             or any(not t.clips or len(t.clips)>64 for t in tracks)):
         fail('selection')
+    if clip_ids is not None:
+        chosen=set(clip_ids)
+        tracks=[replace(t,clips=tuple(c for c in t.clips if c.id in chosen))
+                for t in tracks]
+        if any(not t.clips for t in tracks):
+            fail('selection')
     if any(max(c.end for c in t.clips)-min(c.start for c in t.clips)
            >4*3600*project.rate for t in tracks):
         fail('limit')

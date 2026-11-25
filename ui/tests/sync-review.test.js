@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { auditionRange, moveRequest, selectedTrackIds } from "../sync-review-model.js";
+import {
+  auditionRange,
+  moveRequest,
+  selectedClipIds,
+  selectedTrackIds,
+} from "../sync-review-model.js";
 
 const project = {
   rate: 48000,
@@ -59,4 +64,24 @@ test("manual changes are not still labeled as the computed suggestion", async ()
 
 test("a single explicit track is not silently widened to every participant", () => {
   assert.deepEqual(selectedTrackIds({ project, trackSelection: new Set(["b"]) }), ["b"]);
+});
+
+test("selected pieces that leave others on the same tracks limit the review to those pieces", () => {
+  // Two sets of files on one track: sync the first set only.
+  assert.deepEqual(selectedClipIds({ project, selection: new Set(["a1", "b1"]) }), ["a1", "b1"]);
+});
+test("no piece choice when the whole tracks are chosen", () => {
+  assert.equal(selectedClipIds({ project }), null, "nothing selected");
+  assert.equal(selectedClipIds({ project, trackSelection: new Set(["a", "b"]) }), null);
+  assert.equal(
+    selectedClipIds({ project, selection: new Set(["a1", "b1", "b2"]) }),
+    null,
+    "every piece of every chosen track is selected",
+  );
+});
+test("a track chosen by its header without a selected piece keeps the whole tracks", () => {
+  assert.equal(
+    selectedClipIds({ project, trackSelection: new Set(["b"]), selection: new Set(["a1"]) }),
+    null,
+  );
 });

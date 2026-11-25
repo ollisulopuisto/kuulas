@@ -35,6 +35,7 @@ from . import (
     bgjobs,
     colab_signin,
     colab_transcribe,
+    local_engines,
     local_transcription_queue,
     local_whisper,
     transcribe,
@@ -203,9 +204,9 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
             result["engine"] = provenance
             _write_result(folder, job_id, item["id"], result, language)
         return
-    # Existing queued jobs predate the engine selector and were Orukeet jobs.
-    # New Session jobs persist the explicit local_engine value.
-    use_whisper = job.get("local_engine", "orukeet") == "whisper"
+    # A job file with no engine predates the selector (local_engines.LEGACY); new Session
+    # jobs persist the explicit local_engine value.
+    use_whisper = local_engines.of_job(job) == "whisper"
     engine = ((whisper or local_whisper.local) if use_whisper
               else (local or transcribe.local))
     model = job.get("model") or (local_whisper.DEFAULT_MODEL if use_whisper else "small")

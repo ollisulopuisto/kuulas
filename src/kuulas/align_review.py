@@ -18,12 +18,19 @@ class Review:
     A whole-track move preserves every gap. Media and clip source ranges stay intact.
     """
 
-    def __init__(self, project, track_ids):
+    def __init__(self, project, track_ids, clip_ids=None):
         wanted = set(track_ids)
         tracks = [t for t in project.tracks if t.id in wanted]
         if (len(wanted) != len(track_ids) or len(tracks) != len(wanted)
                 or not 2 <= len(tracks) <= 32
                 or any(not t.clips or len(t.clips)>64 for t in tracks)):
+            fail("selection")
+        # Only some pieces: two separately recorded sets of files on the same tracks are
+        # synced one set at a time. The other pieces stay where they are and are never
+        # measured. None: every piece of the tracks, as before.
+        self.clip_ids = None if clip_ids is None else frozenset(clip_ids)
+        if self.clip_ids is not None and any(
+                not any(c.id in self.clip_ids for c in t.clips) for t in tracks):
             fail("selection")
         self.id = uuid.uuid4().hex
         self.project = project
@@ -35,6 +42,10 @@ class Review:
         self.result = None
         self.revision = 0
 
+    def takes_part(self, clip_id):
+        """Is this piece in the review (not left out by the choice of pieces)?"""
+        return self.clip_ids is None or clip_id in self.clip_ids
+
     def check(self, project):
         if snapshot_key(project) != self.key:
             fail("stale")
@@ -45,7 +56,8 @@ class Review:
         if track_id not in self.track_ids or track_id == self.anchor:
             fail("anchor")
         track = self.project.track(track_id)
-        ids = [c.id for c in track.clips if clip_id is None or c.id == clip_id]
+        ids = [c.id for c in track.clips
+               if self.takes_part(c.id) and (clip_id is None or c.id == clip_id)]
         if not ids:
             fail("selection")
         offsets = dict(self.offsets)
@@ -94,7 +106,8 @@ class Review:
                 continue
             track = self.project.track(row["track"])
             proposal = {**self.suggestion,
-                        **{c.id: round(delta*self.project.rate) for c in track.clips}}
+                        **{c.id: round(delta*self.project.rate) for c in track.clips
+                           if self.takes_part(c.id)}}
             try:
                 self.preview(proposal)
             except SyncError:
@@ -106,6 +119,7 @@ class Review:
 
     def view(self):
         return {"id": self.id, "anchor": self.anchor, "tracks": self.track_ids,
+                "clips": None if self.clip_ids is None else sorted(self.clip_ids),
                 "revision": self.revision, "offsets": self.offsets,
                 "suggestion": self.suggestion, "result": self.result,
                 "project": self.preview().to_dict()}

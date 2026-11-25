@@ -74,3 +74,29 @@ def test_audition_uses_proposal_not_original_and_original_comparison(tmp_path):
         assert engine.preview_project==before
         client.post('/api/sync-review/cancel',json={'id':rid})
     s.close()
+
+
+def test_a_review_can_start_with_only_some_pieces(tmp_path):
+    from test_align_review import two_sets  # noqa: PLC0415
+    s=Session(tmp_path/'s.kuulas')
+    with TestClient(create_app(s,FakeEngine(s))) as client:
+        register(s.history,'m',960000)
+        s.history.commit('fixture',two_sets())
+        review=client.post('/api/sync-review',
+                           json={'tracks':['a','b'],'clips':['a1','b1']}).json()
+        assert review['clips']==['a1','b1']
+        rid=review['id']
+        moved=client.post('/api/sync-review/move',json={
+            'id':rid,'track':'b','frames':4800})
+        assert moved.json()['offsets']=={'a1':0,'a2':0,'b1':4800,'b2':0}
+        left_out=client.post('/api/sync-review/move',json={
+            'id':rid,'track':'b','frames':100,'clip':'b2'})
+        assert left_out.status_code==409
+        client.post('/api/sync-review/cancel',json={'id':rid})
+        # A track with none of the chosen pieces cannot be reviewed.
+        assert client.post('/api/sync-review',
+                           json={'tracks':['a','b'],'clips':['a1']}).status_code==409
+        # No choice of pieces: every piece, as before.
+        assert client.post('/api/sync-review',
+                           json={'tracks':['a','b']}).json()['clips'] is None
+    s.close()

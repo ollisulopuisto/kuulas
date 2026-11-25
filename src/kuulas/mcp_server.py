@@ -12,7 +12,7 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any
 
-from . import colab_signin, command_catalog, messages
+from . import colab_signin, command_catalog, local_engines, messages
 from .session import Session
 
 TOOL_NAMES = (
@@ -92,7 +92,7 @@ class AgentTools:
 
     def transcribe_media(self, media_ids: list[str], *, backend: str = "local",
                          model: str | None = None, language: str | None = None,
-                         local_engine: str = "whisper", force: bool = False,
+                         local_engine: str = local_engines.DEFAULT, force: bool = False,
                          allow_low_memory: bool = False,
                          confirm: bool = False) -> dict[str, Any]:
         self._require_write(confirm)
@@ -174,7 +174,7 @@ def create_mcp_server(session: Session, *, allow_edits: bool = False):
     @server.tool()
     def transcribe_media(media_ids: list[str], backend: str = "local",
                          model: str | None = None, language: str | None = None,
-                         local_engine: str = "whisper", force: bool = False,
+                         local_engine: str = local_engines.DEFAULT, force: bool = False,
                          allow_low_memory: bool = False,
                          confirm: bool = False) -> dict[str, Any]:
         """Start local Whisper/Orukeet or Colab transcription; returns job ids."""

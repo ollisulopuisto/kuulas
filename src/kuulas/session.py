@@ -57,6 +57,7 @@ from . import (
     edit_scope,
     export_names,
     import_plan,
+    local_engines,
     local_memory,
     material,
     material_search,
@@ -3315,7 +3316,7 @@ class Session(SyncSession):
     def transcribe(self, media_ids: list[str], model: str | None = None,
                    language: str | None = None, backend: str = "local",
                    force: bool = False, allow_low_memory: bool = False,
-                   local_engine: str = "whisper") -> list[str]:
+                   local_engine: str = local_engines.DEFAULT) -> list[str]:
         """Start one background transcription job (local Whisper or Orukeet; or Colab).
         The job is a file in the
         project and a separate worker process (``kuulas.transcribe_worker``) that
@@ -3327,7 +3328,7 @@ class Session(SyncSession):
         Returns the job id in a list."""
         if backend not in {"local", "colab"}:
             raise ops.EditError("error.server.bad_request", detail="backend")
-        if local_engine not in {"whisper", "orukeet"}:
+        if local_engine not in local_engines.ENGINES:
             raise ops.EditError("error.server.bad_request", detail="local_engine")
         if backend == "local" and not allow_low_memory and not local_memory.eligible():
             key = ("error.whisper.memory" if local_engine == "whisper"

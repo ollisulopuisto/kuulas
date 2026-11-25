@@ -9,6 +9,8 @@ from .messages import error_body
 
 class Begin(BaseModel):
     tracks: list[str]
+    # Only these pieces take part (two sets of files, one set at a time).
+    clips: list[str] | None = None
 
 
 class Identity(BaseModel):
@@ -42,7 +44,7 @@ def install(app, session, engine):
     def begin(body: Begin):
         engine.stop()
         engine.clear_listen_source()
-        return session.sync_begin(body.tracks)
+        return session.sync_begin(body.tracks, body.clips)
 
     @app.get('/api/sync-review')
     def current():
