@@ -263,6 +263,22 @@ def test_default_command_uses_the_public_tool_without_a_sibling_checkout(tmp_pat
         "colab-transcribe"]
 
 
+def test_stored_default_command_upgrades_the_quiet_probe_revision(tmp_path):
+    old = [
+        "uvx", "--python", "3.13",
+        "--from",
+        "git+https://github.com/ollisulopuisto/podcast@1bdf95dc1478ecbf8ea8dd6267b82524890e57ba#subdirectory=colab-transcribe",
+        "colab-transcribe",
+    ]
+    got = ct.resolve_settings({"command": old})["command"]
+    expected = list(old)
+    expected[expected.index("--from") + 1] = (
+        "git+https://github.com/ollisulopuisto/podcast@d4b284e8257bebbea00aecbd13e69c81ee0ebc38"
+        "#subdirectory=colab-transcribe"
+    )
+    assert got == expected
+
+
 def test_stored_default_command_upgrades_the_previous_pin(tmp_path):
     """A stored command naming the c3e1e8a pin is upgraded to the current
     _REMOTE_SOURCE when read back (the pin moved for the quiet/probe fixes)."""
