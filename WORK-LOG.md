@@ -1,5 +1,19 @@
 # Work log
 
+## 2026-11-26: Bolt: one serialization for a commit and its state answer
+
+Branch `bolt/kuulas-20261126-state-dict-memo`. Every edit serialized the project twice:
+once in `History.commit` (`edit_dict` for the state blob) and once in the `/api/state`
+answer right after (`project.to_dict()`). `_insert` and the coalesce path now serialize
+once and leave the dict in a `(head node, data version)` cache; `History.state_dict()`
+serves it and recomputes when the head moves or another connection writes. Measured on a
+synthetic 2,800-clip project: commit+answer serialization 26.7 ms -> 17.9 ms (-33%).
+Red-green: two failing-first tests (memo reuse, cross-connection invalidation), then the
+change. Focused suites: test_history 27, history growth/page/scale 19, server+session 189,
+all pass; ruff clean. Full sharded suite, Mac runtime and UI checks not run (no UI change;
+sandbox lacks PortAudio). The cached dict is shared and documented must-not-change, like
+the timeline_words memo; its only consumer is the JSON state answer.
+
 ## 2026-11-21: WP25 report audibility
 
 Branch `fix/music-report-audibility`. Initial patch had no UI or playback change. Seven initial

@@ -38,6 +38,36 @@ def test_every_edit_survives_a_crash(tmp_path):
     assert gain(again) == -1.0
 
 
+def test_state_dict_matches_the_state_and_tracks_writes(tmp_path):
+    h = History(tmp_path / "p.kuulas")
+    first = h.state_dict()
+    assert first == h.state.to_dict()
+    assert h.state_dict() is first  # memoized, not serialized again
+    edit(h, -1.0)
+    second = h.state_dict()
+    assert second is not first
+    assert second == h.state.to_dict()
+    # A coalesced edit replaces the head node in place; the dict must follow.
+    edit(h, -2.0, key="drag")
+    edit(h, -3.0, key="drag")
+    assert h.state_dict() == h.state.to_dict()
+    # Undo moves the head: no commit-time dict, so it recomputes, correctly.
+    h.undo()
+    h.undo()
+    assert h.state_dict() == h.state.to_dict()
+
+
+def test_state_dict_recomputes_after_another_connection_writes(tmp_path):
+    h = History(tmp_path / "p.kuulas")
+    edit(h, -1.0)
+    assert h.state_dict() == h.state.to_dict()
+    other = sqlite3.connect(tmp_path / "p.kuulas")
+    other.execute("update meta set value=? where key='project_rate'", ("48000",))
+    other.commit()
+    other.close()
+    assert h.state_dict() == h.state.to_dict()
+
+
 def test_undo_then_new_edit_keeps_the_abandoned_branch(tmp_path):
     h = History(tmp_path / "p.kuulas")
     edit(h, -1.0)
