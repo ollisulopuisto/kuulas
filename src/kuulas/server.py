@@ -693,7 +693,7 @@ def create_app(session, engine, *, language: str | None = None,
         with session.lock:
             h = session.history
             project = session.state
-            out = {"project": project.to_dict(), "head": h.head,
+            out = {"project": session.state_dict(), "head": h.head,
                    "can_undo": h.can_undo, "can_redo": h.can_redo,
                    "automatic_sync": session.sync_applied_status(),
                    "missing": session.store.missing(),

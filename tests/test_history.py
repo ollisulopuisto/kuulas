@@ -38,6 +38,36 @@ def test_every_edit_survives_a_crash(tmp_path):
     assert gain(again) == -1.0
 
 
+def test_state_dict_matches_the_state_and_tracks_writes(tmp_path):
+    h = History(tmp_path / "p.kuulas")
+    first = h.state_dict()
+    assert first == h.state.to_dict()
+    assert h.state_dict() is first  # memoized, not serialized again
+    edit(h, -1.0)
+    second = h.state_dict()
+    assert second is not first
+    assert second == h.state.to_dict()
+    # A coalesced edit replaces the head node in place; the dict must follow.
+    edit(h, -2.0, key="drag")
+    edit(h, -3.0, key="drag")
+    assert h.state_dict() == h.state.to_dict()
+    # Undo moves the head: no commit-time dict, so it recomputes, correctly.
+    h.undo()
+    h.undo()
+    assert h.state_dict() == h.state.to_dict()
+
+
+def test_state_dict_recomputes_after_another_connection_writes(tmp_path):
+    h = History(tmp_path / "p.kuulas")
+    edit(h, -1.0)
+    assert h.state_dict() == h.state.to_dict()
+    other = sqlite3.connect(tmp_path / "p.kuulas")
+    other.execute("update meta set value=? where key='project_rate'", ("48000",))
+    other.commit()
+    other.close()
+    assert h.state_dict() == h.state.to_dict()
+
+
 def test_undo_then_new_edit_keeps_the_abandoned_branch(tmp_path):
     h = History(tmp_path / "p.kuulas")
     edit(h, -1.0)
@@ -412,3 +442,22 @@ def test_decoded_states_are_bounded_by_the_budget(tmp_path):
         h.undo()
     assert gain(h) == 0.0
     assert budget.used <= 1
+
+
+def test_state_dict_follows_a_material_step(tmp_path):
+    # FIND-kuulas-285-1: a material-only step commits the old composed state,
+    # so the commit-time dict must not be served as the new composed state.
+    h = History(tmp_path / "p.kuulas")
+    h.db.execute(
+        "insert into media(id, sha256, name, storage, channels, source_rate,"
+        " source_frames, lossless, added_utc)"
+        " values ('m1', 's1', 'a.wav', 'x', 1, ?, 48000, 1, 't')", (h.rate,))
+    h.db.commit()
+    edit(h, -1.0)
+    assert h.state_dict() == h.state.to_dict()
+    root = h.material
+    root["people"]["p1"] = {"name": "X"}
+    root["media_person"]["m1"] = "p1"
+    h.set_material("person", root)
+    assert h.state.to_dict()["media"][0]["person"] == "p1"
+    assert h.state_dict() == h.state.to_dict()

@@ -476,6 +476,12 @@ class Session(SyncSession):
         with self.lock:
             return self.history.state
 
+    def state_dict(self) -> dict:
+        """``state.to_dict()``, memoized by the history (see History.state_dict).
+        The dict is shared and must not be changed."""
+        with self.lock:
+            return self.history.state_dict()
+
     def _scoped(self, name: str, args: dict) -> tuple[dict, dict]:
         """``(args for the op, args to record)``. WP83: an edit touches what it
         names, plus the members of the clips' explicit groups; sync partners are
