@@ -11,6 +11,7 @@ import {
   gainGrab,
   gainLineHit,
   gainLineVisible,
+  visibleFadeSide,
 } from "../gain-drag.js";
 import { dbToY } from "../lanes.js";
 
@@ -117,5 +118,17 @@ describe("fade handles", () => {
     assert.deepEqual(c.args, { clip_id: "c", fade_out: 123 });
     assert.equal(c.coalesce, "clip-fade_out-c");
     assert.equal(c.labelKey, "ui.clipdrag.fade_out");
+  });
+});
+
+describe("fade handle visibility", () => {
+  test("selection and clip-body hover do not expose handles", () => {
+    assert.equal(visibleFadeSide("c", null, null), null);
+    assert.equal(visibleFadeSide("c", { clipId: "other", edge: "in" }, null), null);
+  });
+  test("only the nearby side shows, and an active fade stays visible during capture", () => {
+    assert.equal(visibleFadeSide("c", { clipId: "c", edge: "out" }, null), "out");
+    assert.equal(visibleFadeSide("c", null, { kind: "fade", clipId: "c", side: "in" }), "in");
+    assert.equal(visibleFadeSide("c", null, { kind: "gain", clipId: "c" }), null);
   });
 });

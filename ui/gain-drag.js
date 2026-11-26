@@ -194,3 +194,9 @@ export function fadeChange(clipId, side, frames) {
     labelKey: `ui.clipdrag.fade_${side}`,
   };
 }
+
+/** A single nearby fade grip, or the captured fade while it is being dragged. */
+export function visibleFadeSide(clipId, hover, session) {
+  if (session?.kind === "fade" && session.clipId === clipId) return session.side;
+  return hover?.clipId === clipId ? hover.edge : null;
+}
