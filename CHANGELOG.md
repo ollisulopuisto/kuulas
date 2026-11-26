@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [v26.11.26.1] - 2026-11-26
+
 - **A flaky recorder test no longer fails at random.** `test_live_start_keeps_the_cached_status_when_the_recheck_cannot_reach_the_recorder` ran with the record session's watcher thread, which also asks the recorder for its status and, when the test made that fail, replaced the cache with idle: the very thing the test says must not happen. The test now runs without the watcher and reads the status once itself. It still fails if `_live_start` replaces the cached status (checked by breaking the code on purpose). No change to the app.
 
 - **Sync mode can sync only some of the pieces.** When a session has two sets of files recorded separately (the same participants twice, so each track holds a piece from each set), they lie at different offsets from the reference and one answer for the whole track cannot be right. Select the pieces of one set (for example Olli 1, Karde 1 and Panu 1) and open Sync mode: only those pieces are measured and moved, the others are dimmed and stay where they are, and a note says how many pieces take part. "Whole tracks instead" starts the review again the old way. With no selection, or every piece selected, nothing changes. Also, a Sync mode answer that is not JSON now says which request failed instead of the browser's own text. Not tried on a real session.
