@@ -471,6 +471,10 @@ class History:
                 self.db.execute("update edits set head=? where id=?", (new, self.edit))
                 self.head = new
                 self._moved(old, [], [], new)
+                if changes_material:
+                    # The caller's state holds the old material (media person,
+                    # timing, tags); the composed state will differ.
+                    self._state_dict_cache = None
         self._coalesce = coalesce
         self._edit_state = replace(state, media=(), sync_groups=())
         self._remember(self.edit_hash, self._edit_state)
